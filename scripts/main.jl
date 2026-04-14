@@ -1,0 +1,3 @@
+using BimDiff
+
+BimDiff.greet()
