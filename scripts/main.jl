@@ -1,3 +1,4 @@
 using BimDiff
 
-BimDiff.greet()
+greet()
+display(laplace_slp)
