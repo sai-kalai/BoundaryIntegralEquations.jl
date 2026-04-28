@@ -1,4 +1,7 @@
+
+
+
 using BimDiff
 
 greet()
-display(laplace_slp)
+display(compute_laplace_slp_matrix)
