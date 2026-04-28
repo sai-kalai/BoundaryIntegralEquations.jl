@@ -4,11 +4,15 @@ include("finite_differences.jl")
 
 include("operators.jl")
 using .Operators
-export fdcoeffs,
+export
+    fdcoeffs,
     LaplaceSLP,
     compute_laplace_slp_matrix,
     compute_laplace_slp_matrix_normal_derivative,
-    compute_laplace_slp_matrix_and_normal_derivative
+    compute_laplace_slp_matrix_and_normal_derivative,
+    compute_laplace_dlp_matrix_normal_derivative
+
+
 
 include("manifolds.jl")
 using .Manifolds

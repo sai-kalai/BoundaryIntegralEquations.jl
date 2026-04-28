@@ -81,7 +81,7 @@ function Manifold(n_points::Int, rho::Function)
     theta = (0:n_points-1) * 2pi / n_points
 
 
-    x = stack(rho, theta)' # TODO: check this
+    x = stack(rho, theta)' # TODO: check this #BUG: actually performance sink
     v = periodic_spectral_diff(x)
     a = periodic_spectral_diff(v)
 

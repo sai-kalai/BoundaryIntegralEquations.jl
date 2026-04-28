@@ -39,11 +39,9 @@ function ball(r, n)
 end
 
 
-display(typeof(ρ))
-display(ρ)
-m = Manifold(100, ρ)
-
-
+# display(typeof(ρ))
+# display(ρ)
+# m = Manifold(100, ρ)
 # fig, ax = visualize(m)
 
 
@@ -172,6 +170,11 @@ for n ∈ n_vals
 
 
     # direct approach
+
+    At = compute_laplace_dlp_matrix_normal_derivative(Γ.x, Γ.n)
+    display("At")
+    display(At)
+
 
 
 

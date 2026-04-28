@@ -10,34 +10,40 @@ import .Kernels
 using .Manifolds
 
 
-export LaplaceSLP, compute_laplace_slp_matrix, compute_laplace_slp_matrix_and_normal_derivative, compute_laplace_slp_matrix_normal_derivative
+export
+    LaplaceSLP,
+    compute_laplace_slp_matrix,
+    compute_laplace_slp_matrix_and_normal_derivative,
+    compute_laplace_slp_matrix_normal_derivative,
+    compute_laplace_dlp_matrix_normal_derivative
+
 
 
 abstract type Operator end
 
-
-# TODO: explore static vectors for performance
-
-struct LaplaceSLP <: Operator
-    target::Any # target is m x 2 # these are the points of interest
-    source::Manifold # source.x is n x 2 # this is the manifold
-    matrix::Any # resulting operator is mxn matrix.
-
-    #   operate on nx1 vectors of quantities located at the manifold to obtain
-    #   mx1 vectors of quantities located at the points of interest
-end
-
-struct LaplaceSlpDn
-
-end
-
-struct LaplaceDLP <: Operator
-    target::Any,
-    source::Manifold,
-    matrix::Any
-end
-
-struct LaplaceDlpDn end
+#
+# # TODO: explore static vectors for performance
+#
+# struct LaplaceSLP <: Operator
+#     target::Any # target is m x 2 # these are the points of interest
+#     source::Manifold # source.x is n x 2 # this is the manifold
+#     matrix::Any # resulting operator is mxn matrix.
+#
+#     #   operate on nx1 vectors of quantities located at the manifold to obtain
+#     #   mx1 vectors of quantities located at the points of interest
+# end
+#
+# struct LaplaceSlpDn
+#
+# end
+#
+# struct LaplaceDLP <: Operator
+#     target::Any,
+#     source::Manifold,
+#     matrix::Any
+# end
+#
+# struct LaplaceDlpDn end
 
 
 
@@ -47,87 +53,16 @@ function LaplaceSLP(
     source::Manifold, # source manifold e.g. domain boundary
 )
 
-    matrix = compute_laplace_slp_matrix(target, source.x, source.w)
+    matrix = compute_laplace_slp_matrix(target, source.x)
 
     return LaplaceSLP(target, source, matrix)
 
 end
 
-function compute_laplace_slp_matrix_and_normal_derivative(
-    x, # target points, i.e. where to evaluate the function obtained by applying the operator
-    y, # source points, i.e. where the integration variable moves when computing the operator
-    nx,# outwards unitary normal vectors at the source
-)::Tuple{Matrix,Matrix}
-    return _compute_laplace_slp_matrix_and_normal_derivative(x, y, nx)
-end
-
-
-function compute_laplace_slp_matrix_normal_derivative(
-    x,
-    y,
-    nx,
-)
-
-    return _compute_laplace_slp_matrix_normal_derivative(x, y, nx)
-
-end
-
-# TODO: weights are a property of the manifolds where integration occurrs
 
 function compute_laplace_slp_matrix(
-    x::AbstractMatrix{T}, # target (points where value is needed, anywhere)
-    y::AbstractMatrix{T}, # source (integration variable around manifold)
-    w::Union{T,AbstractVector{T}}
-)::AbstractMatrix{T} where {T<:Real}
-
-    # TODO: maybe this check is expensive. should client be allowed to call with two same argument?
-    @assert x != y, "for self interaction, use method that takes one argument"
-    return _compute_laplace_slp_matrix(x, y, w)
-end
-
-
-# self interaction: zero-out diagonal
-function compute_laplace_slp_matrix(
-    x::AbstractMatrix{T},
-    w::Union{T,AbstractVector{T}}
-)::AbstractMatrix{T} where {T<:Real}
-    # how to avoid computing diagonal?
-    A = _compute_laplace_slp_matrix(x, x, w)
-    A[diagind(A)] .= 0. # zero diagonal
-    return A
-end
-
-
-# NOTE: naming repetition could be replaced by namespacing
-function compute_laplace_dlp_matrix(x, y, ny)
-
-    @assert x != y, "call method with one argument for self interaction"
-
-    return _compute_laplace_dlp_matrix(x, y, ny)
-
-end
-
-function compute_laplace_dlp_matrix_normal_derivative(x, y, nx, ny)
-
-    @assert x != y, "call method with one argument for self interaction"
-
-    return _compute_laplace_dlp_matrix_normal_derivative(x, y, nx, ny)
-
-end
-
-function compute_laplace_dlp_matrix_and_normal_derivative(x, y, nx, ny)
-
-    @assert x != y, "call method with one argument for self interaction"
-
-    return _compute_laplace_dlp_matrix_and_normal_derivative(x, y, nx, ny)
-
-end
-
-
-function _compute_laplace_slp_matrix(
     x, # list of x points (targets)
     y, # list of y points (source, integration variable)
-    w,#::AbstractVector{T}
 )
 
     # kernel is symmetric, so source/target distinction is not meaningful??
@@ -149,10 +84,36 @@ function _compute_laplace_slp_matrix(
     return A
 end
 
-function _compute_laplace_slp_matrix_normal_derivative(
-    x, # points of interest
-    y, # domain boundary manifold
-    nx, # unitary normal vectors at the y points
+# self interaction
+function compute_laplace_slp_matrix(
+    x, # list of x points (targets), matrix
+)
+
+    m, dim_x = size(x)
+
+    A = zeros(Float64, m, m)
+
+
+    @inbounds for i in 1:m
+        # TODO: this branching might be problematic for GPUs
+        A[i, i] = 0.
+        for j in i:i-1
+            val = Kernels.laplace_slp(
+                view(x, i, :),
+                view(x, j, :)
+            )
+            A[i, j] = val
+            A[j, i] = val
+        end
+    end
+    return A
+end
+
+
+function compute_laplace_slp_matrix_normal_derivative(
+    x::AbstractMatrix, # points of interest
+    y::AbstractMatrix, # domain boundary manifold
+    nx::AbstractMatrix, # unitary normal vectors at the y points
 )
 
     m, dim_x = size(x)
@@ -172,10 +133,40 @@ function _compute_laplace_slp_matrix_normal_derivative(
     return dA_dn
 end
 
-function _compute_laplace_slp_matrix_and_normal_derivative(
-    x,
-    y,
-    nx,
+# self interaction
+function compute_laplace_slp_matrix_normal_derivative(
+    x::AbstractMatrix, # points of interest
+    nx::AbstractMatrix, # unitary normal vectors at the y points
+    curvatures::AbstractVector, # curvature at x
+)
+
+    m, dim_x = size(x)
+
+    # TODO: assert shapes
+
+    dA_dn = zeros(Float64, m, m)
+
+    @inbounds for i in 1:m
+
+        dA_dn[i, i] = -0.5 * curvatures[i]
+
+        for j in 1:i-1
+            val = Kernels.laplace_slp_dn(
+                view(x, i, :),
+                view(x, j, :),
+                view(nx, i, :)
+            )
+            dA_dn[i, j] = val
+            dA_dn[j, i] = val
+        end
+    end
+    return dA_dn
+end
+
+function compute_laplace_slp_matrix_and_normal_derivative(
+    x::AbstractMatrix, # points of interest
+    y::AbstractMatrix, # domain boundary manifold
+    nx::AbstractMatrix, # unitary normal vectors at the y points
 )
     m, dim_x = size(x)
     n, dim_y = size(y)
@@ -184,8 +175,6 @@ function _compute_laplace_slp_matrix_and_normal_derivative(
 
     A = zeros(Float64, m, n)
     dA_dn = zeros(Float64, m, n)
-
-
 
     # TODO: @views macro broken somehow
     @inbounds for i in 1:m, j in 1:n
@@ -200,8 +189,53 @@ function _compute_laplace_slp_matrix_and_normal_derivative(
 
 end
 
+# self interaction
+function compute_laplace_slp_matrix_and_normal_derivative(
+    x::AbstractMatrix, # points of interest
+    nx::AbstractMatrix, # unitary normal vectors at the y points
+    curvatures::AbstractVector, # curvature at x
+)
+    m, dim_x = size(x)
 
-function _compute_laplace_dlp_matrix(x, y, ny)
+    # TODO: assert shapes
+
+    A = zeros(Float64, m, m)
+    dA_dn = zeros(Float64, m, m)
+
+    # TODO: @views macro broken somehow
+    @inbounds for i in 1:m
+
+        A[i, i] = 0.
+        dA_dn[i, i] = -0.5 * curvatures[i]
+
+
+        # TODO: inbounds macro here?
+        for j in 1:i-1
+
+            slp, slp_dn = Kernels.laplace_slp_and_dn(
+                view(x, i, :),
+                view(x, j, :),
+                view(nx, i, :)
+            )
+
+            A[i, j] = slp
+            A[j, i] = slp
+            dA_dn[i, j] = slp_dn
+            dA_dn[j, i] = slp_dn
+
+        end
+    end
+
+    return A, dA_dn
+
+end
+
+
+function compute_laplace_dlp_matrix(
+    x::AbstractMatrix,
+    y::AbstractMatrix,
+    ny::AbstractMatrix, # unitary normals at source
+)
     m, dim_x = size(x)
     n, dim_y = size(y)
 
@@ -214,38 +248,121 @@ function _compute_laplace_dlp_matrix(x, y, ny)
             view(ny, j, :)
         )
     end
-
     return A
-
 end
 
-function _compute_laplace_dlp_matrix_normal_derivative(x, y, nx, ny)
+# self interaction
+function compute_laplace_dlp_matrix(
+    x::AbstractMatrix,
+    nx::AbstractMatrix, # unitary normals at source
+    curvatures::AbstractVector
+)
 
+    m, dim_x = size(x)
+
+    D = zeros(Float64, m, m)
+
+    @inbounds for i in 1:m
+
+        D[i, i] = -0.5 * curvatures[i]
+
+        for j in 1:i-1
+            val = Kernels.laplace_dlp(
+                view(x, i, :),
+                view(x, j, :),
+                view(nx, j, :) # index with j although it's the same
+            )
+            D[i, j] = val
+            D[j, i] = val
+        end
+    end
+    return D
+end
+
+
+
+
+function compute_laplace_dlp_matrix_normal_derivative(
+    x::AbstractMatrix,
+    y::AbstractMatrix,
+    nx::AbstractMatrix,
+    ny::AbstractMatrix,
+)
     m, dim_x = size(x)
     n, dim_y = size(y)
 
+    display("x")
+    display(x)
+    display("y")
+    display(y)
+    display("nx")
+    display(nx)
+    display("ny")
+    display(ny)
 
-    dA_dn = zeros(Float64, m, n)
+    dD_dn = zeros(Float64, m, n)
 
     @inbounds for i in 1:m, j in 1:n
-        dA_dn[i, j] = Kernels.laplace_dlp_dn(
+        dD_dn[i, j] = Kernels.laplace_dlp_dn(
             view(x, i, :),
             view(y, j, :),
             view(nx, i, :),
             view(ny, j, :),
         )
     end
-    return dA_dn
+    return dD_dn
 
 end
 
-function _compute_laplace_dlp_matrix_and_normal_derivative(x, y, nx, ny)
+# self interaction using Sidi's / Richarson's method
+function compute_laplace_dlp_matrix_normal_derivative(
+    x::AbstractMatrix,
+    nx::AbstractMatrix,
+)
+
+    m, dim_x = size(x)
+    @assert iseven(m) "when using Sidi's correction the number of points must be even, but is $m"
+
+
+    dD_dn = compute_laplace_dlp_matrix_normal_derivative(x, x, nx, nx)
+
+    display("dD_dn")
+    display(dD_dn .* 2pi)
+
+    dD_dn[1:2:end, 1:2:end] .= 0.
+    dD_dn[2:2:end, 2:2:end] .= 0.
+
+    dD_dn *= 2 # twice the weights for staggered grid
+
+
+
+    return dD_dn
+
+end
+
+# self interaction using FD correction
+function compute_laplace_dlp_matrix_normal_derivative(
+    x::AbstractMatrix,
+    nx::AbstractMatrix,
+    order::Int, # accuracy order
+)
+    native_matrix = compute_laplace_dlp_matrix_normal_derivative(x, nx, x, nx)
+
+
+
+end
+
+function compute_laplace_dlp_matrix_and_normal_derivative(
+    x::AbstractMatrix,
+    y,
+    nx,
+    ny,
+)
 
     m, dim_x = size(x)
     n, dim_y = size(y)
 
 
-    # TODO: maybe undef is better for initialization
     A = zeros(Float64, m, n)
     dA_dn = zeros(Float64, m, n)
 
@@ -265,6 +382,34 @@ function _compute_laplace_dlp_matrix_and_normal_derivative(x, y, nx, ny)
 
 end
 
+# self interaction
+function compute_laplace_dlp_matrix_and_normal_derivative(
+    x::AbstractMatrix,
+    nx::AbstractMatrix,
+)
+
+    m, dim_x = size(x)
+    n, dim_y = size(y)
+
+
+    A = zeros(Float64, m, n)
+    dA_dn = zeros(Float64, m, n)
+
+    # TODO: @views macro broken somehow
+    @inbounds for i in 1:m, j in 1:n
+        A[i, j], dA_dn[i, j] = Kernels.laplace_dlp_and_dn(
+            view(x, i, :),
+            view(y, j, :),
+            view(nx, i, :),
+            view(ny, j, :),
+        )
+    end
+
+    return A, dA_dn
+
+
+
+end
 
 end
 
