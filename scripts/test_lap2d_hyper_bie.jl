@@ -172,8 +172,6 @@ for n ∈ n_vals
     # direct approach
 
     At = compute_laplace_dlp_matrix_normal_derivative(Γ.x, Γ.n)
-    display("At")
-    display(At)
 
 
 

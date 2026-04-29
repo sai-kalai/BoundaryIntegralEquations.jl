@@ -310,6 +310,9 @@ function compute_laplace_dlp_matrix_normal_derivative(
             view(ny, j, :),
         )
     end
+
+    display(dD_dn)
+
     return dD_dn
 
 end
@@ -326,8 +329,7 @@ function compute_laplace_dlp_matrix_normal_derivative(
 
     dD_dn = compute_laplace_dlp_matrix_normal_derivative(x, x, nx, nx)
 
-    display("dD_dn")
-    display(dD_dn .* 2pi)
+
 
     dD_dn[1:2:end, 1:2:end] .= 0.
     dD_dn[2:2:end, 2:2:end] .= 0.
@@ -347,6 +349,7 @@ function compute_laplace_dlp_matrix_normal_derivative(
     order::Int, # accuracy order
 )
     native_matrix = compute_laplace_dlp_matrix_normal_derivative(x, nx, x, nx)
+
 
 
 
