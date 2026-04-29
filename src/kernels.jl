@@ -60,8 +60,7 @@ end
 # + n_x ⋅ n_y / |x - y|^2
 #  )
 function laplace_dlp_dn(x, y, nx, ny)
-    r_norm_sq = 0. # |x - y|^2
-
+    r_norm_sq = _r_norm_sq(x, y) # |x - y|^2
     r_dot_nx = _r_dot_b(x, y, nx) # (x - y) ⋅ n_x
     r_dot_ny = _r_dot_b(x, y, ny) # (x - y) ⋅ n_y
     nx_dot_ny = _a_dot_b(nx, ny) # n_x ⋅ n_y
