@@ -10,7 +10,7 @@ using LinearAlgebra
 function laplace_slp(x, y)
     # TODO: should i inline these too?
 
-    r_norm_sq = _r_norm_sq(x, y)
+    r_norm_sq = _a_norm_sq(x, y)
 
     return _laplace_slp(r_norm_sq)
 end
@@ -20,9 +20,9 @@ end
 # ∇_x k_SLP(x, y) · n_x = ∂k_SLP(x, y)/∂n_x = -1/2pi (x - y) ⋅ n_x / |x - y|^2
 function laplace_slp_dn(x, y, nx)
 
-    # TODO: problem: r gets materialized twice...
-    r_norm_sq = _r_norm_sq(x, y) # |x - y|^2
-    r_dot_nx = _r_dot_b(x, y, nx) # (x - y) ⋅ n_x
+    r1, r2 = x[1] - y[1], x[2] - y[2]
+    r_norm_sq = _a_dot_a(r1, r2) # |x - y|^2
+    r_dot_nx = _a_dot_b(r1, r2, nx[1], nx[2]) # (x - y) ⋅ n_x
 
 
     return _laplace_slp_dn(r_dot_nx, r_norm_sq)
@@ -31,9 +31,10 @@ end
 
 # sometimes both quantities are needed at the same time, reuse intermediate computation
 function laplace_slp_and_dn(x, y, nx)
+    r1, r2 = x[1] - y[1], x[2] - y[2]
 
-    r_norm_sq = _r_norm_sq(x, y) # |x - y|^2
-    r_dot_nx = _r_dot_b(x, y, nx) # (x - y) ⋅ n_x
+    r_norm_sq = _a_dot_a(r1, r2) # |x - y|^2
+    r_dot_nx = _a_dot_b(r1, r2, nx[1], nx[2]) # (x - y) ⋅ n_x
 
     return _laplace_slp(r_norm_sq), _laplace_slp_dn(r_dot_nx, r_norm_sq)
 
@@ -47,9 +48,10 @@ function laplace_dlp(
     y, # source points i.e. manifold/curve
     ny # unitary normals at curve
 )
+    r1, r2 = x[1] - y[1], x[2] - y[2]
 
-    r_norm_sq = _r_norm_sq(x, y) # |x - y|^2
-    r_dot_ny = _r_dot_b(x, y, ny) # (x - y) ⋅ n_y
+    r_norm_sq = _a_dot_a(r1, r2) # |x - y|^2
+    r_dot_ny = _a_dot_b(r1, r2, ny[1], ny[2]) # (x - y) ⋅ n_y
 
     return _laplace_dlp(r_dot_ny, r_norm_sq)
 
@@ -60,10 +62,12 @@ end
 # + n_x ⋅ n_y / |x - y|^2
 #  )
 function laplace_dlp_dn(x, y, nx, ny)
-    r_norm_sq = _r_norm_sq(x, y) # |x - y|^2
-    r_dot_nx = _r_dot_b(x, y, nx) # (x - y) ⋅ n_x
-    r_dot_ny = _r_dot_b(x, y, ny) # (x - y) ⋅ n_y
-    nx_dot_ny = _a_dot_b(nx, ny) # n_x ⋅ n_y
+    r1, r2 = x[1] - y[1], x[2] - y[2]
+
+    r_norm_sq = _a_dot_a(r1, r2) # |x - y|^2
+    r_dot_nx = _a_dot_b(r1, r2, nx[1], nx[2]) # (x - y) ⋅ n_x
+    r_dot_ny = _a_dot_b(r1, r2, ny[1], ny[2]) # (x - y) ⋅ n_y
+    nx_dot_ny = _a_dot_b(nx[1], nx[2], ny[1], ny[2]) # n_x ⋅ n_y
 
     return _laplace_dlp_dn(r_dot_nx, r_dot_ny, r_norm_sq, nx_dot_ny)
 end
@@ -72,12 +76,13 @@ end
 
 # compute both kernels
 function laplace_dlp_and_dn(x, y, nx, ny)
+    r1, r2 = x[1] - y[1], x[2] - y[2]
 
-    r_norm_sq = _r_norm_sq(x, y) # |x - y|^2
+    r_norm_sq = _a_dot_a(r1, r2) # |x - y|^2
 
-    r_dot_nx = _r_dot_b(x, y, nx) # (x - y) ⋅ n_x
-    r_dot_ny = _r_dot_b(x, y, ny) # (x - y) ⋅ n_y
-    nx_dot_ny = _a_dot_b(nx, ny)  # n_x ⋅ n_y
+    r_dot_nx = _a_dot_b(r1, r2, nx[1], nx[2]) # (x - y) ⋅ n_x
+    r_dot_ny = _a_dot_b(r1, r2, ny[1], ny[2]) # (x - y) ⋅ n_y
+    nx_dot_ny = _a_dot_b(nx[1], nx[2], ny[1], ny[2])  # n_x ⋅ n_y
 
     return _laplace_dlp(r_dot_nx, r_norm_sq), _laplace_dlp_dn(r_dot_nx, r_dot_ny, r_norm_sq, nx_dot_ny)
 
@@ -108,24 +113,15 @@ end
     )
 end
 
-# Loop unrolling for linear algebra operations
-@inline function _a_dot_b(a, b)
-    return a[1] * b[1] + a[2] * b[2]
+# Loop unrolling for linear algebra operations in 2D
+@inline function _a_dot_b(a1, a2, b1, b2)
+    return a1 * b1 + a2 * b2
+end
+@inline function _a_dot_a(a1, a2)
+    return a1 * a1 + a2 * a2
 end
 
-@inline function _r_norm_sq(x, y)
-    # in any case allocating here, however cheap?
-    r1 = x[1] - y[1]
-    r2 = x[2] - y[2]
 
-    return r1 * r1 + r2 * r2
-end
-
-@inline function _r_dot_b(x, y, b)
-    r1 = x[1] - y[1]
-    r2 = x[2] - y[2]
-    return r1 * b[1] + r2 * b[2]
-end
 
 end
 
