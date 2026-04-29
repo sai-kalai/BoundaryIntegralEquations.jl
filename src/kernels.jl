@@ -1,8 +1,5 @@
 module Kernels
 
-using LinearAlgebra
-
-
 # TODO: how can this be made efficient over pairwise lists of vectors?
 
 # laplace single layer potential (SLP) kernel
@@ -10,7 +7,8 @@ using LinearAlgebra
 function laplace_slp(x, y)
     # TODO: should i inline these too?
 
-    r_norm_sq = _a_norm_sq(x, y)
+    r1, r2 = x[1] - y[1], x[2] - y[2]
+    r_norm_sq = _a_dot_a(r1, r2)
 
     return _laplace_slp(r_norm_sq)
 end
@@ -20,6 +18,7 @@ end
 # ∇_x k_SLP(x, y) · n_x = ∂k_SLP(x, y)/∂n_x = -1/2pi (x - y) ⋅ n_x / |x - y|^2
 function laplace_slp_dn(x, y, nx)
 
+    # TODO: still allocating two scalars all over the place...
     r1, r2 = x[1] - y[1], x[2] - y[2]
     r_norm_sq = _a_dot_a(r1, r2) # |x - y|^2
     r_dot_nx = _a_dot_b(r1, r2, nx[1], nx[2]) # (x - y) ⋅ n_x

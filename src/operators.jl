@@ -291,14 +291,6 @@ function compute_laplace_dlp_matrix_normal_derivative(
     m, dim_x = size(x)
     n, dim_y = size(y)
 
-    display("x")
-    display(x)
-    display("y")
-    display(y)
-    display("nx")
-    display(nx)
-    display("ny")
-    display(ny)
 
     dD_dn = zeros(Float64, m, n)
 
@@ -324,21 +316,37 @@ function compute_laplace_dlp_matrix_normal_derivative(
 )
 
     m, dim_x = size(x)
-    @assert iseven(m) "when using Sidi's correction the number of points must be even, but is $m"
+
+    dD_dn = zeros(Float64, m, m)
+
+    @inbounds for i in 1:m
+
+        # or leave diagonal empty and let quadrature client handle diagonal
+        # dD_dn[i, i] = -pi/4 # NOTE: weights and dirichlet need to be multiplied to diagonal for computing the quadrature
+
+        for j in (mod(i, 2)+1):2:i-1
+
+            @show i, j
+
+            # twice weights for staggered grid
+            val = 2 * Kernels.laplace_dlp_dn(
+                view(x, i, :),
+                view(x, j, :),
+                view(nx, i, :),
+                view(nx, j, :),
+            )
+            dD_dn[i, j] = val
+            dD_dn[j, i] = val
+
+        end
 
 
-    dD_dn = compute_laplace_dlp_matrix_normal_derivative(x, x, nx, nx)
-
-
-
-    dD_dn[1:2:end, 1:2:end] .= 0.
-    dD_dn[2:2:end, 2:2:end] .= 0.
-
-    dD_dn *= 2 # twice the weights for staggered grid
-
-
+    end
 
     return dD_dn
+
+
+
 
 end
 

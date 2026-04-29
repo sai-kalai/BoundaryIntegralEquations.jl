@@ -171,11 +171,21 @@ for n ∈ n_vals
 
     # direct approach
 
-    At = compute_laplace_dlp_matrix_normal_derivative(Γ.x, Γ.n)
+    # hypersingular operator
+    H = compute_laplace_dlp_matrix_normal_derivative(Γ.x, Γ.n)
 
+    # apply quadrature weights columnwise
+    H_σ_x = H .* Γ.w' # transpose seems hacky
+    # divide diagonal
+    H_σ_x[diagind(H_σ_x)] .= -pi/4 ./ Γ.w
 
+    display("H")
+    display(H_σ_x)
 
-
+    # apply operator to dirichlet bc
+    H_σ_x *= σ
+    display("H[σ](x)")
+    display(H_σ_x)
 
 
     exit()
