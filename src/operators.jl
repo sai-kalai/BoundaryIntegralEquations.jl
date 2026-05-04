@@ -6,6 +6,7 @@ using LinearAlgebra
 
 include("manifolds.jl")
 include("kernels.jl")
+include("finite_differences.jl")
 import .Kernels
 using .Manifolds
 
@@ -391,11 +392,46 @@ end
 function compute_laplace_dlp_matrix_normal_derivative(
     x::AbstractMatrix,
     nx::AbstractMatrix,
+    curvatures::AbstractVector,
+    weights::AbstractVector,
     order::Int, # accuracy order
 )
-    native_matrix = compute_laplace_dlp_matrix_normal_derivative(x, nx, x, nx)
+
+    m, dim_x = size(x)
+
+    dD_dn = zeros(Float64, m, m)
+
+    @inbounds for i in 1:m
+
+        dD_dn[i, i] = -pi / 6 / weights[i] + curvatures[i]^2 * weights[i] / 4pi
+
+        k = floor((order - 2) / 2)
+
+        stencil = fdcoeffs(2, k)
+        @show stencil
+
+
+        for j in i:i-1
+            val = 2 * Kernels.laplace_dlp_dn(
+                view(x, i, :),
+                view(x, j, :),
+                view(nx, i, :),
+                view(nx, j, :),
+            )
+            # WARN: this one turns out to be symmetric for some reason...?
+            dD_dn[i, j] = val
+            dD_dn[j, i] = val
+
+        end
+
+
+    end
+
+    return dD_dn
+
 
 end
+
 
 # NOTE: below code might not be needed, it is wip in anyway
 function compute_laplace_dlp_matrix_and_normal_derivative(

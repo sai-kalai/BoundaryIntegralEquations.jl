@@ -1,6 +1,5 @@
 
 
-
 function fdcoeffs(derivative_order::Int, accuracy_order::Int)::Vector{<:Real}
 
     if derivative_order == 1

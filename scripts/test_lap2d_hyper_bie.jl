@@ -174,22 +174,21 @@ for n ∈ n_vals
     S = compute_laplace_slp_matrix(x_test, Γ.x) .* Γ.w'
     D = compute_laplace_dlp_matrix(x_test, Γ.x, Γ.n) .* Γ.w'
 
+    D_star = compute_laplace_slp_matrix_normal_derivative(Γ.x, Γ.n, vec(Γ.k))
+    D_star .*= Γ.w' # apply quadrature weights
+    A = -0.5 * I(n) + D_star
+
 
     # direct approach
 
     # hypersingular operator using zeta quad (TODO:)
-    H = compute_laplace_dlp_matrix_normal_derivative(Γ.x, Γ.n)
-    # apply quadrature weights columnwise
-    H = H .* Γ.w' # transpose seems hacky
-    # divide diagonal
-    H[diagind(H)] .= -pi / 4 ./ Γ.w
-    display("H")
-    display(H)
-
-
-    D_star = compute_laplace_slp_matrix_normal_derivative(Γ.x, Γ.n, vec(Γ.k))
-    D_star .*= Γ.w' # apply quadrature weights
-    A = -0.5 * I(n) + D_star
+    H = compute_laplace_dlp_matrix_normal_derivative(
+        Γ.x,
+        Γ.n,
+        Γ.k,
+        Γ.w,
+        ord
+    )
 
     τ = A \ (H * σ)
 
