@@ -147,20 +147,20 @@ for n ∈ n_vals
 
     # compute boundary conditions from manufactured solution
     # special case: using manifold as target and using manifold normals as source to compute the manufactured solution data
-    S, dS_dN = compute_laplace_slp_matrix_and_normal_derivative(
+    S_source, dS_dN_source = compute_laplace_slp_matrix_and_normal_derivative(
         Γ.x, # locations to evaluate derivative
         x_source, # integration variable
         Γ.n # normals at the locations
     )
 
-    display("S")
-    display(S)
+    display("S_source")
+    display(S_source)
 
-    display("dS_dN")
-    display(dS_dN)
+    display("dS_dN_source")
+    display(dS_dN_source)
 
-    σ = S * density_source # Dirichlet BC
-    τ = dS_dN * density_source # Neumann BC
+    σ = S_source * density_source # Dirichlet BC
+    τ = dS_dN_source * density_source # Neumann BC
 
     display("σ")
     display(σ)
@@ -169,23 +169,47 @@ for n ∈ n_vals
     display(τ)
 
 
+
+    # operators with quadrature weights applied
+    S = compute_laplace_slp_matrix(x_test, Γ.x) .* Γ.w'
+    D = compute_laplace_dlp_matrix(x_test, Γ.x, Γ.n) .* Γ.w'
+
+
     # direct approach
 
-    # hypersingular operator
+    # hypersingular operator using zeta quad (TODO:)
     H = compute_laplace_dlp_matrix_normal_derivative(Γ.x, Γ.n)
-
     # apply quadrature weights columnwise
-    H_σ_x = H .* Γ.w' # transpose seems hacky
+    H = H .* Γ.w' # transpose seems hacky
     # divide diagonal
-    H_σ_x[diagind(H_σ_x)] .= -pi/4 ./ Γ.w
-
+    H[diagind(H)] .= -pi / 4 ./ Γ.w
     display("H")
-    display(H_σ_x)
+    display(H)
 
-    # apply operator to dirichlet bc
-    H_σ_x *= σ
-    display("H[σ](x)")
-    display(H_σ_x)
+
+    D_star = compute_laplace_slp_matrix_normal_derivative(Γ.x, Γ.n, vec(Γ.k))
+    D_star .*= Γ.w' # apply quadrature weights
+    A = -0.5 * I(n) + D_star
+
+    τ = A \ (H * σ)
+
+    u = S * τ - D * σ
+    display("u_zeta")
+    display(u)
+
+
+    # hypersingular operator using Sidi's staggered grid (DONE)
+    H_sidi = compute_laplace_dlp_matrix_normal_derivative(Γ.x, Γ.n)
+    H_sidi = H_sidi .* Γ.w' # transpose seems hacky
+    # divide diagonal
+    H_sidi[diagind(H_sidi)] .= -pi / 4 ./ Γ.w
+    display("H")
+    display(H)
+    # apply quadrature weights and integrate function σ
+    τ_sidi = A \ (H_sidi * σ)
+    u_sidi = S * τ_sidi - D * σ
+    display("u_sidi")
+    display(u_sidi)
 
 
     exit()

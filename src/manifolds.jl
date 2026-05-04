@@ -65,7 +65,7 @@ function Manifold(x, v, a)
     # normal is rotated tangential
     n = hcat(t[:, 2], -t[:, 1])
 
-    k = sum(a .* n, dims=2) ./ s .^ 2
+    k = -sum(a .* n, dims=2) ./ s .^ 2
 
     w = 2pi / N .* s .* ones(N)
 

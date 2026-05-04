@@ -15,7 +15,8 @@ export
     compute_laplace_slp_matrix,
     compute_laplace_slp_matrix_and_normal_derivative,
     compute_laplace_slp_matrix_normal_derivative,
-    compute_laplace_dlp_matrix_normal_derivative
+    compute_laplace_dlp_matrix_normal_derivative,
+    compute_laplace_dlp_matrix
 
 
 
@@ -74,7 +75,6 @@ function compute_laplace_slp_matrix(
 
     A = zeros(Float64, m, n)
 
-
     @inbounds for i in 1:m, j in 1:n
         A[i, j] = Kernels.laplace_slp(
             view(x, i, :),
@@ -123,6 +123,7 @@ function compute_laplace_slp_matrix_normal_derivative(
 
     dA_dn = zeros(Float64, m, n)
 
+
     @inbounds for i in 1:m, j in 1:n
         dA_dn[i, j] = Kernels.laplace_slp_dn(
             view(x, i, :),
@@ -142,13 +143,13 @@ function compute_laplace_slp_matrix_normal_derivative(
 
     m, dim_x = size(x)
 
-    # TODO: assert shapes
-
     dA_dn = zeros(Float64, m, m)
 
     @inbounds for i in 1:m
 
-        dA_dn[i, i] = -0.5 * curvatures[i]
+        # diagonal limit
+        # -1/2 * curvature * 1/2pi
+        dA_dn[i, i] = -0.25 / pi * curvatures[i]
 
         for j in 1:i-1
             val = Kernels.laplace_slp_dn(
@@ -157,9 +158,20 @@ function compute_laplace_slp_matrix_normal_derivative(
                 view(nx, i, :)
             )
             dA_dn[i, j] = val
-            dA_dn[j, i] = val
         end
+
+        for j in i+1:m
+            val = Kernels.laplace_slp_dn(
+                view(x, i, :),
+                view(x, j, :),
+                view(nx, i, :)
+            )
+            dA_dn[i, j] = val
+        end
+
     end
+
+
     return dA_dn
 end
 
@@ -176,6 +188,8 @@ function compute_laplace_slp_matrix_and_normal_derivative(
     A = zeros(Float64, m, n)
     dA_dn = zeros(Float64, m, n)
 
+    # zero
+
     # TODO: @views macro broken somehow
     @inbounds for i in 1:m, j in 1:n
         A[i, j], dA_dn[i, j] = Kernels.laplace_slp_and_dn(
@@ -184,6 +198,9 @@ function compute_laplace_slp_matrix_and_normal_derivative(
             view(nx, i, :)
         )
     end
+
+    # TODO profileview.jl
+    # benchmarktools.jl
 
     return A, dA_dn
 
@@ -202,14 +219,11 @@ function compute_laplace_slp_matrix_and_normal_derivative(
     A = zeros(Float64, m, m)
     dA_dn = zeros(Float64, m, m)
 
-    # TODO: @views macro broken somehow
     @inbounds for i in 1:m
 
         A[i, i] = 0.
         dA_dn[i, i] = -0.5 * curvatures[i]
 
-
-        # TODO: inbounds macro here?
         for j in 1:i-1
 
             slp, slp_dn = Kernels.laplace_slp_and_dn(
@@ -220,9 +234,17 @@ function compute_laplace_slp_matrix_and_normal_derivative(
 
             A[i, j] = slp
             A[j, i] = slp
-            dA_dn[i, j] = slp_dn
-            dA_dn[j, i] = slp_dn
 
+            dA_dn[i, j] = slp_dn
+
+        end
+        # NOTE: normal derivative isn't symmetric
+        for j in i+1:m
+            dA_dn[i, j] = Kernels.laplace_slp_dn(
+                view(x, i, :),
+                view(x, j, :),
+                view(nx, i, :)
+            )
         end
     end
 
@@ -252,6 +274,7 @@ function compute_laplace_dlp_matrix(
 end
 
 # self interaction
+# NOTE: not symmetric
 function compute_laplace_dlp_matrix(
     x::AbstractMatrix,
     nx::AbstractMatrix, # unitary normals at source
@@ -264,15 +287,22 @@ function compute_laplace_dlp_matrix(
 
     @inbounds for i in 1:m
 
-        D[i, i] = -0.5 * curvatures[i]
+        D[i, i] = -0.25 / pi * curvatures[i]
 
         for j in 1:i-1
             val = Kernels.laplace_dlp(
                 view(x, i, :),
                 view(x, j, :),
-                view(nx, j, :) # index with j although it's the same
+                view(nx, j, :) # index with j
             )
             D[i, j] = val
+        end
+        for j in 1:i-1
+            val = Kernels.laplace_dlp(
+                view(x, i, :),
+                view(x, j, :),
+                view(nx, j, :)
+            )
             D[j, i] = val
         end
     end
@@ -282,6 +312,17 @@ end
 
 
 
+"""
+    compute_laplace_dlp_matrix_normal_derivative(x::AbstractMatrix, y::AbstractMatrix, nx::AbstractMatrix, ny::AbstractMatrix)
+
+a.k.a laplace hypersingular operator
+
+# Arguments
+- `x::AbstractMatrix`: [TODO:description]
+- `y::AbstractMatrix`: [TODO:description]
+- `nx::AbstractMatrix`: [TODO:description]
+- `ny::AbstractMatrix`: [TODO:description]
+"""
 function compute_laplace_dlp_matrix_normal_derivative(
     x::AbstractMatrix,
     y::AbstractMatrix,
@@ -290,7 +331,6 @@ function compute_laplace_dlp_matrix_normal_derivative(
 )
     m, dim_x = size(x)
     n, dim_y = size(y)
-
 
     dD_dn = zeros(Float64, m, n)
 
@@ -302,8 +342,6 @@ function compute_laplace_dlp_matrix_normal_derivative(
             view(ny, j, :),
         )
     end
-
-    display(dD_dn)
 
     return dD_dn
 
@@ -326,8 +364,6 @@ function compute_laplace_dlp_matrix_normal_derivative(
 
         for j in (mod(i, 2)+1):2:i-1
 
-            @show i, j
-
             # twice weights for staggered grid
             val = 2 * Kernels.laplace_dlp_dn(
                 view(x, i, :),
@@ -335,6 +371,7 @@ function compute_laplace_dlp_matrix_normal_derivative(
                 view(nx, i, :),
                 view(nx, j, :),
             )
+            # WARN: this one turns out to be symmetric for some reason...?
             dD_dn[i, j] = val
             dD_dn[j, i] = val
 
@@ -358,11 +395,9 @@ function compute_laplace_dlp_matrix_normal_derivative(
 )
     native_matrix = compute_laplace_dlp_matrix_normal_derivative(x, nx, x, nx)
 
-
-
-
 end
 
+# NOTE: below code might not be needed, it is wip in anyway
 function compute_laplace_dlp_matrix_and_normal_derivative(
     x::AbstractMatrix,
     y,
