@@ -401,35 +401,47 @@ function compute_laplace_dlp_matrix_normal_derivative(
 
     dD_dn = zeros(Float64, m, m)
 
-    @inbounds for i in 1:m
+    # hypersingular correction
+    dD_dn[diagind(dD_dn)] .= -π / 6 ./ weights .+ (curvatures .^ 2) .* weights ./ (4π)
 
-        dD_dn[i, i] = -pi / 6 / weights[i] + curvatures[i]^2 * weights[i] / 4pi
+    # constant term correction
+    k = floor(Int, (order - 2) / 2)
+    cd = fdcoeffs2(k)
 
-        k = floor((order - 2) / 2)
+    N = size(dD_dn, 1)
 
-        stencil = fdcoeffs(2, k)
-        @show stencil
+    # index grids
+    ind1 = repeat(collect(1:N), 1, 2k + 1)
+    ind2 = mod.(collect(0:N-1) .+ (-k:k)', N) .+ 1
 
+    ind = LinearIndices((N, N))[CartesianIndex.(ind1, ind2)]
 
-        for j in i:i-1
-            val = 2 * Kernels.laplace_dlp_dn(
-                view(x, i, :),
-                view(x, j, :),
-                view(nx, i, :),
-                view(nx, j, :),
-            )
-            # WARN: this one turns out to be symmetric for some reason...?
-            dD_dn[i, j] = val
-            dD_dn[j, i] = val
+    @show ind1, ind2
 
-        end
+    # distances
+    r2 = norm.(x .- x[ind2]) .^ 2
+    rpt = weights .* (-k:k)'
 
+    D = (r2 .- rpt .^ 2) ./ rpt .^ 2
+    D[:, k+1] .= 0.0
 
-    end
+    # --- REAL dot product version ---
+    # compute n_i ⋅ n_j
+    # if s.nx is N×2:
+    dot_nn = sum(nx .* nx[ind2, :], dims=2)
 
+    C = (1 .- D .+ D .^ 2) .*
+        dot_nn .*
+        weights[ind2] ./ (weights .^ 2)
+
+    # reorder stencil
+    cd_reordered = vcat(reverse(cd[2:end]), cd)
+
+    dD_dn[ind] .+= (cd_reordered ./ (4π)) .* C
+
+    display("zeta")
+    display(dD_dn)
     return dD_dn
-
-
 end
 
 

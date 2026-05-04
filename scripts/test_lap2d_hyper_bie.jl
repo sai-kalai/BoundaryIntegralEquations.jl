@@ -185,7 +185,7 @@ for n ∈ n_vals
     H = compute_laplace_dlp_matrix_normal_derivative(
         Γ.x,
         Γ.n,
-        Γ.k,
+        vec(Γ.k),
         Γ.w,
         ord
     )
