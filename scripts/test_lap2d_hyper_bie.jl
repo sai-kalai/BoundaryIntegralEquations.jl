@@ -20,7 +20,7 @@ using Random
 
 Random.seed!(42)
 
-ord = 32;       # pick desired convergence order of singular quad
+ord = 7;       # pick desired convergence order of singular quad
 
 # set up source geometry (starfish domain)
 R = 1 # wobble center

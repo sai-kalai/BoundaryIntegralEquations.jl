@@ -377,13 +377,9 @@ function compute_laplace_dlp_matrix_normal_derivative(
             dD_dn[j, i] = val
 
         end
-
-
     end
 
     return dD_dn
-
-
 
 
 end
@@ -401,46 +397,59 @@ function compute_laplace_dlp_matrix_normal_derivative(
 
     dD_dn = zeros(Float64, m, m)
 
-    # hypersingular correction
-    dD_dn[diagind(dD_dn)] .= -π / 6 ./ weights .+ (curvatures .^ 2) .* weights ./ (4π)
+    # FD stencil for second derivative
+    k = (order - 2) ÷ 2
+    stencil = fdcoeffs(2, k)
 
-    # constant term correction
-    k = floor(Int, (order - 2) / 2)
-    cd = fdcoeffs2(k)
+    stencil = [stencil[end:-1:2]; stencil] # TODO: make this prettier
+    println(stencil)
 
-    N = size(dD_dn, 1)
+    # `x` in the paper, i.e. for each point in the manifold, each row in the matrix
+    @inbounds for i in 1:m
 
-    # index grids
-    ind1 = repeat(collect(1:N), 1, 2k + 1)
-    ind2 = mod.(collect(0:N-1) .+ (-k:k)', N) .+ 1
+        dD_dn[i, i] = -π / 6 / weights[i] + curvatures[i]^2 * weights[i] / 4π
 
-    ind = LinearIndices((N, N))[CartesianIndex.(ind1, ind2)]
 
-    @show ind1, ind2
 
-    # distances
-    r2 = norm.(x .- x[ind2]) .^ 2
-    rpt = weights .* (-k:k)'
+        # first sum: compute for other points  in the manifold the dlp normal derivative
+        for j in 1:i-1
+            k = Kernels.laplace_dlp_dn(
+                view(x, i, :),
+                view(x, j, :),
+                view(nx, i, :),
+                view(nx, j, :),
+            )
 
-    D = (r2 .- rpt .^ 2) ./ rpt .^ 2
-    D[:, k+1] .= 0.0
+            # this way asymmetric weighting can be applied
+            dD_dn[i, j] = k * weights[j]
+            dD_dn[j, i] = k * weights[i]
 
-    # --- REAL dot product version ---
-    # compute n_i ⋅ n_j
-    # if s.nx is N×2:
-    dot_nn = sum(nx .* nx[ind2, :], dims=2)
+        end
 
-    C = (1 .- D .+ D .^ 2) .*
-        dot_nn .*
-        weights[ind2] ./ (weights .^ 2)
+        # apply banded correction
+        for j in i-k:i+k
 
-    # reorder stencil
-    cd_reordered = vcat(reverse(cd[2:end]), cd)
+            # BUG: out of bounds j gets garbage memory
+            @show i, j, x[i, :], x[j, :]
 
-    dD_dn[ind] .+= (cd_reordered ./ (4π)) .* C
+            r_norm_sq = norm(x[i, :] - x[j, :])^2
+            r_prime_0_x = weights[i] * j
+
+
+            # B(j) = (r(j) ^ 2 - |ρ'(i) * j| ^ 2) / |ρ'(i) * j| ^ 2
+            B = (r_norm_sq - r_prime_0_x^2) / r_prime_0_x^2
+            # g(j) = n(i) ⋅ n(j) |ρ'(j)|/(2π |ρ'(i)|) * (1 - B + B^2)
+            g = dot(nx[i, :], nx[j, :]) * weights[j] / (2pi * weights[i]) * (1 - B + B^2)
+
+            dD_dn[i, j] += stencil[j] * g
+        end
+
+
+    end
 
     display("zeta")
     display(dD_dn)
+
     return dD_dn
 end
 
