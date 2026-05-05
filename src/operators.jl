@@ -402,7 +402,6 @@ function compute_laplace_dlp_matrix_normal_derivative(
     stencil = fdcoeffs(2, k)
 
     stencil = [stencil[end:-1:2]; stencil] # TODO: make this prettier
-    println(stencil)
 
     # `x` in the paper, i.e. for each point in the manifold, each row in the matrix
     @inbounds for i in 1:m
@@ -410,10 +409,9 @@ function compute_laplace_dlp_matrix_normal_derivative(
         dD_dn[i, i] = -π / 6 / weights[i] + curvatures[i]^2 * weights[i] / 4π
 
 
-
         # first sum: compute for other points  in the manifold the dlp normal derivative
         for j in 1:i-1
-            k = Kernels.laplace_dlp_dn(
+            ker = Kernels.laplace_dlp_dn(
                 view(x, i, :),
                 view(x, j, :),
                 view(nx, i, :),
@@ -421,27 +419,41 @@ function compute_laplace_dlp_matrix_normal_derivative(
             )
 
             # this way asymmetric weighting can be applied
-            dD_dn[i, j] = k * weights[j]
-            dD_dn[j, i] = k * weights[i]
+            dD_dn[i, j] = ker * weights[j]
+            dD_dn[j, i] = ker * weights[i]
 
         end
 
         # apply banded correction
-        for j in i-k:i+k
+        for dj in -k:k
 
-            # BUG: out of bounds j gets garbage memory
-            @show i, j, x[i, :], x[j, :]
+            j = mod1(i + dj, m)
 
             r_norm_sq = norm(x[i, :] - x[j, :])^2
-            r_prime_0_x = weights[i] * j
+            r_prime_0_x = weights[i] * dj
 
+            # NOTE: B and g are (sometimes) symmetric
+            # ah, but it's because of periodicity of the domain.
 
             # B(j) = (r(j) ^ 2 - |ρ'(i) * j| ^ 2) / |ρ'(i) * j| ^ 2
             B = (r_norm_sq - r_prime_0_x^2) / r_prime_0_x^2
-            # g(j) = n(i) ⋅ n(j) |ρ'(j)|/(2π |ρ'(i)|) * (1 - B + B^2)
-            g = dot(nx[i, :], nx[j, :]) * weights[j] / (2pi * weights[i]) * (1 - B + B^2)
 
-            dD_dn[i, j] += stencil[j] * g
+            # TODO: remove branch
+            if i == j
+                B = 0.
+            end
+
+            # g(j) = n(i) ⋅ n(j) |ρ'(j)|/(2π |ρ'(i)|) * (1 - B + B^2)
+            g = dot(nx[i, :], nx[j, :]) * weights[j] / (weights[i]^2) * (1 - B + B^2)
+
+            @show "before"
+            @show i, j, dD_dn[i, j]
+
+            dD_dn[i, j] += stencil[dj+k+1] * g / 4π
+            @show "after"
+            @show i, j, dD_dn[i, j]
+
+
         end
 
 
