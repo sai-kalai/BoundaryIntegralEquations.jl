@@ -1,7 +1,6 @@
 module Operators
 
 
-using Distances
 using LinearAlgebra
 
 include("manifolds.jl")
@@ -85,9 +84,12 @@ function compute_laplace_slp_matrix(
     return A
 end
 
+
 # self interaction
 function compute_laplace_slp_matrix(
     x, # list of x points (targets), matrix
+    weights,
+
 )
 
     m, dim_x = size(x)
@@ -96,8 +98,7 @@ function compute_laplace_slp_matrix(
 
 
     @inbounds for i in 1:m
-        # TODO: this branching might be problematic for GPUs
-        A[i, i] = 0.
+        A[i, i] = -log(weights[i])
         for j in i:i-1
             val = Kernels.laplace_slp(
                 view(x, i, :),
@@ -404,7 +405,7 @@ function compute_laplace_dlp_matrix_normal_derivative(
     stencil = [stencil[end:-1:2]; stencil] # TODO: make this prettier
 
     # `x` in the paper, i.e. for each point in the manifold, each row in the matrix
-    @inbounds for i in 1:m
+    @inbounds for i in m:-1:1
 
         dD_dn[i, i] = -π / 6 / weights[i] + curvatures[i]^2 * weights[i] / 4π
 
@@ -419,6 +420,7 @@ function compute_laplace_dlp_matrix_normal_derivative(
             )
 
             # this way asymmetric weighting can be applied
+            # NOTE: adding instead of assigning to not overwrite the second loop. looping i in reverse could also work so that here assignment could be made. what is easier to reason about??
             dD_dn[i, j] = ker * weights[j]
             dD_dn[j, i] = ker * weights[i]
 
@@ -432,9 +434,6 @@ function compute_laplace_dlp_matrix_normal_derivative(
             r_norm_sq = norm(x[i, :] - x[j, :])^2
             r_prime_0_x = weights[i] * dj
 
-            # NOTE: B and g are (sometimes) symmetric
-            # ah, but it's because of periodicity of the domain.
-
             # B(j) = (r(j) ^ 2 - |ρ'(i) * j| ^ 2) / |ρ'(i) * j| ^ 2
             B = (r_norm_sq - r_prime_0_x^2) / r_prime_0_x^2
 
@@ -446,21 +445,14 @@ function compute_laplace_dlp_matrix_normal_derivative(
             # g(j) = n(i) ⋅ n(j) |ρ'(j)|/(2π |ρ'(i)|) * (1 - B + B^2)
             g = dot(nx[i, :], nx[j, :]) * weights[j] / (weights[i]^2) * (1 - B + B^2)
 
-            @show "before"
-            @show i, j, dD_dn[i, j]
 
             dD_dn[i, j] += stencil[dj+k+1] * g / 4π
-            @show "after"
-            @show i, j, dD_dn[i, j]
-
 
         end
 
 
     end
 
-    display("zeta")
-    display(dD_dn)
 
     return dD_dn
 end

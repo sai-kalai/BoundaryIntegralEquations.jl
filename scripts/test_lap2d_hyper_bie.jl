@@ -129,45 +129,36 @@ u_exact_reference = [ # computed with octave
 
 # wait(display(fig))
 
+println("Printing max-norm errors")
 println("Dirichlet problem")
+println("Interior")
 
 n_vals = 20:20:400
 
-for n ∈ n_vals
+err_u = zeros(Float64, size(n_vals, 1))
+err_τ = zeros(Float64, size(n_vals, 1))
 
-    display(n)
+err_u_sidi = zeros(Float64, size(n_vals, 1))
+err_τ_sidi = zeros(Float64, size(n_vals, 1))
+
+for (i, n) ∈ enumerate(n_vals)
 
     Γ = Manifold(n, ρ) # boundary of the domain
 
     # fig = visualize(Γ)
     # wait(display(fig))
 
-    display("density_source")
-    display(density_source)
 
     # compute boundary conditions from manufactured solution
     # special case: using manifold as target and using manifold normals as source to compute the manufactured solution data
-    S_source, dS_dN_source = compute_laplace_slp_matrix_and_normal_derivative(
+    S_source, dS_dn_source = compute_laplace_slp_matrix_and_normal_derivative(
         Γ.x, # locations to evaluate derivative
         x_source, # integration variable
         Γ.n # normals at the locations
     )
 
-    display("S_source")
-    display(S_source)
-
-    display("dS_dN_source")
-    display(dS_dN_source)
-
     σ = S_source * density_source # Dirichlet BC
-    τ = dS_dN_source * density_source # Neumann BC
-
-    display("σ")
-    display(σ)
-
-    display("τ")
-    display(τ)
-
+    τ_exact = dS_dn_source * density_source # Neumann BC exact solution
 
 
     # operators with quadrature weights applied
@@ -181,7 +172,7 @@ for n ∈ n_vals
 
     # direct approach
 
-    # hypersingular operator using zeta quad (TODO:)
+    # hypersingular operator using zeta quadrature
     H = compute_laplace_dlp_matrix_normal_derivative(
         Γ.x,
         Γ.n,
@@ -191,26 +182,27 @@ for n ∈ n_vals
     )
 
     τ = A \ (H * σ)
-
     u = S * τ - D * σ
-    display("u_zeta")
-    display(u)
 
 
-    # hypersingular operator using Sidi's staggered grid (DONE)
+    # hypersingular operator using Sidi's staggered grid
     H_sidi = compute_laplace_dlp_matrix_normal_derivative(Γ.x, Γ.n)
     H_sidi = H_sidi .* Γ.w' # transpose seems hacky
     # divide diagonal
     H_sidi[diagind(H_sidi)] .= -pi / 4 ./ Γ.w
-    display("H")
-    display(H)
     # apply quadrature weights and integrate function σ
     τ_sidi = A \ (H_sidi * σ)
     u_sidi = S * τ_sidi - D * σ
-    display("u_sidi")
-    display(u_sidi)
 
+    err_u[i] = norm(u_exact - u, Inf)
+    err_u_sidi[i] = norm(u_exact - u_sidi, Inf)
+    err_τ[i] = norm(τ_exact - τ, Inf)
+    err_τ_sidi[i] = norm(τ_exact - τ_sidi, Inf)
 
-    exit()
+    println("N=$n\tu(zeta)=$(err_u[i])\tu(sidi)=$(err_u_sidi[i])\tτ(zeta)=$(err_τ[i])\tτ(sidi)=$(err_τ_sidi[i])")
+
+    # Neumann problem
 
 end
+
+
