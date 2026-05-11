@@ -85,28 +85,34 @@ function compute_laplace_slp_matrix(
 end
 
 
-# self interaction
+# self interaction using zeta quadrature
 function compute_laplace_slp_matrix(
-    x, # list of x points (targets), matrix
-    weights,
-
+    x::AbstractMatrix, # list of x points (targets), matrix
+    weights::AbstractVector, # list of weights
+    order::Int, # quadrature accuracy order
 )
 
     m, dim_x = size(x)
 
     A = zeros(Float64, m, m)
 
+    k = clamp((ord - 1) ÷ 2, 0, (N - 1) ÷ 2)
+    stencil = kapur_rokhlin_sep_log(K + 1)
+
+    @show weights
 
     @inbounds for i in 1:m
+
+        #diagonal term
         A[i, i] = -log(weights[i])
-        for j in i:i-1
-            val = Kernels.laplace_slp(
-                view(x, i, :),
-                view(x, j, :)
-            )
-            A[i, j] = val
-            A[j, i] = val
-        end
+            for j in i:i-1
+                val = Kernels.laplace_slp(
+                    view(x, i, :),
+                    view(x, j, :)
+                )
+                A[i, j] = val
+                A[j, i] = val
+            end
     end
     return A
 end
