@@ -127,7 +127,6 @@ function main()
     # wait(display(fig))
 
     println("Printing max-norm errors")
-    println("Dirichlet problem")
     println("Interior")
 
     n_vals = 20:20:400
@@ -137,6 +136,9 @@ function main()
 
     err_u_sidi = zeros(Float64, size(n_vals, 1))
     err_τ_sidi = zeros(Float64, size(n_vals, 1))
+
+    err_neumann_u = zeros(Float64, size(n_vals, 1))
+    err_neumann_σ = zeros(Float64, size(n_vals, 1))
 
     for (i, n) ∈ enumerate(n_vals)
 
@@ -196,7 +198,6 @@ function main()
         err_τ[i] = norm(τ_exact - τ, Inf)
         err_τ_sidi[i] = norm(τ_exact - τ_sidi, Inf)
 
-        println("N=$n\tu(zeta)=$(err_u[i])\tu(sidi)=$(err_u_sidi[i])\tτ(zeta)=$(err_τ[i])\tτ(sidi)=$(err_τ_sidi[i])")
 
         # Neumann problem
 
@@ -206,15 +207,41 @@ function main()
         σ_exact = σ
         τ = τ_exact
 
-        D = compute_laplace_dlp_matrix(Γ.x, Γ.n, vec(Γ.k))
-        S = compute_laplace_slp_matrix(Γ.x, vec(Γ.w))
+        S_self = compute_laplace_slp_matrix(Γ.x, vec(Γ.w), ord)
+        D_self = compute_laplace_dlp_matrix(Γ.x, Γ.n, vec(Γ.k)) .* Γ.w'
+
+        A = 0.5 * I(n) + D_self .+ Γ.w'
+        σ = A \ (S_self * τ)
+
+        S = compute_laplace_slp_matrix(x_test, Γ.x) .* Γ.w'
+        D = compute_laplace_dlp_matrix(x_test, Γ.x, Γ.n) .* Γ.w'
+        u = S * τ - D * σ
+
+        # "recover constant" in the original code...
+        offset = u_exact[1] - u[1]
+
+        u .+= offset
+        σ .+= offset
 
 
-        exit()
+        err_neumann_u[i] = norm(u_exact - u, Inf)
+        err_neumann_σ[i] = norm(σ_exact - σ, Inf)
+
 
 
 
     end
+
+    println("Dirichlet")
+    for (i, n) in enumerate(n_vals)
+        println("N=$n\tu(zeta)=$(err_u[i])\tu(sidi)=$(err_u_sidi[i])\tτ(zeta)=$(err_τ[i])\tτ(sidi)=$(err_τ_sidi[i])")
+    end
+
+    println("Neumann")
+    for (i, n) in enumerate(n_vals)
+        println("N=$n\tu=$(err_neumann_u[i])\tσ=$(err_neumann_σ[i])")
+    end
+
 
     fig = Figure()
     ax = Axis(
@@ -249,11 +276,15 @@ function main()
     scatterlines!(ax, n_vals, err_τ, label="τ zeta $(ord)-th order")
     scatterlines!(ax, n_vals, err_τ_sidi, label="τ sidi")
 
+    scatterlines!(ax, n_vals, err_neumann_u, label="Neumann u ")
+    scatterlines!(ax, n_vals, err_neumann_σ, label="Neumann σ ")
+
     axislegend(ax)
 
     wait(display(fig))
 
 end
+
 
 if abspath(PROGRAM_FILE) == @__FILE__
     main()

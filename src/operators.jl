@@ -6,6 +6,8 @@ using LinearAlgebra
 include("manifolds.jl")
 include("kernels.jl")
 include("finite_differences.jl")
+include("kapur_rokhlin_sep_log.jl")
+
 import .Kernels
 using .Manifolds
 
@@ -96,23 +98,39 @@ function compute_laplace_slp_matrix(
 
     A = zeros(Float64, m, m)
 
-    k = clamp((ord - 1) ÷ 2, 0, (N - 1) ÷ 2)
-    stencil = kapur_rokhlin_sep_log(K + 1)
+    k = clamp((order - 1) ÷ 2, 0, (m - 1) ÷ 2)
+    stencil = krcoeffs(k + 1)
+    stencil = [stencil[end:-1:2]; stencil] # TODO: make this prettier
 
-    @show weights
 
-    @inbounds for i in 1:m
+    # TODO: inbounds macro was deleted
+    for i in m:-1:1 # loop bacwards
 
         #diagonal term
-        A[i, i] = -log(weights[i])
-            for j in i:i-1
-                val = Kernels.laplace_slp(
-                    view(x, i, :),
-                    view(x, j, :)
-                )
-                A[i, j] = val
-                A[j, i] = val
-            end
+        A[i, i] = -log(weights[i]) / 2pi
+
+
+        for j in 1:i-1
+            ker = Kernels.laplace_slp(
+                view(x, i, :),
+                view(x, j, :)
+            )
+
+            A[i, j] += ker
+            A[j, i] += ker
+
+        end
+
+        for dj in -k:k
+            j = mod1(i + dj, m)
+            A[i, j] += stencil[dj+k+1] / 2pi
+        end
+
+        # TODO: i don't like having 3 loops
+        for j in 1:m
+            A[i, j] *= weights[j]
+        end
+
     end
     return A
 end
@@ -305,13 +323,13 @@ function compute_laplace_dlp_matrix(
             )
             D[i, j] = val
         end
-        for j in 1:i-1
+        for j in i+1:m
             val = Kernels.laplace_dlp(
                 view(x, i, :),
                 view(x, j, :),
                 view(nx, j, :)
             )
-            D[j, i] = val
+            D[i, j] = val
         end
     end
     return D
@@ -426,7 +444,6 @@ function compute_laplace_dlp_matrix_normal_derivative(
             )
 
             # this way asymmetric weighting can be applied
-            # NOTE: adding instead of assigning to not overwrite the second loop. looping i in reverse could also work so that here assignment could be made. what is easier to reason about??
             dD_dn[i, j] = ker * weights[j]
             dD_dn[j, i] = ker * weights[i]
 
