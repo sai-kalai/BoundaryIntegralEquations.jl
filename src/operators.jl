@@ -109,7 +109,6 @@ function compute_laplace_slp_matrix(
         #diagonal term
         A[i, i] = -log(weights[i]) / 2pi
 
-
         for j in 1:i-1
             ker = Kernels.laplace_slp(
                 view(x, i, :),

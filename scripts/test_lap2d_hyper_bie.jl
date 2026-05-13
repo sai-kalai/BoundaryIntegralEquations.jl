@@ -28,11 +28,133 @@ struct Result
 
 end
 
+
+abstract type BoundaryValueProblem end
+struct Laplace <: BoundaryValueProblem end
+struct Helmholtz <: BoundaryValueProblem end
+struct Stokes <: BoundaryValueProblem end
+
+abstract type ProblemType end
+struct Interior <: ProblemType end
+struct Exterior <: ProblemType end
+
+
+abstract type Approach end
+struct Direct <: Approach end
+struct Indirect <: Approach end
+
+abstract type Correction end
+struct Sidi <: Correction end
+struct Zeta <: Correction
+    order::Int32
+end
+
+abstract type BoundaryCondition end
+
+struct Dirichlet <: BoundaryCondition
+    boundary::Manifold
+    σ::AbstractVector
+end
+
+struct Neumann <: BoundaryCondition
+    boundary::Manifold
+    τ::AbstractVector
+end
+
+
+function solve(
+    problem::BoundaryValueProblem,
+    type::ProblemType,
+    bc::BoundaryCondition,
+    correction::Correction,
+    approach::Approach,
+    targets::AbstractMatrix
+)
+
+end
+
+function solve(
+    problem::Laplace,
+    type::Interior,
+    bc::Dirichlet,
+    correction::Sidi,
+    approach::Direct,
+    targets::AbstractMatrix
+)
+
+end
+
+function solve(
+    problem::Laplace,
+    type::Interior,
+    bc::Dirichlet,
+    correction::Zeta,
+    approach::Direct,
+    targets::AbstractMatrix
+)
+    println("hello dispatch")
+    # operators with quadrature weights applied
+    S = compute_laplace_slp_matrix(targets, bc.boundary.x) .* bc.boundary.w'
+    D = compute_laplace_dlp_matrix(targets, bc.boundary.x, bc.boundary.n) .* bc.boundary.w'
+
+    D_star = compute_laplace_slp_matrix_normal_derivative(bc.boundary.x, bc.boundary.n, vec(bc.boundary.k))
+    D_star .*= bc.boundary.w' # apply quadrature weights
+    A = -0.5 * I + D_star
+
+
+    # direct approach
+
+    # hypersingular operator using zeta quadrature
+    H = compute_laplace_dlp_matrix_normal_derivative(
+        bc.boundary.x,
+        bc.boundary.n,
+        vec(bc.boundary.k),
+        bc.boundary.w,
+        correction.order
+    )
+
+    τ = A \ (H * bc.σ)
+    u = S * τ - D * bc.σ
+    return u, τ
+
+end
+
+function solve(
+    problem::Laplace,
+    type::Interior,
+    bc::Neumann,
+    approach::Direct,
+    targets::AbstractMatrix
+)
+
+end
+
+function solve(
+    problem::Laplace,
+    type::Interior,
+    bc::Dirichlet,
+    approach::Indirect,
+    targets::AbstractMatrix
+)
+
+end
+
+function solve(
+    problem::Laplace,
+    type::Interior,
+    bc::Neumann,
+    approach::Indirect,
+    targets::AbstractMatrix
+)
+
+end
+
+
 function main()
 
     Random.seed!(42) # seed rng for reproducibility
 
-    ord = 7       # pick desired convergence order of singular quad
+    ord = 32       # pick desired convergence order of singular quad
 
     # set up source geometry (starfish domain)
     R = 1 # wobble center
@@ -116,12 +238,6 @@ function main()
     @assert norm(u_exact - u_exact_reference) < 1e-15
 
 
-    # println("matrix: ")
-    # display(matrix)
-    #
-    # println("u_exact: ")
-    # display(u_exact)
-
     # scatter!(ax, x_test[:, 1], x_test[:, 2], color=u_exact)
 
     # wait(display(fig))
@@ -160,72 +276,64 @@ function main()
         τ_exact = dS_dn_source * density_source # Neumann BC exact solution
 
 
-        # operators with quadrature weights applied
-        S = compute_laplace_slp_matrix(x_test, Γ.x) .* Γ.w'
-        D = compute_laplace_dlp_matrix(x_test, Γ.x, Γ.n) .* Γ.w'
-
-        D_star = compute_laplace_slp_matrix_normal_derivative(Γ.x, Γ.n, vec(Γ.k))
-        D_star .*= Γ.w' # apply quadrature weights
-        A = -0.5 * I(n) + D_star
-
-
-        # direct approach
-
-        # hypersingular operator using zeta quadrature
-        H = compute_laplace_dlp_matrix_normal_derivative(
-            Γ.x,
-            Γ.n,
-            vec(Γ.k),
-            Γ.w,
-            ord
+        solve(
+            Laplace(),
+            Interior(),
+            Dirichlet(
+                Γ,
+                σ,
+            ),
+            Zeta(
+                ord,
+            ),
+            Direct(),
+            x_test,
         )
 
-        τ = A \ (H * σ)
-        u = S * τ - D * σ
 
 
         # hypersingular operator using Sidi's staggered grid
-        H_sidi = compute_laplace_dlp_matrix_normal_derivative(Γ.x, Γ.n)
-        H_sidi = H_sidi .* Γ.w' # transpose seems hacky
-        # divide diagonal
-        H_sidi[diagind(H_sidi)] .= -pi / 4 ./ Γ.w
-        # apply quadrature weights and integrate function σ
-        τ_sidi = A \ (H_sidi * σ)
-        u_sidi = S * τ_sidi - D * σ
-
-        err_u[i] = norm(u_exact - u, Inf)
-        err_u_sidi[i] = norm(u_exact - u_sidi, Inf)
-        err_τ[i] = norm(τ_exact - τ, Inf)
-        err_τ_sidi[i] = norm(τ_exact - τ_sidi, Inf)
-
-
-        # Neumann problem
-
-        # TODO: separate into functions
-
-        # swap bdry conditions
-        σ_exact = σ
-        τ = τ_exact
-
-        S_self = compute_laplace_slp_matrix(Γ.x, vec(Γ.w), ord)
-        D_self = compute_laplace_dlp_matrix(Γ.x, Γ.n, vec(Γ.k)) .* Γ.w'
-
-        A = 0.5 * I(n) + D_self .+ Γ.w'
-        σ = A \ (S_self * τ)
-
-        S = compute_laplace_slp_matrix(x_test, Γ.x) .* Γ.w'
-        D = compute_laplace_dlp_matrix(x_test, Γ.x, Γ.n) .* Γ.w'
-        u = S * τ - D * σ
-
-        # "recover constant" in the original code...
-        offset = u_exact[1] - u[1]
-
-        u .+= offset
-        σ .+= offset
-
-
-        err_neumann_u[i] = norm(u_exact - u, Inf)
-        err_neumann_σ[i] = norm(σ_exact - σ, Inf)
+        # H_sidi = compute_laplace_dlp_matrix_normal_derivative(Γ.x, Γ.n)
+        # H_sidi = H_sidi .* Γ.w' # transpose seems hacky
+        # # divide diagonal
+        # H_sidi[diagind(H_sidi)] .= -pi / 4 ./ Γ.w
+        # # apply quadrature weights and integrate function σ
+        # τ_sidi = A \ (H_sidi * σ)
+        # u_sidi = S * τ_sidi - D * σ
+        #
+        # err_u[i] = norm(u_exact - u, Inf)
+        # err_u_sidi[i] = norm(u_exact - u_sidi, Inf)
+        # err_τ[i] = norm(τ_exact - τ, Inf)
+        # err_τ_sidi[i] = norm(τ_exact - τ_sidi, Inf)
+        #
+        #
+        # # Neumann problem
+        #
+        # # TODO: separate into functions
+        #
+        # # swap bdry conditions
+        # σ_exact = σ
+        # τ = τ_exact
+        #
+        # S_self = compute_laplace_slp_matrix(Γ.x, vec(Γ.w), ord)
+        # D_self = compute_laplace_dlp_matrix(Γ.x, Γ.n, vec(Γ.k)) .* Γ.w'
+        #
+        # A = 0.5 * I(n) + D_self .+ Γ.w'
+        # σ = A \ (S_self * τ)
+        #
+        # S = compute_laplace_slp_matrix(x_test, Γ.x) .* Γ.w'
+        # D = compute_laplace_dlp_matrix(x_test, Γ.x, Γ.n) .* Γ.w'
+        # u = S * τ - D * σ
+        #
+        # # "recover constant" in the original code...
+        # offset = u_exact[1] - u[1]
+        #
+        # u .+= offset
+        # σ .+= offset
+        #
+        #
+        # err_neumann_u[i] = norm(u_exact - u, Inf)
+        # err_neumann_σ[i] = norm(σ_exact - σ, Inf)
 
 
 
