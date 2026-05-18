@@ -12,142 +12,13 @@
 #
 # c.f. Hsiao-Wendland 2008, Sec.1.3-1.4
 
+using Revise
 using CairoMakie
 using LinearAlgebra
 using Random
 using BimDiff
 
 
-struct Result
-    n_vals::Vector
-    err::Vector
-    label::String
-    color::String
-    linestyle::String
-    order::Union{Int32,Nothing}
-
-end
-
-
-abstract type BoundaryValueProblem end
-struct Laplace <: BoundaryValueProblem end
-struct Helmholtz <: BoundaryValueProblem end
-struct Stokes <: BoundaryValueProblem end
-
-abstract type ProblemType end
-struct Interior <: ProblemType end
-struct Exterior <: ProblemType end
-
-
-abstract type Approach end
-struct Direct <: Approach end
-struct Indirect <: Approach end
-
-abstract type Correction end
-struct Sidi <: Correction end
-struct Zeta <: Correction
-    order::Int32
-end
-
-abstract type BoundaryCondition end
-
-struct Dirichlet <: BoundaryCondition
-    boundary::Manifold
-    σ::AbstractVector
-end
-
-struct Neumann <: BoundaryCondition
-    boundary::Manifold
-    τ::AbstractVector
-end
-
-
-function solve(
-    problem::BoundaryValueProblem,
-    type::ProblemType,
-    bc::BoundaryCondition,
-    correction::Correction,
-    approach::Approach,
-    targets::AbstractMatrix
-)
-
-end
-
-function solve(
-    problem::Laplace,
-    type::Interior,
-    bc::Dirichlet,
-    correction::Sidi,
-    approach::Direct,
-    targets::AbstractMatrix
-)
-
-end
-
-function solve(
-    problem::Laplace,
-    type::Interior,
-    bc::Dirichlet,
-    correction::Zeta,
-    approach::Direct,
-    targets::AbstractMatrix
-)
-    println("hello dispatch")
-    # operators with quadrature weights applied
-    S = compute_laplace_slp_matrix(targets, bc.boundary.x) .* bc.boundary.w'
-    D = compute_laplace_dlp_matrix(targets, bc.boundary.x, bc.boundary.n) .* bc.boundary.w'
-
-    D_star = compute_laplace_slp_matrix_normal_derivative(bc.boundary.x, bc.boundary.n, vec(bc.boundary.k))
-    D_star .*= bc.boundary.w' # apply quadrature weights
-    A = -0.5 * I + D_star
-
-
-    # direct approach
-
-    # hypersingular operator using zeta quadrature
-    H = compute_laplace_dlp_matrix_normal_derivative(
-        bc.boundary.x,
-        bc.boundary.n,
-        vec(bc.boundary.k),
-        bc.boundary.w,
-        correction.order
-    )
-
-    τ = A \ (H * bc.σ)
-    u = S * τ - D * bc.σ
-    return u, τ
-
-end
-
-function solve(
-    problem::Laplace,
-    type::Interior,
-    bc::Neumann,
-    approach::Direct,
-    targets::AbstractMatrix
-)
-
-end
-
-function solve(
-    problem::Laplace,
-    type::Interior,
-    bc::Dirichlet,
-    approach::Indirect,
-    targets::AbstractMatrix
-)
-
-end
-
-function solve(
-    problem::Laplace,
-    type::Interior,
-    bc::Neumann,
-    approach::Indirect,
-    targets::AbstractMatrix
-)
-
-end
 
 
 function main()
@@ -276,7 +147,7 @@ function main()
         τ_exact = dS_dn_source * density_source # Neumann BC exact solution
 
 
-        solve(
+        u, τ = solve(
             Laplace(),
             Interior(),
             Dirichlet(
@@ -301,9 +172,9 @@ function main()
         # τ_sidi = A \ (H_sidi * σ)
         # u_sidi = S * τ_sidi - D * σ
         #
-        # err_u[i] = norm(u_exact - u, Inf)
+        err_u[i] = norm(u_exact - u, Inf)
         # err_u_sidi[i] = norm(u_exact - u_sidi, Inf)
-        # err_τ[i] = norm(τ_exact - τ, Inf)
+        err_τ[i] = norm(τ_exact - τ, Inf)
         # err_τ_sidi[i] = norm(τ_exact - τ_sidi, Inf)
         #
         #
@@ -365,7 +236,7 @@ function main()
     lines!(
         ax,
         n_vals,
-        (n_vals ./ (5 * n_vals[1])) .^ float(-order_offset),
+        (n_vals ./ (n_vals[1])) .^ float(-order_offset),
         label="O(h^$(order_offset))",
         linestyle=:dash,
         color=:black)

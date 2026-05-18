@@ -6,7 +6,7 @@ include("operators.jl")
 using .Operators
 export
     fdcoeffs,
-    LaplaceSLP,
+    SingleLayer,
     compute_laplace_slp_matrix,
     compute_laplace_slp_matrix_normal_derivative,
     compute_laplace_slp_matrix_and_normal_derivative,
@@ -20,6 +20,10 @@ export
 include("manifolds.jl")
 using .Manifolds
 export Manifold, visualize
+
+include("solvers.jl")
+using .Solvers
+export solve
 
 export greet
 

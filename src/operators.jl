@@ -7,58 +7,68 @@ include("manifolds.jl")
 include("kernels.jl")
 include("finite_differences.jl")
 include("kapur_rokhlin_sep_log.jl")
+include("models.jl")
 
 import .Kernels
 using .Manifolds
 
 
 export
-    LaplaceSLP,
+    SingleLayer,
     compute_laplace_slp_matrix,
     compute_laplace_slp_matrix_and_normal_derivative,
     compute_laplace_slp_matrix_normal_derivative,
     compute_laplace_dlp_matrix_normal_derivative,
     compute_laplace_dlp_matrix
 
+abstract type IntegralOperator end
 
+# a.k.a S
+struct SingleLayer{T<:Number,P<:BoundaryValueProblem} <: IntegralOperator
+    problem::P
+    target::Any # target is m x 2 # these are the points of interest
+    source::Manifold # source.x is n x 2 # this is the manifold
+    matrix::Any # resulting operator is mxn matrix.
 
-abstract type Operator end
+    #   operate on nx1 vectors of quantities located at the manifold to obtain
+    #   mx1 vectors of quantities located at the points of interest
+end
 
-#
-# # TODO: explore static vectors for performance
-#
-# struct LaplaceSLP <: Operator
-#     target::Any # target is m x 2 # these are the points of interest
-#     source::Manifold # source.x is n x 2 # this is the manifold
-#     matrix::Any # resulting operator is mxn matrix.
-#
-#     #   operate on nx1 vectors of quantities located at the manifold to obtain
-#     #   mx1 vectors of quantities located at the points of interest
-# end
-#
-# struct LaplaceSlpDn
-#
-# end
-#
-# struct LaplaceDLP <: Operator
-#     target::Any,
-#     source::Manifold,
-#     matrix::Any
-# end
-#
-# struct LaplaceDlpDn end
+# a.k.a D a.k.a. ∂S/∂ny
+struct DoubleLayer{T<:Number,P<:BoundaryValueProblem} <: IntegralOperator
+    problem::P
+    target::Any # target is m x 2 # these are the points of interest
+    source::Manifold # source.x is n x 2 # this is the manifold
+    matrix::Any # resulting operator is mxn matrix.
+end
 
+# a.k.a  D* a.k.a. ∂S/∂nx
+struct Adjoint{T<:Number,P<:BoundaryValueProblem} <: IntegralOperator
+    problem::P
+    target::Any # target is m x 2 # these are the points of interest
+    source::Manifold # source.x is n x 2 # this is the manifold
+    matrix::Any # resulting operator is mxn matrix.
+end
+
+# a.k.a  N a.k.a. ∂S²/∂nx∂ny
+struct Hypersingular{T<:Number,P<:BoundaryValueProblem} <: IntegralOperator
+    problem::P
+    target::Any # target is m x 2 # these are the points of interest
+    source::Manifold # source.x is n x 2 # this is the manifold
+    matrix::Any # resulting operator is mxn matrix.
+end
 
 
 # construct Laplace SLP from a source manifold and a list of target points
-function LaplaceSLP(
+function SingleLayer(
+    problem::Laplace,
     target::Any, # target points to compute operator
     source::Manifold, # source manifold e.g. domain boundary
 )
 
     matrix = compute_laplace_slp_matrix(target, source.x)
 
-    return LaplaceSLP(target, source, matrix)
+    return SingleLayer(problem, target, source, matrix)
 
 end
 
