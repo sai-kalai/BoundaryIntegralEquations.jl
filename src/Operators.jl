@@ -1,20 +1,21 @@
 module Operators
 
 
-using LinearAlgebra
 
-include("manifolds.jl")
-include("kernels.jl")
 include("finite_differences.jl")
 include("kapur_rokhlin_sep_log.jl")
-include("models.jl")
 
-import .Kernels
-using .Manifolds
 
+using LinearAlgebra
+
+
+import ..Kernels
+using ..Manifolds
+using ..Models
 
 export
     SingleLayer,
+    DoubleLayer,
     compute_laplace_slp_matrix,
     compute_laplace_slp_matrix_and_normal_derivative,
     compute_laplace_slp_matrix_normal_derivative,
@@ -23,56 +24,59 @@ export
 
 abstract type IntegralOperator end
 
-# a.k.a S
-struct SingleLayer{T<:Number,P<:BoundaryValueProblem} <: IntegralOperator
-    problem::P
-    target::Any # target is m x 2 # these are the points of interest
-    source::Manifold # source.x is n x 2 # this is the manifold
-    matrix::Any # resulting operator is mxn matrix.
 
-    #   operate on nx1 vectors of quantities located at the manifold to obtain
-    #   mx1 vectors of quantities located at the points of interest
+function Base.:*(op::IntegralOperator, v::AbstractArray)
+    return op.matrix * v
+end
+
+
+# a.k.a S
+struct SingleLayer{M<:AbstractMatrix{<:Number},P<:BoundaryValueProblem} <: IntegralOperator
+    problem::P
+    matrix::M # resulting operator is mxn matrix.
 end
 
 # a.k.a D a.k.a. ∂S/∂ny
-struct DoubleLayer{T<:Number,P<:BoundaryValueProblem} <: IntegralOperator
+struct DoubleLayer{M<:AbstractMatrix{<:Number},P<:BoundaryValueProblem} <: IntegralOperator
     problem::P
-    target::Any # target is m x 2 # these are the points of interest
-    source::Manifold # source.x is n x 2 # this is the manifold
-    matrix::Any # resulting operator is mxn matrix.
+    matrix::M # resulting operator is mxn matrix.
 end
 
 # a.k.a  D* a.k.a. ∂S/∂nx
-struct Adjoint{T<:Number,P<:BoundaryValueProblem} <: IntegralOperator
+struct Adjoint{M<:AbstractMatrix{<:Number},P<:BoundaryValueProblem} <: IntegralOperator
     problem::P
-    target::Any # target is m x 2 # these are the points of interest
-    source::Manifold # source.x is n x 2 # this is the manifold
-    matrix::Any # resulting operator is mxn matrix.
+    matrix::M # resulting operator is mxn matrix.
 end
 
 # a.k.a  N a.k.a. ∂S²/∂nx∂ny
-struct Hypersingular{T<:Number,P<:BoundaryValueProblem} <: IntegralOperator
+struct Hypersingular{M<:AbstractMatrix{<:Number},P<:BoundaryValueProblem} <: IntegralOperator
     problem::P
-    target::Any # target is m x 2 # these are the points of interest
-    source::Manifold # source.x is n x 2 # this is the manifold
-    matrix::Any # resulting operator is mxn matrix.
+    matrix::M # resulting operator is mxn matrix.
 end
 
 
 # construct Laplace SLP from a source manifold and a list of target points
 function SingleLayer(
     problem::Laplace,
-    target::Any, # target points to compute operator
-    source::Manifold, # source manifold e.g. domain boundary
+    target::AbstractMatrix, # target points to compute operator
+    source::AbstractManifold, # source manifold e.g. domain boundary
 )
+    matrix = compute_laplace_slp_matrix(target, source.x) .* source.w'
+    return SingleLayer(problem, matrix)
+end
 
-    matrix = compute_laplace_slp_matrix(target, source.x)
-
-    return SingleLayer(problem, target, source, matrix)
-
+# construct Laplace SLP from a source manifold and a list of target points
+function DoubleLayer(
+    problem::Laplace,
+    target::AbstractMatrix, # target points to compute operator
+    source::AbstractManifold, # source manifold e.g. domain boundary
+)
+    matrix = compute_laplace_dlp_matrix(target, source.x, source.n) .* source.w'
+    return SingleLayer(problem, matrix)
 end
 
 
+# TODO: rename compute_kernel_matrix and overload with BVP and Operator
 function compute_laplace_slp_matrix(
     x, # list of x points (targets)
     y, # list of y points (source, integration variable)
@@ -433,6 +437,7 @@ function compute_laplace_dlp_matrix_normal_derivative(
 
     # FD stencil for second derivative
     k = (order - 2) ÷ 2
+
     stencil = fdcoeffs(2, k)
 
     stencil = [stencil[end:-1:2]; stencil] # TODO: make this prettier

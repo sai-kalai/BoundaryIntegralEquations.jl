@@ -1,11 +1,21 @@
 module Solvers
-include("models.jl")
+using Revise
+
+using LinearAlgebra
+
+using ..Models
+
+using ..Operators
+
+using ..Manifolds
+
 export solve
 
 
 function solve(
     ::BoundaryValueProblem,
     ::Side,
+    ::AbstractManifold,
     ::BoundaryCondition,
     ::HypersingularCorrection,
     ::Approach,
@@ -16,7 +26,8 @@ end
 
 function solve(
     problem::Laplace,
-    type::Interior,
+    side::Interior,
+    boundary::AbstractManifold,
     bc::Dirichlet,
     correction::Sidi,
     approach::Direct,
@@ -26,8 +37,9 @@ function solve(
 end
 
 function solve(
-    ::Laplace,
+    problem::Laplace,
     ::Interior,
+    boundary::AbstractManifold,
     bc::Dirichlet,
     correction::Zeta,
     ::Direct,
@@ -35,11 +47,12 @@ function solve(
 )
     println("hello dispatch")
     # operators with quadrature weights applied
-    S = compute_laplace_slp_matrix(targets, bc.boundary.x) .* bc.boundary.w'
-    D = compute_laplace_dlp_matrix(targets, bc.boundary.x, bc.boundary.n) .* bc.boundary.w'
+    # TODO: save computation by getting both operators at the same time
+    S = SingleLayer(problem, targets, boundary)
+    D = DoubleLayer(problem, targets, boundary)
 
-    D_star = compute_laplace_slp_matrix_normal_derivative(bc.boundary.x, bc.boundary.n, vec(bc.boundary.k))
-    D_star .*= bc.boundary.w' # apply quadrature weights
+    D_star = compute_laplace_slp_matrix_normal_derivative(boundary.x, boundary.n, vec(boundary.k))
+    D_star .*= boundary.w' # apply quadrature weights
     A = -0.5 * I + D_star
 
 
@@ -47,10 +60,10 @@ function solve(
 
     # hypersingular operator using zeta quadrature
     H = compute_laplace_dlp_matrix_normal_derivative(
-        bc.boundary.x,
-        bc.boundary.n,
-        vec(bc.boundary.k),
-        bc.boundary.w,
+        boundary.x,
+        boundary.n,
+        vec(boundary.k),
+        vec(boundary.w),
         correction.order
     )
 

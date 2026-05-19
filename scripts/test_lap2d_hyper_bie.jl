@@ -32,13 +32,13 @@ function main()
     a = 0.3 # wobble amplitude
     w = 5 # wobble frequency
     function ρ(t)
-        z = (R + a .* cos.(w .* t)) .* exp.(1im .* t) # parametrization of boundary
-        return real(z), imag(z)
+        z = (R + a * cos.(w * t)) * cis(t) # parametrization of boundary
+        return [real(z), imag(z)] # TODO: play with static arrays
     end
 
     # evenly distributed points in a circumference of radius r
     function ball(r, n)
-        z = r .* exp.(1im * 2pi * (1:n) / n)
+        z = r .* cis.(2pi * (1:n) / n)
         return hcat(real.(z), imag.(z))
     end
 
@@ -129,10 +129,11 @@ function main()
 
     for (i, n) ∈ enumerate(n_vals)
 
-        Γ = Manifold(n, ρ) # boundary of the domain
+        Γ = DiscreteClosedCurve(n, ρ) # boundary of the domain
 
         # fig = visualize(Γ)
         # wait(display(fig))
+        # break
 
 
         # compute boundary conditions from manufactured solution
@@ -147,16 +148,13 @@ function main()
         τ_exact = dS_dn_source * density_source # Neumann BC exact solution
 
 
+
         u, τ = solve(
             Laplace(),
             Interior(),
-            Dirichlet(
-                Γ,
-                σ,
-            ),
-            Zeta(
-                ord,
-            ),
+            Γ,
+            Dirichlet(σ), # TODO: since one kernel matrix can be applied to several BCs, overload accepting vector of BC
+            Zeta(ord),
             Direct(),
             x_test,
         )

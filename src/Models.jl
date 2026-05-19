@@ -1,5 +1,24 @@
-include("manifolds.jl")
-using .Manifolds
+module Models
+
+using ..Manifolds
+
+export
+    BoundaryValueProblem,
+    Laplace,
+    Helmholtz,
+    Stokes,
+    Side,
+    Interior,
+    Exterior,
+    Approach,
+    Direct,
+    Indirect,
+    HypersingularCorrection,
+    Sidi,
+    Zeta,
+    BoundaryCondition,
+    Dirichlet,
+    Neumann
 
 
 abstract type BoundaryValueProblem end
@@ -24,11 +43,10 @@ end
 
 abstract type BoundaryCondition end
 struct Dirichlet <: BoundaryCondition
-    boundary::Manifold
     σ::AbstractVector
 end
 struct Neumann <: BoundaryCondition
-    boundary::Manifold
     τ::AbstractVector
 end
 
+end

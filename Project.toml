@@ -11,6 +11,7 @@ GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 
 [compat]
@@ -21,4 +22,5 @@ GLMakie = "0.13.9"
 LinearAlgebra = "1.12.0"
 Pkg = "1.12.0"
 Random = "1.11.0"
+Reexport = "1.2.2"
 Revise = "3.14.2"
