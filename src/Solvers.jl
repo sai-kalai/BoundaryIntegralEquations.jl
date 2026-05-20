@@ -29,48 +29,47 @@ function solve(
     side::Interior,
     boundary::AbstractManifold,
     bc::Dirichlet,
-    correction::Sidi,
+    correction::HypersingularCorrection,
     approach::Direct,
     targets::AbstractMatrix
 )
-
-end
-
-function solve(
-    problem::Laplace,
-    ::Interior,
-    boundary::AbstractManifold,
-    bc::Dirichlet,
-    correction::Zeta,
-    ::Direct,
-    targets::AbstractMatrix
-)
-    println("hello dispatch")
     # operators with quadrature weights applied
-    # TODO: save computation by getting both operators at the same time
+    # TODO: how to save computation by getting both operators at the same time
     S = SingleLayer(problem, targets, boundary)
     D = DoubleLayer(problem, targets, boundary)
 
-    D_star = compute_laplace_slp_matrix_normal_derivative(boundary.x, boundary.n, vec(boundary.k))
-    D_star .*= boundary.w' # apply quadrature weights
-    A = -0.5 * I + D_star
+    D_star = AdjointDoubleLayer(problem, boundary)
+    H = Hypersingular(problem, boundary, correction)
 
-
-    # direct approach
-
-    # hypersingular operator using zeta quadrature
-    H = compute_laplace_dlp_matrix_normal_derivative(
-        boundary.x,
-        boundary.n,
-        vec(boundary.k),
-        vec(boundary.w),
-        correction.order
+    return solve(
+        problem,
+        side,
+        bc,
+        approach,
+        D_star,
+        H,
+        S,
+        D
     )
 
-    τ = A \ (H * bc.σ)
-    u = S * τ - D * bc.σ
-    return u, τ
+end
 
+
+# solve with given precomputed operators
+function solve(
+    ::Laplace,
+    ::Interior,
+    bc::Dirichlet,
+    ::Direct,
+    D_star::AdjointDoubleLayer,
+    H::Hypersingular,
+    S_target::SingleLayer,
+    D_target::DoubleLayer
+)
+    A = -0.5 * I + matrix(D_star) # TODO: figure out how to seamlessly fulfill the matrix api
+    τ = A \ (H * bc.σ)
+    u = S_target * τ - D_target * bc.σ
+    return u, τ
 end
 
 function solve(
