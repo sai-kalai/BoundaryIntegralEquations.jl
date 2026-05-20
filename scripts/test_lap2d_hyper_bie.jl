@@ -162,103 +162,97 @@ function main()
 
 
         # hypersingular operator using Sidi's staggered grid
-        # H_sidi = compute_laplace_dlp_matrix_normal_derivative(Γ.x, Γ.n)
-        # H_sidi = H_sidi .* Γ.w' # transpose seems hacky
-        # # divide diagonal
-        # H_sidi[diagind(H_sidi)] .= -pi / 4 ./ Γ.w
-        # # apply quadrature weights and integrate function σ
+        H_sidi = compute_laplace_dlp_matrix_normal_derivative(Γ.x, Γ.n)
+        H_sidi = H_sidi .* Γ.w' # transpose seems hacky
+        # divide diagonal
+        H_sidi[diagind(H_sidi)] .= -pi / 4 ./ Γ.w
+        # apply quadrature weights and integrate function σ
         # τ_sidi = A \ (H_sidi * σ)
         # u_sidi = S * τ_sidi - D * σ
-        #
+
         err_u[i] = norm(u_exact - u, Inf)
         # err_u_sidi[i] = norm(u_exact - u_sidi, Inf)
         err_τ[i] = norm(τ_exact - τ, Inf)
         # err_τ_sidi[i] = norm(τ_exact - τ_sidi, Inf)
-        #
-        #
-        # # Neumann problem
-        #
-        # # TODO: separate into functions
-        #
-        # # swap bdry conditions
-        # σ_exact = σ
-        # τ = τ_exact
-        #
-        # S_self = compute_laplace_slp_matrix(Γ.x, vec(Γ.w), ord)
-        # D_self = compute_laplace_dlp_matrix(Γ.x, Γ.n, vec(Γ.k)) .* Γ.w'
-        #
-        # A = 0.5 * I(n) + D_self .+ Γ.w'
-        # σ = A \ (S_self * τ)
-        #
-        # S = compute_laplace_slp_matrix(x_test, Γ.x) .* Γ.w'
-        # D = compute_laplace_dlp_matrix(x_test, Γ.x, Γ.n) .* Γ.w'
-        # u = S * τ - D * σ
-        #
-        # # "recover constant" in the original code...
-        # offset = u_exact[1] - u[1]
-        #
-        # u .+= offset
-        # σ .+= offset
-        #
-        #
-        # err_neumann_u[i] = norm(u_exact - u, Inf)
-        # err_neumann_σ[i] = norm(σ_exact - σ, Inf)
+
+
+        # Neumann problem
+
+        # TODO: separate into functions
+
+        # swap bdry conditions
+        σ_exact = σ
+        τ = τ_exact
+
+        S_self = compute_laplace_slp_matrix(Γ.x, vec(Γ.w), ord)
+        D_self = compute_laplace_dlp_matrix(Γ.x, Γ.n, vec(Γ.k)) .* Γ.w'
+
+        A = 0.5 * I(n) + D_self .+ Γ.w'
+        σ = A \ (S_self * τ)
+
+        S = compute_laplace_slp_matrix(x_test, Γ.x) .* Γ.w'
+        D = compute_laplace_dlp_matrix(x_test, Γ.x, Γ.n) .* Γ.w'
+        u = S * τ - D * σ
+
+        # "recover constant" in the original code...
+        offset = u_exact[1] - u[1]
+
+        u .+= offset
+        σ .+= offset
+
+
+        err_neumann_u[i] = norm(u_exact - u, Inf)
+        err_neumann_σ[i] = norm(σ_exact - σ, Inf)
 
 
 
 
     end
 
-    println("Dirichlet")
-    for (i, n) in enumerate(n_vals)
-        println("N=$n\tu(zeta)=$(err_u[i])\tu(sidi)=$(err_u_sidi[i])\tτ(zeta)=$(err_τ[i])\tτ(sidi)=$(err_τ_sidi[i])")
-    end
-
-    println("Neumann")
-    for (i, n) in enumerate(n_vals)
-        println("N=$n\tu=$(err_neumann_u[i])\tσ=$(err_neumann_σ[i])")
-    end
-
-
-    fig = Figure()
-    ax = Axis(
-        fig[1, 1],
-        xscale=log10,
-        yscale=log10,
-        xlabel="x",
-        ylabel="y"
-    )
+    # println("Dirichlet")
+    # for (i, n) in enumerate(n_vals)
+    #     println("N=$n\tu(zeta)=$(err_u[i])\tu(sidi)=$(err_u_sidi[i])\tτ(zeta)=$(err_τ[i])\tτ(sidi)=$(err_τ_sidi[i])")
+    # end
+    #
+    # println("Neumann")
+    # for (i, n) in enumerate(n_vals)
+    #     println("N=$n\tu=$(err_neumann_u[i])\tσ=$(err_neumann_σ[i])")
+    # end
 
 
-    order_offset = ord - 2
-    lines!(
-        ax,
-        n_vals,
-        (n_vals ./ (n_vals[1])) .^ float(-order_offset),
-        label="O(h^$(order_offset))",
-        linestyle=:dash,
-        color=:black)
+    # fig = Figure()
+    # ax = Axis(
+    #     fig[1, 1],
+    #     xscale=log10,
+    #     yscale=log10,
+    #     xlabel="x",
+    #     ylabel="y"
+    # )
+    # order_offset = ord - 2
+    # lines!(
+    #     ax,
+    #     n_vals,
+    #     (n_vals ./ (n_vals[1])) .^ float(-order_offset),
+    #     label="O(h^$(order_offset))",
+    #     linestyle=:dash,
+    #     color=:black)
+    # exponential_decay = 0.1
+    # lines!(ax,
+    #     n_vals,
+    #     exp.(-exponential_decay .* (n_vals .- n_vals[1])),
+    #     label="O(exp(-$exponential_decay / h))",
+    #     linestyle=:dot,
+    #     color=:black
+    # )
+    # scatterlines!(ax, n_vals, err_u, label="u zeta $(ord)-th order")
+    # scatterlines!(ax, n_vals, err_u_sidi, label="u sidi")
+    # scatterlines!(ax, n_vals, err_τ, label="τ zeta $(ord)-th order")
+    # scatterlines!(ax, n_vals, err_τ_sidi, label="τ sidi")
+    # scatterlines!(ax, n_vals, err_neumann_u, label="Neumann u ")
+    # scatterlines!(ax, n_vals, err_neumann_σ, label="Neumann σ ")
+    # axislegend(ax)
 
-    exponential_decay = 0.1
-    lines!(ax,
-        n_vals,
-        exp.(-exponential_decay .* (n_vals .- n_vals[1])),
-        label="O(exp(-$exponential_decay / h))",
-        linestyle=:dot,
-        color=:black
-    )
-
-    scatterlines!(ax, n_vals, err_u, label="u zeta $(ord)-th order")
-    scatterlines!(ax, n_vals, err_u_sidi, label="u sidi")
-    scatterlines!(ax, n_vals, err_τ, label="τ zeta $(ord)-th order")
-    scatterlines!(ax, n_vals, err_τ_sidi, label="τ sidi")
-
-    scatterlines!(ax, n_vals, err_neumann_u, label="Neumann u ")
-    scatterlines!(ax, n_vals, err_neumann_σ, label="Neumann σ ")
-
-    axislegend(ax)
-
-    wait(display(fig))
+    # wait(display(fig))
 
 end
 
