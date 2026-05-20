@@ -14,19 +14,39 @@ using ..Manifolds
 using ..Models
 
 export
+    IntegralOperator,
     SingleLayer,
     DoubleLayer,
+    AdjointDoubleLayer,
+    Hypersingular,
+    matrix,
     compute_laplace_slp_matrix,
     compute_laplace_slp_matrix_and_normal_derivative,
     compute_laplace_slp_matrix_normal_derivative,
     compute_laplace_dlp_matrix_normal_derivative,
     compute_laplace_dlp_matrix
 
-abstract type IntegralOperator end
+abstract type IntegralOperator end # TODO: move to Models
 
+# NOTE: is this the julian way for a getter/public api?
+function matrix(op::IntegralOperator)::AbstractMatrix
+    return op.matrix
+end
 
 function Base.:*(op::IntegralOperator, v::AbstractArray)
-    return op.matrix * v
+    return matrix(op) * v
+end
+
+function Base.:+(op::IntegralOperator, v::AbstractArray)
+    return matrix(op) + v
+end
+
+function Base.:*(v::AbstractArray, op::IntegralOperator)
+    return op * v
+end
+
+function Base.:+(v::AbstractArray, op::IntegralOperator)
+    return op + v
 end
 
 
