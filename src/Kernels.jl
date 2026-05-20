@@ -1,6 +1,21 @@
 module Kernels
 
-# TODO: how can this be made efficient over pairwise lists of vectors?
+using ..Models
+
+
+# function kernels(
+#     problem::BoundaryValueProblem,
+#     operators::Vector{type(IntegralOperator)},
+# )::Vector{<:Number}
+#
+#     # find out unique needed quantities
+#     #
+#     # pass to requested kernels
+#     #
+#     # return requested kernels
+#
+# end
+
 
 # laplace single layer potential (SLP) kernel
 # k_SLP(x, y) = -1/2pi log(√|x - y|^2)
