@@ -28,6 +28,11 @@ export
 
 abstract type IntegralOperator end # TODO: move to Models
 
+function operator_factory(
+    ops::Vector{IntegralOperator}
+)
+end
+
 # NOTE: is this the julian way for a getter/public api?
 function matrix(op::IntegralOperator)::AbstractMatrix
     return op.matrix
@@ -184,7 +189,7 @@ function compute_laplace_slp_matrix(
 end
 
 
-# self interaction using zeta quadrature
+# self interaction@vec  using kapur rokhlin
 function compute_laplace_slp_matrix(
     x::AbstractMatrix, # list of x points (targets), matrix
     weights::AbstractVector, # list of weights
@@ -232,30 +237,6 @@ function compute_laplace_slp_matrix(
 end
 
 
-function compute_laplace_slp_matrix_normal_derivative(
-    x::AbstractMatrix, # points of interest
-    y::AbstractMatrix, # domain boundary manifold
-    nx::AbstractMatrix, # unitary normal vectors at the y points
-)
-
-    m, dim_x = size(x)
-    n, dim_y = size(y)
-
-    # TODO: assert shapes
-
-    dA_dn = zeros(Float64, m, n)
-
-
-    @inbounds for i in 1:m, j in 1:n
-        dA_dn[i, j] = Kernels.laplace_slp_dn(
-            view(x, i, :),
-            view(y, j, :),
-            view(nx, i, :)
-        )
-    end
-    return dA_dn
-end
-
 # self interaction
 function compute_laplace_slp_matrix_normal_derivative(
     x::AbstractMatrix, # points of interest
@@ -297,6 +278,7 @@ function compute_laplace_slp_matrix_normal_derivative(
     return dA_dn
 end
 
+# obsolete-ish
 function compute_laplace_slp_matrix_and_normal_derivative(
     x::AbstractMatrix, # points of interest
     y::AbstractMatrix, # domain boundary manifold
@@ -315,6 +297,7 @@ function compute_laplace_slp_matrix_and_normal_derivative(
     # TODO: @views macro broken somehow
     @inbounds for i in 1:m, j in 1:n
         A[i, j], dA_dn[i, j] = Kernels.laplace_slp_and_dn(
+            # TODO: maybe better to construct r as svector here
             view(x, i, :),
             view(y, j, :),
             view(nx, i, :)
@@ -396,7 +379,6 @@ function compute_laplace_dlp_matrix(
 end
 
 # self interaction
-# NOTE: not symmetric
 function compute_laplace_dlp_matrix(
     x::AbstractMatrix,
     nx::AbstractMatrix, # unitary normals at source
@@ -431,43 +413,6 @@ function compute_laplace_dlp_matrix(
     return D
 end
 
-
-
-
-"""
-    compute_laplace_dlp_matrix_normal_derivative(x::AbstractMatrix, y::AbstractMatrix, nx::AbstractMatrix, ny::AbstractMatrix)
-
-a.k.a laplace hypersingular operator
-
-# Arguments
-- `x::AbstractMatrix`: [TODO:description]
-- `y::AbstractMatrix`: [TODO:description]
-- `nx::AbstractMatrix`: [TODO:description]
-- `ny::AbstractMatrix`: [TODO:description]
-"""
-function compute_laplace_dlp_matrix_normal_derivative(
-    x::AbstractMatrix,
-    y::AbstractMatrix,
-    nx::AbstractMatrix,
-    ny::AbstractMatrix,
-)
-    m, dim_x = size(x)
-    n, dim_y = size(y)
-
-    dD_dn = zeros(Float64, m, n)
-
-    @inbounds for i in 1:m, j in 1:n
-        dD_dn[i, j] = Kernels.laplace_dlp_dn(
-            view(x, i, :),
-            view(y, j, :),
-            view(nx, i, :),
-            view(ny, j, :),
-        )
-    end
-
-    return dD_dn
-
-end
 
 # self interaction using Sidi's / Richarson's method
 function compute_laplace_dlp_matrix_normal_derivative(
@@ -577,66 +522,6 @@ function compute_laplace_dlp_matrix_normal_derivative(
     return dD_dn
 end
 
-
-# NOTE: below code might not be needed, it is wip in anyway
-function compute_laplace_dlp_matrix_and_normal_derivative(
-    x::AbstractMatrix,
-    y,
-    nx,
-    ny,
-)
-
-    m, dim_x = size(x)
-    n, dim_y = size(y)
-
-
-    A = zeros(Float64, m, n)
-    dA_dn = zeros(Float64, m, n)
-
-    # TODO: @views macro broken somehow
-    @inbounds for i in 1:m, j in 1:n
-        A[i, j], dA_dn[i, j] = Kernels.laplace_dlp_and_dn(
-            view(x, i, :),
-            view(y, j, :),
-            view(nx, i, :),
-            view(ny, j, :),
-        )
-    end
-
-    return A, dA_dn
-
-
-
-end
-
-# self interaction
-function compute_laplace_dlp_matrix_and_normal_derivative(
-    x::AbstractMatrix,
-    nx::AbstractMatrix,
-)
-
-    m, dim_x = size(x)
-    n, dim_y = size(y)
-
-
-    A = zeros(Float64, m, n)
-    dA_dn = zeros(Float64, m, n)
-
-    # TODO: @views macro broken somehow
-    @inbounds for i in 1:m, j in 1:n
-        A[i, j], dA_dn[i, j] = Kernels.laplace_dlp_and_dn(
-            view(x, i, :),
-            view(y, j, :),
-            view(nx, i, :),
-            view(ny, j, :),
-        )
-    end
-
-    return A, dA_dn
-
-
-
-end
 
 end
 
