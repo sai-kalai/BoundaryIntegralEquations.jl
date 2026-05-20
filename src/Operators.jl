@@ -43,7 +43,7 @@ struct DoubleLayer{M<:AbstractMatrix{<:Number},P<:BoundaryValueProblem} <: Integ
 end
 
 # a.k.a  D* a.k.a. ∂S/∂nx
-struct Adjoint{M<:AbstractMatrix{<:Number},P<:BoundaryValueProblem} <: IntegralOperator
+struct AdjointDoubleLayer{M<:AbstractMatrix{<:Number},P<:BoundaryValueProblem} <: IntegralOperator
     problem::P
     matrix::M # resulting operator is mxn matrix.
 end
