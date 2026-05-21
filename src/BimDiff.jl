@@ -23,6 +23,8 @@ export
     fdcoeffs,
     SingleLayer,
     DoubleLayer,
+    AdjointDoubleLayer,
+    Hypersingular,
     compute_laplace_slp_matrix,
     compute_laplace_slp_matrix_normal_derivative,
     compute_laplace_slp_matrix_and_normal_derivative,
