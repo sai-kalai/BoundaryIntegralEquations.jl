@@ -100,8 +100,8 @@ function SingleLayer(
     target::AbstractMatrix, # target points to compute operator
     boundary::AbstractManifold, # source manifold e.g. domain boundary
 )
-    matrix = compute_laplace_slp_matrix(target, boundary.x) .* boundary.w'
-    return SingleLayer(problem, matrix)
+    mat = compute_laplace_slp_matrix(target, boundary.x) .* boundary.w'
+    return SingleLayer(problem, mat)
 end
 
 # self interaction
@@ -110,8 +110,8 @@ function SingleLayer(
     boundary::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
     order::Int, # order of kapur rokhlin singular correction
 )
-    matrix = compute_laplace_slp_matrix(boundary.x, boundary.w, order)
-    return SingleLayer(problem, matrix)
+    mat = compute_laplace_slp_matrix(boundary.x, boundary.w, order)
+    return SingleLayer(problem, mat)
 end
 
 function DoubleLayer(
@@ -119,8 +119,12 @@ function DoubleLayer(
     target::AbstractMatrix, # target points to compute operator
     boundary::AbstractManifold, # source manifold e.g. domain boundary
 )
-    matrix = compute_laplace_dlp_matrix(target, boundary.x, boundary.n) .* boundary.w'
-    return DoubleLayer(problem, matrix)
+    mat = compute_laplace_dlp_matrix(
+        target,
+        boundary.x,
+        boundary.n
+    ) .* boundary.w'
+    return DoubleLayer(problem, mat)
 end
 
 # self interaction
@@ -128,8 +132,12 @@ function DoubleLayer(
     problem::Laplace,
     boundary::AbstractManifold, # source manifold e.g. domain boundary
 )
-    matrix = compute_laplace_dlp_matrix(boundary.x, boundary.n, boundary.k) .* boundary.w'
-    return DoubleLayer(problem, matrix)
+    mat = compute_laplace_dlp_matrix(
+        boundary.x,
+        boundary.n,
+        boundary.k
+    ) .* boundary.w'
+    return DoubleLayer(problem, mat)
 end
 
 
@@ -138,12 +146,12 @@ function AdjointDoubleLayer(
     problem::Laplace,
     boundary::AbstractManifold, # source manifold e.g. domain boundary
 )
-    matrix = compute_laplace_slp_matrix_normal_derivative(
+    mat = compute_laplace_slp_matrix_normal_derivative(
         boundary.x,
         boundary.n,
-        vec(boundary.k) # TODO: decide what to do here
+        boundary.k
     ) .* boundary.w' # TODO: check if weights do go here
-    return AdjointDoubleLayer(problem, matrix)
+    return AdjointDoubleLayer(problem, mat)
 end
 
 # self interaction using zeta correction
@@ -152,32 +160,33 @@ function Hypersingular(
     boundary::AbstractManifold, # TODO: abstract manifold is no good, need to ensure that passed object has n, k, ...
     correction::Zeta,
 )
-    matrix = compute_laplace_dlp_matrix_normal_derivative(
+    mat = compute_laplace_dlp_matrix_normal_derivative(
         boundary.x,
         boundary.n,
         vec(boundary.k),
         vec(boundary.w),
         correction.order,
     )
-    return Hypersingular(problem, matrix)
+
+    return Hypersingular(problem, correction, mat)
 end
 
 # self interaction using Sidi correction
 function Hypersingular(
     problem::Laplace,
     boundary::AbstractManifold,
-    ::Sidi,
+    correction::Sidi,
 )
-    matrix = compute_laplace_dlp_matrix_normal_derivative(boundary.x, boundary.n) .* boundary.w'
-    return Hypersingular(problem, matrix)
+    mat = compute_laplace_dlp_matrix_normal_derivative(
+        boundary.x,
+        boundary.n
+    ) .* boundary.w'
+
+    mat[diagind(mat)] .= -pi / 4 ./ boundary.w
+
+    return Hypersingular(problem, correction, mat)
 end
 
-
-function compute_kernel_matrix(
-    ::BoundaryValueProblem,
-    ::IntegralOperator,
-)::AbstractMatrix
-end
 
 function compute_laplace_slp_matrix(
     x, # list of x points (targets)
