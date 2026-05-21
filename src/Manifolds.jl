@@ -11,7 +11,16 @@ abstract type AbstractManifold end # TODO: move to models
 # curve, closed curve, 2d, 3d, surface, closed surface, ...
 
 # TODO: maybe set upper bounds as <: AbstractMatrix{<:Number}} for all
-struct DiscreteClosedCurve{TX,TV,TA,TS,TT,TN,TK,TW} <: AbstractManifold
+struct DiscreteClosedCurve{
+    TX<:AbstractMatrix{<:Number},
+    TV<:AbstractMatrix{<:Number},
+    TA<:AbstractMatrix{<:Number},
+    TS<:AbstractVector{<:Number}, # scalar
+    TT<:AbstractMatrix{<:Number},
+    TN<:AbstractMatrix{<:Number},
+    TK<:AbstractVector{<:Number}, # scalar
+    TW<:AbstractVector{<:Number}, # scalar
+} <: AbstractManifold
     x::TX # locations of points in the manifold
     v::TV # velocities
     a::TA # accelerations
@@ -19,7 +28,7 @@ struct DiscreteClosedCurve{TX,TV,TA,TS,TT,TN,TK,TW} <: AbstractManifold
     t::TT # unit tangential vectors
     n::TN # unit normal vectors
     k::TK # curvatures # TODO: think 2d vs 3d
-    w::TW # weights
+    w::TW # weights # TODO: enforce that these be vectors
 end
 
 
@@ -28,14 +37,14 @@ function DiscreteClosedCurve(x, v, a)
     # TODO: assert shapes
 
 
-    s = sqrt.(sum(abs2, v; dims=2))
+    s = vec(sqrt.(sum(abs2, v; dims=2))) # TODO: make this vec() produce a container accordingly to container type of x, v, a
     t = v ./ s
 
     # normal is rotated tangential
     n = similar(t)
     n[:, 1], n[:, 2] = t[:, 2], -t[:, 1]
 
-    k = -sum(a .* n, dims=2) ./ s .^ 2
+    k = vec(-sum(a .* n, dims=2) ./ s .^ 2)
 
     N = size(x, 1)
 
