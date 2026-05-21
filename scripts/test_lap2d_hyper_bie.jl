@@ -19,6 +19,32 @@ using Random
 using BimDiff
 
 
+abstract type Solution end
+
+struct DirichletSolution{S<:Side,A<:Approach,C<:HypersingularCorrection} <: Solution
+    n
+    u::Vector{Float64}
+    τ::Vector{Float64}
+    correction::C
+end
+
+struct NeumannSolution{S<:Side,A<:Approach} <: Solution
+    n
+    u::Vector{Float64}
+    σ::Vector{Float64}
+end
+
+struct ExactSolution{S<:Side} <: Solution
+    n
+    u::Vector{Float64}
+    σ::Vector{Float64}
+    τ::Vector{Float64}
+end
+
+# struct SolutionSequence{S<:Solution}
+#     data::Vector{S}
+#     SolutionSequence{S}(n::Int) = SolutionSequence(Vector{S}(undef, n))
+# end
 
 
 function main()
@@ -113,8 +139,8 @@ function main()
 
     # wait(display(fig))
 
-    println("Printing max-norm errors")
-    println("Interior")
+    # println("Printing max-norm errors")
+    # println("Interior")
 
     n_vals = 20:20:400
 
@@ -127,7 +153,18 @@ function main()
     err_neumann_u = zeros(Float64, size(n_vals, 1))
     err_neumann_σ = zeros(Float64, size(n_vals, 1))
 
+    solutions = Vector{Solution}()
+
+    laplace = Laplace()
+    interior = Interior()
+    exterior = Exterior()
+    zeta = Zeta(ord)
+    sidi = Sidi()
+    direct = Direct()
+    indirect = Indirect()
+
     for (i, n) ∈ enumerate(n_vals)
+
 
         Γ = DiscreteClosedCurve(n, ρ) # boundary of the domain
 
@@ -147,64 +184,90 @@ function main()
         σ = S_source * density_source # Dirichlet BC
         τ_exact = dS_dn_source * density_source # Neumann BC exact solution
 
+        push!(solutions, ExactSolution{Interior}(n, u_exact, σ, τ_exact)) # TODO: may be wasteful to store the same exact solution many times, although boundary traces do change...
 
+
+
+
+        S = SingleLayer(laplace, Γ, ord)
+        D = DoubleLayer(laplace, Γ)
+        D_star = AdjointDoubleLayer(laplace, Γ)
+        H_zeta = Hypersingular(laplace, Γ, zeta)
+        H_sidi = Hypersingular(laplace, Γ, sidi)
+
+        S_target = SingleLayer(laplace, x_test, Γ,)
+        D_target = DoubleLayer(laplace, x_test, Γ,)
 
         u, τ = solve(
-            Laplace(),
-            Interior(),
-            Γ,
+            laplace,
+            interior,
             Dirichlet(σ), # TODO: since one kernel matrix can be applied to several BCs, overload accepting vector of BC
-            Zeta(ord),
-            Direct(),
-            x_test,
+            direct,
+            D_star,
+            H_zeta,
+            S_target,
+            D_target,
         )
-
-
+        push!(solutions, DirichletSolution{Interior,Direct,Zeta}(n, u, τ, zeta))
+        err_u[i] = norm(u_exact - u, Inf)
+        err_τ[i] = norm(τ_exact - τ, Inf)
 
         # hypersingular operator using Sidi's staggered grid
-        H_sidi = compute_laplace_dlp_matrix_normal_derivative(Γ.x, Γ.n)
-        H_sidi = H_sidi .* Γ.w' # transpose seems hacky
-        # divide diagonal
-        H_sidi[diagind(H_sidi)] .= -pi / 4 ./ Γ.w
-        # apply quadrature weights and integrate function σ
-        # τ_sidi = A \ (H_sidi * σ)
-        # u_sidi = S * τ_sidi - D * σ
-
-        err_u[i] = norm(u_exact - u, Inf)
-        # err_u_sidi[i] = norm(u_exact - u_sidi, Inf)
-        err_τ[i] = norm(τ_exact - τ, Inf)
-        # err_τ_sidi[i] = norm(τ_exact - τ_sidi, Inf)
-
+        u, τ = solve(
+            laplace,
+            interior,
+            Dirichlet(σ),
+            direct,
+            D_star,
+            H_sidi,
+            S_target,
+            D_target,
+        )
+        push!(solutions, DirichletSolution{Interior,Direct,Sidi}(n, u, τ, sidi))
+        err_u_sidi[i] = norm(u_exact - u, Inf)
+        err_τ_sidi[i] = norm(τ_exact - τ, Inf)
 
         # Neumann problem
-
-        # TODO: separate into functions
 
         # swap bdry conditions
         σ_exact = σ
         τ = τ_exact
 
-        S_self = compute_laplace_slp_matrix(Γ.x, vec(Γ.w), ord)
-        D_self = compute_laplace_dlp_matrix(Γ.x, Γ.n, vec(Γ.k)) .* Γ.w'
-
-        A = 0.5 * I(n) + D_self .+ Γ.w'
-        σ = A \ (S_self * τ)
-
-        S = compute_laplace_slp_matrix(x_test, Γ.x) .* Γ.w'
-        D = compute_laplace_dlp_matrix(x_test, Γ.x, Γ.n) .* Γ.w'
-        u = S * τ - D * σ
-
+        u, σ = solve(
+            laplace,
+            interior,
+            Neumann(τ),
+            direct,
+            S,
+            D,
+            S_target,
+            D_target,
+        )
         # "recover constant" in the original code...
         offset = u_exact[1] - u[1]
-
         u .+= offset
-        σ .+= offset
+        σ .+= offset # TODO: put this inside solver maybe and user passes integration constant
+        push!(solutions, NeumannSolution{Interior,Direct}(n, u, σ))
 
 
         err_neumann_u[i] = norm(u_exact - u, Inf)
         err_neumann_σ[i] = norm(σ_exact - σ, Inf)
 
 
+        u, σ = solve(
+            laplace,
+            interior,
+            Neumann(τ),
+            indirect,
+            S,
+            D_star,
+            S_target,
+        )
+        # "recover constant" in the original code...
+        offset = u_exact[1] - u[1]
+        u .+= offset
+        σ .+= offset # TODO: put this inside solver maybe and user passes integration constant
+        push!(solutions, NeumannSolution{Interior,Indirect}(n, u, σ))
 
 
     end
@@ -218,7 +281,6 @@ function main()
     # for (i, n) in enumerate(n_vals)
     #     println("N=$n\tu=$(err_neumann_u[i])\tσ=$(err_neumann_σ[i])")
     # end
-
 
     # fig = Figure()
     # ax = Axis(
