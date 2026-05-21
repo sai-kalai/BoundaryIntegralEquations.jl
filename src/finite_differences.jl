@@ -1,4 +1,4 @@
-function fdcoeffs(derivative_order::Int, accuracy_order::Int)::Vector{<:Real}
+function fdcoeffs(derivative_order::Int, accuracy_order::Int)::Vector{Float64}
 
     if derivative_order == 1
 
@@ -21,17 +21,8 @@ function fdcoeffs(derivative_order::Int, accuracy_order::Int)::Vector{<:Real}
 
 end
 
-function fdcoeffs1(accuracy_order::Int)::Vector{Real}
-    fdcoeffs(1, accuracy_order)
-end
-
-function fdcoeffs2(accuracy_order::Int)::Vector{Real}
-    fdcoeffs(2, accuracy_order)
-end
-
 # private functions
-
-function compute_coeffs_first(k::Int)::Vector{Real}
+function compute_coeffs_first(k::Int)
     x = 1:k                             # 1:k range
     powers = collect(1:2:2k)            # odd powers: 1,3,5,...
 
@@ -45,7 +36,7 @@ function compute_coeffs_first(k::Int)::Vector{Real}
     return cd
 end
 
-function compute_coeffs_second(k::Int)::Vector{Real}
+function compute_coeffs_second(k::Int)
 
     setprecision(BigFloat, 400) do
 
@@ -70,7 +61,7 @@ function compute_coeffs_second(k::Int)::Vector{Real}
 end
 
 # TODO move this to config file, populate by solving system
-precomputed_coeffs_second = Dict{Int,Vector{Real}}(
+precomputed_coeffs_second = Dict{Int32,Vector{Float64}}(
     0 => [0],
     1 => [-2, 1],
     2 => [-30, 16, -1] / 12,
@@ -336,7 +327,7 @@ precomputed_coeffs_second = Dict{Int,Vector{Real}}(
         -3.901475667559581e-13
         8.425603428484139e-15],)
 
-precomputed_coeffs_first = Dict{Int,Vector{Real}}(
+precomputed_coeffs_first = Dict{Int32,Vector{Float64}}(
     0 => [0,],
     1 => [0.5,],
     2 => [8, -1] / 12,
