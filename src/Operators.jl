@@ -56,27 +56,41 @@ end
 
 
 # a.k.a S
-struct SingleLayer{M<:AbstractMatrix{<:Number},P<:BoundaryValueProblem} <: IntegralOperator
+struct SingleLayer{
+    P<:BoundaryValueProblem,
+    M<:AbstractMatrix{<:Number},
+} <: IntegralOperator
     problem::P
-    matrix::M # resulting operator is mxn matrix.
+    matrix::M
 end
 
 # a.k.a D a.k.a. ∂S/∂ny
-struct DoubleLayer{M<:AbstractMatrix{<:Number},P<:BoundaryValueProblem} <: IntegralOperator
+struct DoubleLayer{
+    P<:BoundaryValueProblem,
+    M<:AbstractMatrix{<:Number}
+} <: IntegralOperator
     problem::P
-    matrix::M # resulting operator is mxn matrix.
+    matrix::M
 end
 
 # a.k.a  D* a.k.a. ∂S/∂nx
-struct AdjointDoubleLayer{M<:AbstractMatrix{<:Number},P<:BoundaryValueProblem} <: IntegralOperator
+struct AdjointDoubleLayer{
+    P<:BoundaryValueProblem,
+    M<:AbstractMatrix{<:Number}
+} <: IntegralOperator
     problem::P
-    matrix::M # resulting operator is mxn matrix.
+    matrix::M
 end
 
 # a.k.a  N a.k.a. ∂S²/∂nx∂ny
-struct Hypersingular{M<:AbstractMatrix{<:Number},P<:BoundaryValueProblem} <: IntegralOperator
+struct Hypersingular{
+    P<:BoundaryValueProblem,
+    C<:HypersingularCorrection,
+    M<:AbstractMatrix{<:Number}
+} <: IntegralOperator
     problem::P
-    matrix::M # resulting operator is mxn matrix.
+    correction::C
+    matrix::M
 end
 
 
