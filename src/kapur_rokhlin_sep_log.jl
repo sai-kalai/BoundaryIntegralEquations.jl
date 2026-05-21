@@ -1,5 +1,5 @@
 
-function krcoeffs(accuracy_order::Int)::Vector{<:Real}
+function krcoeffs(accuracy_order::Int)::Vector{Float64}
     stencil = get!(precomputed_coeffs_rk, accuracy_order) do
         compute_coeffs_rk(accuracy_order)
     end
@@ -24,7 +24,7 @@ function compute_coeffs_rk(k::Int)
 end
 
 # TODO move this to config file, populate by solving system
-precomputed_coeffs_rk = Dict{Int,Vector{Real}}(
+precomputed_coeffs_rk = Dict{Int32,Vector{Float64}}(
     0 => [0],
     1 => [
         -.9189385332046728E+00
