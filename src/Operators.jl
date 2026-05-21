@@ -28,11 +28,6 @@ export
 
 abstract type IntegralOperator end # TODO: move to Models
 
-function operator_factory(
-    ops::Vector{IntegralOperator}
-)
-end
-
 # NOTE: is this the julian way for a getter/public api?
 function matrix(op::IntegralOperator)::AbstractMatrix
     return op.matrix
@@ -252,7 +247,7 @@ function compute_laplace_slp_matrix(
 
         # TODO: i don't like having 3 loops
         for j in 1:m
-            A[i, j] *= weights[j]
+            A[i, j] *= weights[j] # TODO: inconsistency: sometimes weights are applied inside the compute matrix function, sometimes outside...
         end
 
     end
@@ -531,8 +526,11 @@ function compute_laplace_dlp_matrix_normal_derivative(
             end
 
             # g(j) = n(i) ⋅ n(j) |ρ'(j)|/(2π |ρ'(i)|) * (1 - B + B^2)
-            g = dot(nx[i, :], nx[j, :]) * weights[j] / (weights[i]^2) * (1 - B + B^2)
+            #
+            nx_dot_ny = Kernels._a_dot_b(nx[i, 1], nx[i, 2], nx[j, 1], nx[j, 2])
+            # nx_dot_ny = dot(nx[i, :], nx[j, :])
 
+            g = nx_dot_ny * weights[j] / (weights[i]^2) * (1 - B + B^2)
 
             dD_dn[i, j] += stencil[dj+k+1] * g / 4π
 
