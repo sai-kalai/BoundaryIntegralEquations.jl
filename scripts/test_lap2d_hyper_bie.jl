@@ -272,15 +272,15 @@ function main()
 
     end
 
-    # println("Dirichlet")
-    # for (i, n) in enumerate(n_vals)
-    #     println("N=$n\tu(zeta)=$(err_u[i])\tu(sidi)=$(err_u_sidi[i])\tτ(zeta)=$(err_τ[i])\tτ(sidi)=$(err_τ_sidi[i])")
-    # end
-    #
-    # println("Neumann")
-    # for (i, n) in enumerate(n_vals)
-    #     println("N=$n\tu=$(err_neumann_u[i])\tσ=$(err_neumann_σ[i])")
-    # end
+    println("Dirichlet")
+    for (i, n) in enumerate(n_vals)
+        println("N=$n\tu(zeta)=$(err_u[i])\tu(sidi)=$(err_u_sidi[i])\tτ(zeta)=$(err_τ[i])\tτ(sidi)=$(err_τ_sidi[i])")
+    end
+
+    println("Neumann")
+    for (i, n) in enumerate(n_vals)
+        println("N=$n\tu=$(err_neumann_u[i])\tσ=$(err_neumann_σ[i])")
+    end
 
     # fig = Figure()
     # ax = Axis(
