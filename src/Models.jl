@@ -54,8 +54,8 @@ abstract type IntegralOperator{P<:BoundaryValueProblem} end
 # a.k.a S
 struct SingleLayer{
     P<:BoundaryValueProblem,
-    M<:AbstractMatrix{<:Number},
     C<:Union{SingularCorrection,Nothing},
+    M<:AbstractMatrix{<:Number}, # TODO: change order of members/constructor arguments to match order of generic parameters
 } <: IntegralOperator
     problem::P
     matrix::M
@@ -83,8 +83,8 @@ end
 # a.k.a  N a.k.a. ∂S²/∂nx∂ny
 struct Hypersingular{
     P<:BoundaryValueProblem,
-    M<:AbstractMatrix{<:Number},
     C<:HypersingularCorrection,
+    M<:AbstractMatrix{<:Number},
 } <: IntegralOperator
     problem::P
     matrix::M

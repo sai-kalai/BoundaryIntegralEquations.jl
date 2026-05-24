@@ -165,6 +165,137 @@ function compute_laplace_slp_matrix(
 end
 
 
+function compute_entry!(i::Int, j::Int, op::IntegralOperator, d::Kernels.PairwiseData, b::DiscreteClosedCurve)
+
+end
+
+function compute_entry!(i::Int, j::Int, op::SingleLayer{Laplace}, d::Kernels.PairwiseData, b::DiscreteClosedCurve)
+
+    if j < i
+        # lower  triangular sweep
+        if isnan(d.r_norm_sq)
+            r = @view b.x[i, :] - @view b.x[j, :]
+            d.r_norm_sq = Kernels._a_dot_a(r[1], r[2])
+        end
+
+        val = Kernels.kernel(op, d.r_norm_sq)
+        op.matrix[i, j] = val
+        op.matrix[j, i] = val
+    elseif j == i
+        #diagonal
+        op.matrix[i, i] = -0.5 * log(b.w[i]) / π
+
+    elseif j > i
+        # upper triangular sweep: leave unchanged
+        # WARN: even though portion is gnored, the dot products were still computed...
+        return
+
+    end
+
+end
+
+function compute_entry!(i::Int, j::Int, op::DoubleLayer{Laplace}, d::Kernels.PairwiseData, b::DiscreteClosedCurve)
+    if j == i
+        #diagonal
+        op.matrix[i, i] = -0.25 * b.k[i] / π
+    else
+        if isnan(d.r_norm_sq)
+            r = @view b.x[i, :] - @view b.x[j, :]
+            d.r_norm_sq = Kernels._a_dot_a(r[1], r[2])
+        end
+        if isnan(d.r_dot_ny)
+            r = @view b.x[i, :] - @view b.x[j, :]
+            d.r_dot_nx = Kernels._a_dot_b(r[1], r[2], b.n[j, 1], b.n[j, 2])
+        end
+
+        # off-diagonal sweep
+        op.matrix[i, j] = Kernels.kernel(op, d.r_dot_ny, d.r_norm_sq)
+    end
+end
+
+function compute_entry!(i::Int, j::Int, op::AdjointDoubleLayer{Laplace}, d::Kernels.PairwiseData, b::DiscreteClosedCurve)
+    if j == i
+        #diagonal
+        op.matrix[i, i] = -0.25 * b.k[i] / π
+    else
+        # off-diagonal sweep
+        if isnan(d.r_norm_sq)
+            r = @view b.x[i, :] - @view b.x[j, :]
+            d.r_norm_sq = Kernels._a_dot_a(r[1], r[2])
+        end
+        if isnan(d.r_dot_nx)
+            r = @view b.x[i, :] - @view b.x[j, :]
+            d.r_dot_nx = Kernels._a_dot_b(r[1], r[2], b.n[i, 1], b.n[i, 2])
+        end
+        op.matrix[i, j] = Kernels.kernel(op, d.r_dot_nx, d.r_norm_sq)
+    end
+end
+
+function compute_entry!(i::Int, j::Int,
+    op::Hypersingular{Laplace,Sidi},
+    d::Kernels.PairwiseData,
+    b::DiscreteClosedCurve
+)
+
+    if j >= i
+        return
+
+    elseif isodd(i) ⊻ isodd(j)
+
+        if isnan(d.r_norm_sq)
+            r = @view b.x[i, :] - @view b.x[j, :]
+            d.r_norm_sq = Kernels._a_dot_a(r[1], r[2])
+        end
+        if isnan(d.r_dot_nx)
+            r = @view b.x[i, :] - @view b.x[j, :]
+            d.r_dot_nx = Kernels._a_dot_b(r[1], r[2], b.n[i, 1], b.n[i, 2])
+        end
+        if isnan(d.r_dot_ny)
+            r = @view b.x[i, :] - @view b.x[j, :]
+            d.r_dot_nx = Kernels._a_dot_b(r[1], r[2], b.n[j, 1], b.n[j, 2])
+        end
+        if isnan(d.nx_dot_ny)
+            d.r_dot_nx = Kernels._a_dot_b(b.n[i, 1], b.n[i, 2], b.n[j, 1], b.n[j, 2])
+        end
+
+        val = 2 * Kernels.kernel(op, d.r_dot_nx, d.r_dot_ny, d.r_norm_sq, d.nx_dot_ny)
+        op.matrix[i, j] = val
+        op.matrix[j, i] = val
+    end
+
+
+
+end
+
+function compute_entry!(i::Int, j::Int, op::Hypersingular{Laplace,Zeta}, d::Kernels.PairwiseData, b::DiscreteClosedCurve)
+    if j == i
+        #diagonal
+        #op.matrix[i, i] = -π / 6 / b.w[i] + b.k[i]^2 * b.w[i] / 4π
+    else
+        # off-diagonal sweep
+        if isnan(d.r_norm_sq)
+            r = @view b.x[i, :] - @view b.x[j, :]
+            d.r_norm_sq = Kernels._a_dot_a(r[1], r[2])
+        end
+        if isnan(d.r_dot_nx)
+            r = @view b.x[i, :] - @view b.x[j, :]
+            d.r_dot_nx = Kernels._a_dot_b(r[1], r[2], b.n[i, 1], b.n[i, 2])
+        end
+        if isnan(d.r_dot_ny)
+            r = @view b.x[i, :] - @view b.x[j, :]
+            d.r_dot_nx = Kernels._a_dot_b(r[1], r[2], b.n[j, 1], b.n[j, 2])
+        end
+        op.matrix[i, j] = Kernels.kernel(op, d) * b.w[j]
+        op.matrix[j, i] = Kernels.kernel(op, d) * b.w[i]
+    end
+
+end
+
+
+function banded_correction(i::Int, op::Union{}, stencil::AbstractVector{T}, b::DiscreteClosedCurve)
+
+end
+
 # so client is responsible for allocating the zeros
 function populate_matrices!(
     boundary::DiscreteClosedCurve,
@@ -178,20 +309,11 @@ function populate_matrices!(
 
     # if both dlp and dlp adjoint are requested, compute once and transpose before applying weights
 
-    need_r_dot_nx = true
-    need_r_dot_ny = true
-    need_nx_dot_ny = true
-    need_banded_correction = true
-    need_staggered_loop = true
+    # loop over i
+    for i in m:-1:1
+        for j in 1:m
 
-    # decide what scalars to compute
-
-    function _inner_loop!(i, js)
-
-        #   loop over j: left half
-        for j in js
             # figure out what vector ops need to be computed
-
             x = @view boundary.x[i, :]
             y = @view boundary.x[j, :]
             nx = @view boundary.n[i, :]
@@ -202,42 +324,20 @@ function populate_matrices!(
             r_norm_sq = Kernels._a_dot_a(r[1], r[2])
 
 
-            r_dot_nx = need_r_dot_nx ?
-                       Kernels._a_dot_b(nx[1], nx[2], r[1], r[2]) :
-                       zero(Float64)
-            r_dot_ny = need_r_dot_ny ?
-                       Kernels._a_dot_b(ny[1], ny[2], r[1], r[2]) :
-                       zero(Float64)
 
-            nx_dot_ny = need_nx_dot_ny ?
-                        Kernels._a_dot_b(nx[1], nx[2], ny[1], ny[2]) :
-                        zero(Float64)
+            d = Kernels.PairwiseData()
 
-            d = Kernels.PairwiseData(
-                r_norm_sq,
-                r_dot_nx,
-                r_dot_ny,
-                nx_dot_ny,
-            )
-
+            # call appropriate code for each operator kind
             for op in ops
-                op.matrix[i, j] = Kernels.kernel(op, d)
+                compute_entry!(i, j, op, d, boundary)
             end
 
+
         end
+        # for op in ops
+        #     banded_correction!(op, stencil)
+        # end
 
-    end
-
-    # loop over i TODO: change to be column major, fine for now
-    for i in m:-1:1
-
-        #   loop over j: other half for nonsymmetric: how to decide?
-
-        _inner_loop!(i, 1:i-1)
-
-        _inner_loop!(i, i+1:m)
-
-        #banded looops
 
 
         #   loop over j: banded correction using stencils for slp, adjoint dlp
@@ -262,11 +362,11 @@ function compute_laplace_slp_matrix(
     A = zeros(Float64, m, m)
 
     k = clamp((order - 1) ÷ 2, 0, (m - 1) ÷ 2)
+
     stencil = krcoeffs(k + 1)
     stencil = [stencil[end:-1:2]; stencil] # TODO: make this prettier
 
 
-    # TODO: inbounds macro was deleted
     for i in m:-1:1 # loop bacwards
 
         #diagonal term
@@ -289,10 +389,6 @@ function compute_laplace_slp_matrix(
             A[i, j] += stencil[dj+k+1] / 2pi
         end
 
-        # # TODO: i don't like having 3 loops
-        # for j in 1:m
-        #     A[i, j] *= weights[j] # TODO: inconsistency: sometimes weights are applied inside the compute matrix function, sometimes outside...
-        # end
 
     end
     return A
@@ -536,7 +632,6 @@ function compute_laplace_hypersingular_matrix(
     @inbounds for i in m:-1:1
 
         # dD_dn[i, i] = -π / 6 / weights[i] + curvatures[i]^2 * weights[i] / 4π
-
 
         # first sum: compute for other points  in the manifold the dlp normal derivative
         for j in 1:i-1
