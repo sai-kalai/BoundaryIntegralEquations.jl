@@ -48,6 +48,7 @@ greet() = println("Hello World!\n $compute_laplace_slp_matrix")
     include("../scripts/main.jl")
     include("../scripts/precomputed_coeffs.jl")
     include("../scripts/test_lap2d_hyper_bie.jl")
+    include("../scripts/ellipse.jl")
 end
 
 end # module BimDiff
