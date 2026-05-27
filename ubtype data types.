@@ -1,0 +1,257 @@
+[33mcommit 31a8c6e42aec57a5670ef941c74650e6a4196d44[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed May 27 18:42:19 2026 +0200
+
+    merge loops to compute several operators at a time
+
+[33mcommit a50c842ad1bddc35fbd389b5f780bc51c5bf3bc5[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Sun May 24 16:40:32 2026 +0200
+
+    optimizing to use same loop for several operators
+
+[33mcommit e740c2b343ce95dedccfc1e316f09892f2168ce3[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Fri May 22 17:15:19 2026 +0200
+
+    progress merging loops
+
+[33mcommit 1b4d0d90b1857cf7061b8cf2398e7328960a85fc[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Fri May 22 01:02:48 2026 +0200
+
+    feat: adopt operator structs and solve function
+
+[33mcommit 78d1731254e505a94c305120ac7172c1d9f4e5e6[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Fri May 22 01:02:15 2026 +0200
+
+    export names of operators
+
+[33mcommit fa588f571e46a614b9088da72cf2663b6a3bd67b[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Fri May 22 01:01:13 2026 +0200
+
+    feat(Manifolds): added type bounds for better type safety
+
+[33mcommit a6614da7eec0a4b35b8fb3a7122b5002683911b9[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Fri May 22 01:00:38 2026 +0200
+
+    feat(Operators): using unrolled dot product to avoid allocation
+
+[33mcommit 1d1c6196574d906fcb58c5a4a578e88e1e10cd2f[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Fri May 22 00:59:51 2026 +0200
+
+    refactor(Operators): renamed local variable matrix to mat to avoid collision with
+    function name
+
+[33mcommit c708aa85ffcda1e45231bbadd4f4ffac56898f84[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Fri May 22 00:58:51 2026 +0200
+
+    feat(Hypersingular): include correction type in struct
+
+[33mcommit caebd1662316d858f8938298b1a338886b01355e[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Fri May 22 00:57:08 2026 +0200
+
+    feat(Solvers): interior dirichlet and neumann, direct and indirect, api
+    for geometry and also precomputed operators
+
+[33mcommit 9082d1fbeb0cfc89318c99e2b737adcf6506b101[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Fri May 22 00:56:43 2026 +0200
+
+    fix(finite_differences): type stability
+
+[33mcommit 42f15f7a08e3dd0da48f5afc93ea0656eb6f92f5[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Fri May 22 00:56:19 2026 +0200
+
+    fix(kapur_rokhlin_sep_log): type stability
+
+[33mcommit 732fd10791eacf6fd9064a741782fd57cb1fd13f[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed May 20 22:43:08 2026 +0200
+
+    misc
+
+[33mcommit 61672d4033001b0f8752fbfb3642c28f64b2c08e[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed May 20 22:42:53 2026 +0200
+
+    sketching kernel factory api
+
+[33mcommit 92ea49c7b640752342e3dfc78088882621e12137[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed May 20 22:42:40 2026 +0200
+
+    comment
+
+[33mcommit e0a9d8e3686d0db967ac1e1f3e84d9d3a3f846da[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed May 20 22:42:17 2026 +0200
+
+    refactor(Operators): remove unused functions
+    
+    remove unused functions
+
+[33mcommit 18cc80aa634ecf8843b49d18b68e79afcf3adc78[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed May 20 22:41:44 2026 +0200
+
+    migrating to object oriented design
+
+[33mcommit ae43c63e25b954197184764b3816164cf4054227[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed May 20 22:21:18 2026 +0200
+
+    feat(Operators): progress implementing linear algebra api for operators
+
+[33mcommit f649eb796e0b9d6bf7230846e283636be8572953[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed May 20 22:20:18 2026 +0200
+
+    refactor(Operators): rename Adjoint to AdjointDoubleLayer to avoid
+    collision
+
+[33mcommit 050d8aa6297167fe1a20c3cbc61a00ab5760c849[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed May 20 22:19:41 2026 +0200
+
+    feat(solve): api to support precomputed operators
+
+[33mcommit fdffde94b005f8a1fee8b517297a020a15976e20[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Tue May 19 07:18:19 2026 +0200
+
+    progress merging to object oriented
+
+[33mcommit 5599b380145ad3f767703cd58aa01400fed421a2[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Mon May 18 16:58:56 2026 +0200
+
+    checkpoint before unifying matrix representation
+
+[33mcommit 0338be8cd911fbad35280ae1de5d386c38417ce5[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed May 13 18:51:46 2026 +0200
+
+    started structuring solve into functions
+
+[33mcommit 390cef7adca41c946a0508ea858ae6cdde57baf2[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Tue May 12 23:05:43 2026 +0200
+
+    neumann problem done
+
+[33mcommit 2c93e89903f85391e30b443b07ebead5c86939d0[m
+Merge: bebc0b9 d7ce632
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Mon May 11 16:59:55 2026 +0200
+
+    Merge branch 'main' of github.com:sai-kalai/bim-diff
+
+[33mcommit bebc0b9d1fc1f5348c7780e309a0bebd7d6f423f[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Mon May 11 16:59:32 2026 +0200
+
+    convergence orders
+
+[33mcommit d7ce6328739ffc48a1269fd7f9fb2f4c673c9988[m
+Author: saimonkalaimon <120991211+sai-kalai@users.noreply.github.com>
+Date:   Fri May 8 15:09:05 2026 +0200
+
+    Add MIT License to the project
+
+[33mcommit 3e2f1283bb39bc6f71f98b1dbc0eb59f9266de51[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Thu May 7 21:38:24 2026 +0200
+
+    error metrics for interior dirichlet problem
+
+[33mcommit 163cf18d6fe97faa452817dce04cbe45556eb02a[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Tue May 5 21:41:07 2026 +0200
+
+    annoying bug, will continue tomorrow
+
+[33mcommit 89bce97c95e45d7aae974c9d6de97fcedc78912a[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Tue May 5 20:09:33 2026 +0200
+
+    bug: j out of bounds in inner loop for zeta correction
+
+[33mcommit 8920f2c7de275b2ed89fd093536cff427a20559f[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Mon May 4 22:45:43 2026 +0200
+
+    progress with zeta quadrature
+
+[33mcommit 6aaf1e3b10dfaf6bdeea1594da1a05c59810708b[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Mon May 4 18:32:20 2026 +0200
+
+    sidi approach complete
+
+[33mcommit e0cdf38237f3a1c137fec14fcf74088f3f96d1a5[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Mon May 4 18:10:54 2026 +0200
+
+    sidi approach complete
+
+[33mcommit c9423670831cbccefceab23a99499d344a2457c7[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed Apr 29 23:37:13 2026 +0200
+
+    laplace hypersingular operator complete
+
+[33mcommit 84bfef226f1efe1a453bd681091ed8a358176f06[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed Apr 29 16:48:40 2026 +0200
+
+    pass components as individual arguments to kernels
+
+[33mcommit 3ce817e0bd70fcd914a50e78947121e3744c4417[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed Apr 29 16:36:23 2026 +0200
+
+    fix bug
+
+[33mcommit 381b5e803f82021db5b16e26b56d8611dbfd52e0[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed Apr 29 16:29:17 2026 +0200
+
+    removed loops
+
+[33mcommit e1d9a5f1a148cf8d494ef9ba8936ae19ff8f66bc[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Wed Apr 29 16:18:27 2026 +0200
+
+    removing loops
+
+[33mcommit da43878076ff31e3dcede8dbcd0fd5f09d8c00d1[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Tue Apr 28 19:34:06 2026 +0200
+
+    progress
+
+[33mcommit e49bbe186587f8117f789e92b3a6c4e0c5f68e8f[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Tue Apr 28 15:01:49 2026 +0200
+
+    progress
+
+[33mcommit c821f3486fc5ea80ae4902411cb54720d557f92c[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Mon Apr 20 23:31:58 2026 +0200
+
+    laplace slp
+
+[33mcommit 31c8b5611f8150d86720692c35f761045996188f[m
+Author: simon cadavid <simon.cadavid98@gmail.com>
+Date:   Tue Apr 14 18:10:36 2026 +0200
+
+    initial commit
