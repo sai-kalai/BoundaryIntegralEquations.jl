@@ -41,16 +41,16 @@ struct Stokes <: BoundaryValueProblem end
 
 abstract type HypersingularCorrection end
 struct Sidi <: HypersingularCorrection end
-struct Zeta{T<:Int} <: HypersingularCorrection
-    order::T
+struct Zeta <: HypersingularCorrection
+    order::Int
 end
 
 abstract type SingularCorrection end
-struct KapurRokhlin{T<:Int} <: SingularCorrection
-    order::T
+struct KapurRokhlin <: SingularCorrection
+    order::Int
 end
 
-abstract type IntegralOperator{P<:BoundaryValueProblem} end
+abstract type IntegralOperator end
 # a.k.a S
 struct SingleLayer{
     P<:BoundaryValueProblem,
@@ -58,8 +58,8 @@ struct SingleLayer{
     M<:AbstractMatrix{<:Number}, # TODO: change order of members/constructor arguments to match order of generic parameters
 } <: IntegralOperator
     problem::P
-    matrix::M
     correction::C
+    matrix::M
 end
 
 # a.k.a D a.k.a. ∂S/∂ny
@@ -87,8 +87,8 @@ struct Hypersingular{
     M<:AbstractMatrix{<:Number},
 } <: IntegralOperator
     problem::P
-    matrix::M
     correction::C
+    matrix::M
 end
 
 abstract type Side end

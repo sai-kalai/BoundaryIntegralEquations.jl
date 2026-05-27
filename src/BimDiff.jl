@@ -25,6 +25,7 @@ export
     DoubleLayer,
     AdjointDoubleLayer,
     Hypersingular,
+    populate_matrices!,
     compute_laplace_slp_matrix,
     compute_laplace_dlp_adjoint_matrix,
     compute_laplace_slp_matrix_and_normal_derivative,

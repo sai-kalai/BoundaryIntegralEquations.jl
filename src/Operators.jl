@@ -1,5 +1,7 @@
 module Operators
 
+using StaticArrays
+
 
 
 include("finite_differences.jl")
@@ -15,6 +17,7 @@ using ..Models
 
 export
     matrix,
+    populate_matrices!,
     compute_laplace_slp_matrix,
     compute_laplace_slp_matrix_and_normal_derivative,
     compute_laplace_dlp_adjoint_matrix,
@@ -44,27 +47,68 @@ function Base.:+(v::AbstractArray, op::IntegralOperator)
 end
 
 
+# construct empty operator
+function Models.SingleLayer(
+    problem::P,
+    correction::C,
+    m::Int, n::Int;
+    allocator=(m, n) -> zeros(Float64, m, n) # default to Matrix{Float64}
+) where {
+    P<:BoundaryValueProblem,
+    C<:Union{SingularCorrection,Nothing}
+}
+    mat = allocator(m, n)
+    return SingleLayer(problem, correction, mat)
+end
+
 # construct Laplace SLP from a source manifold and a list of target points
-function SingleLayer(
+function Models.SingleLayer(
     problem::Laplace,
-    target::AbstractMatrix, # target points to compute operator
-    boundary::AbstractManifold, # source manifold e.g. domain boundary
+    targets::AbstractMatrix, # target points to compute operator
+    boundary::AbstractManifold; # source manifold e.g. domain boundary
+    allocator=(m, n) -> zeros(Float64, m, n) # default to Matrix{Float64}
 )
-    mat = compute_laplace_slp_matrix(target, boundary.x) .* boundary.w'
-    return SingleLayer(problem, mat, nothing)
+    m, dim_t = size(targets)
+    n, dim_x = size(boundary.x)
+
+    op = SingleLayer(problem, nothing, m, n; allocator=allocator)
+
+    populate_matrices!(boundary, targets, op)
+    # op.matrix .*= boundary.w'
+
+    return op
 end
 
 # self interaction
-function SingleLayer(
+function Models.SingleLayer(
     problem::Laplace,
     boundary::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
-    order::Int, # order of kapur rokhlin singular correction
+    order::Int; # order of kapur rokhlin singular correction
+    allocator=(m, n) -> zeros(Float64, m, n) # default to Matrix{Float64}
 )
-    mat = compute_laplace_slp_matrix(boundary.x, boundary.w, order) .* boundary.w'
-    return SingleLayer(problem, mat, KapurRokhlin(order))
+    n, dim_x = size(boundary.x)
+    op = SingleLayer(problem, KapurRokhlin(order), n, n; allocator=allocator)
+
+    populate_matrices!(boundary, op)
+    # op.matrix .*= boundary.w'
+
+    return op
 end
 
-function DoubleLayer(
+# construct empty operator
+function Models.DoubleLayer(
+    problem::P,
+    m::Int,
+    n::Int;
+    allocator=(m, n) -> zeros(Float64, m, n) # default to Matrix{Float64}
+) where {
+    P<:BoundaryValueProblem,
+}
+    mat = allocator(m, n)
+    return DoubleLayer(problem, mat)
+end
+
+function Models.DoubleLayer(
     problem::Laplace,
     target::AbstractMatrix, # target points to compute operator
     boundary::AbstractManifold, # source manifold e.g. domain boundary
@@ -78,7 +122,7 @@ function DoubleLayer(
 end
 
 # self interaction
-function DoubleLayer(
+function Models.DoubleLayer(
     problem::Laplace,
     boundary::AbstractManifold, # source manifold e.g. domain boundary
 )
@@ -91,8 +135,20 @@ function DoubleLayer(
 end
 
 
+# construct empty operator
+function Models.AdjointDoubleLayer(
+    problem::P,
+    m::Int,
+    n::Int;
+    allocator=(m, n) -> zeros(Float64, m, n) # default to Matrix{Float64}
+) where {
+    P<:BoundaryValueProblem,
+}
+    mat = allocator(m, n)
+    return AdjointDoubleLayer(problem, mat)
+end
 # self interaction
-function AdjointDoubleLayer(
+function Models.AdjointDoubleLayer(
     problem::Laplace,
     boundary::AbstractManifold, # source manifold e.g. domain boundary
 )
@@ -104,8 +160,22 @@ function AdjointDoubleLayer(
     return AdjointDoubleLayer(problem, mat)
 end
 
+# construct empty operator
+function Models.Hypersingular(
+    problem::P,
+    correction::C,
+    m::Int,
+    n::Int;
+    allocator=(m, n) -> zeros(Float64, m, n) # default to Matrix{Float64}
+) where {
+    P<:BoundaryValueProblem,
+    C<:HypersingularCorrection
+}
+    mat = allocator(m, n)
+    return Hypersingular(problem, correction, mat)
+end
 # self interaction using zeta correction
-function Hypersingular(
+function Models.Hypersingular(
     problem::Laplace,
     boundary::AbstractManifold, # TODO: abstract manifold is no good, need to ensure that passed object has n, k, ...
     correction::Zeta,
@@ -120,11 +190,11 @@ function Hypersingular(
 
     mat[diagind(mat)] .+= -π / 6 ./ boundary.w + boundary.k .^ 2 .* boundary.w ./ 4π
 
-    return Hypersingular(problem, mat, correction)
+    return Hypersingular(problem, correction, mat,)
 end
 
 # self interaction using Sidi correction
-function Hypersingular(
+function Models.Hypersingular(
     problem::Laplace,
     boundary::AbstractManifold,
     correction::Sidi,
@@ -136,7 +206,7 @@ function Hypersingular(
 
     mat[diagind(mat)] .= -pi / 4 ./ boundary.w
 
-    return Hypersingular(problem, mat, correction)
+    return Hypersingular(problem, correction, mat)
 end
 
 
@@ -156,7 +226,7 @@ function compute_laplace_slp_matrix(
     A = zeros(Float64, m, n)
 
     @inbounds for i in 1:m, j in 1:n
-        A[i, j] = Kernels.laplace_slp(
+        A[i, j] = Kernels.kernel(
             view(x, i, :),
             view(y, j, :)
         )
@@ -164,183 +234,421 @@ function compute_laplace_slp_matrix(
     return A
 end
 
-
-function compute_entry!(i::Int, j::Int, op::IntegralOperator, d::Kernels.PairwiseData, b::DiscreteClosedCurve)
-
+# store data to avoid recomputing
+mutable struct PairwiseCache{T<:AbstractFloat}
+    r::SVector{2,T}
+    r_norm_sq::T
+    r_dot_nx::T
+    r_dot_ny::T
+    nx_dot_ny::T
 end
 
-function compute_entry!(i::Int, j::Int, op::SingleLayer{Laplace}, d::Kernels.PairwiseData, b::DiscreteClosedCurve)
+function PairwiseCache(T)
+    nan = T(NaN)
+    PairwiseCache(SA[nan, nan], nan, nan, nan, nan)
+end
 
-    if j < i
-        # lower  triangular sweep
-        if isnan(d.r_norm_sq)
-            r = @view b.x[i, :] - @view b.x[j, :]
-            d.r_norm_sq = Kernels._a_dot_a(r[1], r[2])
-        end
 
-        val = Kernels.kernel(op, d.r_norm_sq)
-        op.matrix[i, j] = val
-        op.matrix[j, i] = val
-    elseif j == i
-        #diagonal
-        op.matrix[i, i] = -0.5 * log(b.w[i]) / π
-
-    elseif j > i
-        # upper triangular sweep: leave unchanged
-        # WARN: even though portion is gnored, the dot products were still computed...
-        return
-
+function get_r!(d::PairwiseCache, x::SVector, y::SVector)
+    if isnan(d.r[1]) || isnan(d.r[2])
+        d.r = x - y
     end
-
+    return d.r
 end
 
-function compute_entry!(i::Int, j::Int, op::DoubleLayer{Laplace}, d::Kernels.PairwiseData, b::DiscreteClosedCurve)
-    if j == i
-        #diagonal
-        op.matrix[i, i] = -0.25 * b.k[i] / π
-    else
-        if isnan(d.r_norm_sq)
-            r = @view b.x[i, :] - @view b.x[j, :]
-            d.r_norm_sq = Kernels._a_dot_a(r[1], r[2])
-        end
-        if isnan(d.r_dot_ny)
-            r = @view b.x[i, :] - @view b.x[j, :]
-            d.r_dot_nx = Kernels._a_dot_b(r[1], r[2], b.n[j, 1], b.n[j, 2])
-        end
-
-        # off-diagonal sweep
-        op.matrix[i, j] = Kernels.kernel(op, d.r_dot_ny, d.r_norm_sq)
+function get_r_norm_sq!(d::PairwiseCache, x::SVector, y::SVector)
+    if isnan(d.r_norm_sq)
+        r = get_r!(d, x, y)
+        d.r_norm_sq = dot(r, r)
     end
+    return d.r_norm_sq
 end
 
-function compute_entry!(i::Int, j::Int, op::AdjointDoubleLayer{Laplace}, d::Kernels.PairwiseData, b::DiscreteClosedCurve)
-    if j == i
-        #diagonal
-        op.matrix[i, i] = -0.25 * b.k[i] / π
-    else
-        # off-diagonal sweep
-        if isnan(d.r_norm_sq)
-            r = @view b.x[i, :] - @view b.x[j, :]
-            d.r_norm_sq = Kernels._a_dot_a(r[1], r[2])
-        end
-        if isnan(d.r_dot_nx)
-            r = @view b.x[i, :] - @view b.x[j, :]
-            d.r_dot_nx = Kernels._a_dot_b(r[1], r[2], b.n[i, 1], b.n[i, 2])
-        end
-        op.matrix[i, j] = Kernels.kernel(op, d.r_dot_nx, d.r_norm_sq)
+function get_r_dot_nx!(d::PairwiseCache, x::SVector, y::SVector, nx::SVector)
+    if isnan(d.r_dot_nx)
+        r = get_r!(d, x, y)
+        d.r_dot_nx = dot(r, nx)
     end
+    return d.r_dot_nx
 end
 
-function compute_entry!(i::Int, j::Int,
-    op::Hypersingular{Laplace,Sidi},
-    d::Kernels.PairwiseData,
+function get_r_dot_ny!(d::PairwiseCache, x::SVector, y::SVector, ny::SVector)
+    if isnan(d.r_dot_ny)
+        r = get_r!(d, x, y)
+        d.r_dot_ny = dot(r, ny)
+    end
+    return d.r_dot_ny
+end
+
+function get_nx_dot_ny!(d::PairwiseCache, nx::SVector, ny::SVector)
+    if isnan(d.nx_dot_ny)
+        d.nx_dot_ny = dot(nx, ny)
+    end
+    return d.nx_dot_ny
+end
+
+
+
+function make_svector2(matrix, row)
+    return SVector{2}(matrix[row, 1], matrix[row, 2])
+end
+
+# not self interaction
+function compute_entry!(
+    i::Int,
+    j::Int,
+    op::SingleLayer{Laplace,Nothing},
+    d::PairwiseCache,
+    b::DiscreteClosedCurve,
+    t::DiscreteClosedCurve, # target points
+)
+
+    x = make_svector2(t.x, i)
+    y = make_svector2(b.x, j)
+
+    op.matrix[i, j] = Kernels.kernel(
+        op,
+        get_r_norm_sq!(d, x, y)
+    ) * b.w[j]
+end
+
+function compute_entry!(
+    i::Int,
+    j::Int,
+    op::DoubleLayer{Laplace}, # WARN: no explicit indication to separate types corresponding to self vs target interaction
+    d::PairwiseCache,
+    b::DiscreteClosedCurve,
+    t::DiscreteClosedCurve,
+)
+    x = make_svector2(t.x, i) # target point
+    y = make_svector2(b.x, j) # source point
+    ny = make_svector2(b.n, j) # normal at y
+
+
+    op.matrix[i, j] = Kernels.kernel(
+        op,
+        get_r_norm_sq!(d, x, y),
+        get_r_dot_ny!(d, x, y, ny),
+    ) * b.w[j]
+
+
+end
+
+function compute_entry!(
+    # WARN: Massive hack
+    i::Int,
+    j::Int,
+    op::AdjointDoubleLayer{Laplace},
+    d::PairwiseCache,
+    b::DiscreteClosedCurve, # outside points in this case
+    t::DiscreteClosedCurve, # boundary in this case
+)
+    x = make_svector2(t.x, i) # target point
+    y = make_svector2(b.x, j) # source point
+    nx = make_svector2(t.n, i) # normal at x
+
+
+    val = Kernels.kernel(
+        op,
+        get_r_norm_sq!(d, x, y),
+        dot(x - y, nx)#get_r_dot_nx!(d, x, y, nx),
+    )
+
+
+    op.matrix[i, j] = val * b.w[j]
+
+end
+
+
+# self interaction
+function compute_entry!(
+    i::Int,
+    j::Int,
+    op::SingleLayer{Laplace,KapurRokhlin},
+    d::PairwiseCache,
     b::DiscreteClosedCurve
 )
 
-    if j >= i
+    if j < i
+        # lower  triangular sweep
+        x = make_svector2(b.x, i)
+        y = make_svector2(b.x, j)
+
+        val = Kernels.kernel(
+            op,
+            get_r_norm_sq!(d, x, y)
+        )
+
+        op.matrix[i, j] += val * b.w[j]
+        op.matrix[j, i] += val * b.w[i]
+
+    elseif j == i
+        #diagonal
+        op.matrix[i, i] = -0.5 * log(b.w[i]) / π * b.w[i]
+
+    elseif j > i
         return
 
-    elseif isodd(i) ⊻ isodd(j)
-
-        if isnan(d.r_norm_sq)
-            r = @view b.x[i, :] - @view b.x[j, :]
-            d.r_norm_sq = Kernels._a_dot_a(r[1], r[2])
-        end
-        if isnan(d.r_dot_nx)
-            r = @view b.x[i, :] - @view b.x[j, :]
-            d.r_dot_nx = Kernels._a_dot_b(r[1], r[2], b.n[i, 1], b.n[i, 2])
-        end
-        if isnan(d.r_dot_ny)
-            r = @view b.x[i, :] - @view b.x[j, :]
-            d.r_dot_nx = Kernels._a_dot_b(r[1], r[2], b.n[j, 1], b.n[j, 2])
-        end
-        if isnan(d.nx_dot_ny)
-            d.r_dot_nx = Kernels._a_dot_b(b.n[i, 1], b.n[i, 2], b.n[j, 1], b.n[j, 2])
-        end
-
-        val = 2 * Kernels.kernel(op, d.r_dot_nx, d.r_dot_ny, d.r_norm_sq, d.nx_dot_ny)
-        op.matrix[i, j] = val
-        op.matrix[j, i] = val
     end
-
-
 
 end
 
-function compute_entry!(i::Int, j::Int, op::Hypersingular{Laplace,Zeta}, d::Kernels.PairwiseData, b::DiscreteClosedCurve)
+function compute_entry!(
+    i::Int,
+    j::Int,
+    op::DoubleLayer{Laplace},
+    d::PairwiseCache,
+    b::DiscreteClosedCurve
+)
     if j == i
         #diagonal
-        #op.matrix[i, i] = -π / 6 / b.w[i] + b.k[i]^2 * b.w[i] / 4π
+        op.matrix[i, i] = -0.25 * b.k[i] / π * b.w[i]
     else
         # off-diagonal sweep
-        if isnan(d.r_norm_sq)
-            r = @view b.x[i, :] - @view b.x[j, :]
-            d.r_norm_sq = Kernels._a_dot_a(r[1], r[2])
-        end
-        if isnan(d.r_dot_nx)
-            r = @view b.x[i, :] - @view b.x[j, :]
-            d.r_dot_nx = Kernels._a_dot_b(r[1], r[2], b.n[i, 1], b.n[i, 2])
-        end
-        if isnan(d.r_dot_ny)
-            r = @view b.x[i, :] - @view b.x[j, :]
-            d.r_dot_nx = Kernels._a_dot_b(r[1], r[2], b.n[j, 1], b.n[j, 2])
-        end
-        op.matrix[i, j] = Kernels.kernel(op, d) * b.w[j]
-        op.matrix[j, i] = Kernels.kernel(op, d) * b.w[i]
+        x = make_svector2(b.x, i)
+        y = make_svector2(b.x, j)
+        ny = make_svector2(b.n, j)
+
+        op.matrix[i, j] = Kernels.kernel(
+            op,
+            get_r_norm_sq!(d, x, y),
+            get_r_dot_ny!(d, x, y, ny),
+        ) * b.w[j]
+    end
+end
+function compute_entry!(
+    i::Int,
+    j::Int,
+    op::AdjointDoubleLayer{Laplace},
+    d::PairwiseCache,
+    b::DiscreteClosedCurve
+)
+    if j == i
+        #diagonal
+        op.matrix[i, i] = -0.25 * b.k[i] / π * b.w[i]
+    else
+        # off-diagonal sweep
+        x = make_svector2(b.x, i)
+        y = make_svector2(b.x, j)
+        nx = make_svector2(b.n, i)
+
+        op.matrix[i, j] = Kernels.kernel(
+            op,
+            get_r_norm_sq!(d, x, y),
+            get_r_dot_nx!(d, x, y, nx),
+        ) * b.w[j]
+    end
+end
+
+function compute_entry!(
+    i::Int,
+    j::Int,
+    op::Hypersingular{Laplace,Sidi},
+    d::PairwiseCache,
+    b::DiscreteClosedCurve
+)
+
+    if j > i
+        return
+    elseif j == i
+        op.matrix[i, i] = -π / 4 / b.w[i]
+
+    elseif isodd(i) ⊻ isodd(j)
+        x = make_svector2(b.x, i)
+        y = make_svector2(b.x, j)
+        nx = make_svector2(b.n, i)
+        ny = make_svector2(b.n, j)
+
+
+        val = 2 * Kernels.kernel(
+            op,
+            get_r_norm_sq!(d, x, y),
+            get_r_dot_nx!(d, x, y, nx),
+            get_r_dot_ny!(d, x, y, ny),
+            get_nx_dot_ny!(d, nx, ny),
+        )
+
+        op.matrix[i, j] = val * b.w[j]
+        op.matrix[j, i] = val * b.w[i]
+    end
+
+
+
+end
+
+function compute_entry!(
+    i::Int,
+    j::Int,
+    op::Hypersingular{Laplace,Zeta},
+    d::PairwiseCache,
+    b::DiscreteClosedCurve
+)
+
+    if j == i
+        #diagonal
+        val = -π / 6 / b.w[i] + b.k[i]^2 * b.w[i] / 4π
+        op.matrix[i, i] += val
+
+    elseif j > i
+        return
+    else
+
+        # off-diagonal sweep
+        x = make_svector2(b.x, i)
+        y = make_svector2(b.x, j)
+        nx = make_svector2(b.n, i)
+        ny = make_svector2(b.n, j)
+
+
+        val = Kernels.kernel(
+            op,
+            get_r_norm_sq!(d, x, y),
+            get_r_dot_nx!(d, x, y, nx),
+            get_r_dot_ny!(d, x, y, ny),
+            get_nx_dot_ny!(d, nx, ny),
+        )
+
+        op.matrix[i, j] = val * b.w[j]
+        op.matrix[j, i] = val * b.w[i]
     end
 
 end
 
+# store stencils of possibly several orders
 
-function banded_correction(i::Int, op::Union{}, stencil::AbstractVector{T}, b::DiscreteClosedCurve)
+
+
+mutable struct StencilCache{
+    I<:Integer,
+    V<:AbstractVector{<:AbstractFloat}
+}
+    kr::Dict{I,V} # kapur rokhlin
+    fd::Dict{I,V} # finite differences
+end
+
+
+
+function get_kr!(c::StencilCache, k::Int)
+    get!(c.kr, k) do
+        stencil = krcoeffs(k + 1)
+        [stencil[end:-1:2]; stencil] # TODO: make this prettier
+    end
+end
+
+function get_fd!(d::StencilCache, k::Int)
+    get!(d.fd, k) do
+        stencil = fdcoeffs(2, k)
+        [stencil[end:-1:2]; stencil] # TODO: make this prettier
+    end
+end
+
+function apply_correction!(
+    i::Int,
+    op::IntegralOperator,
+    s::StencilCache,
+    b::DiscreteClosedCurve,
+)
+    return
+end
+
+function apply_correction!(
+    i::Int,
+    op::SingleLayer{Laplace,KapurRokhlin},
+    s::StencilCache,
+    b::DiscreteClosedCurve
+)
+    ord = op.correction.order
+    m = size(b.x, 1)
+    k = clamp((ord - 1) ÷ 2, 0, (m - 1) ÷ 2)
+
+    stencil = get_kr!(s, k)
+
+    for dj in -k:k
+        j = mod1(i + dj, m)
+        val = stencil[dj+k+1] * 0.5 / pi
+        op.matrix[i, j] += val * b.w[j]
+
+    end
+
+end
+
+function apply_correction!(
+    i::Int,
+    op::Hypersingular{Laplace,Zeta},
+    s::StencilCache,
+    b::DiscreteClosedCurve
+)
+    m = size(b.x, 1)
+    ord = op.correction.order
+    k = (ord - 2) ÷ 2
+
+    stencil = get_fd!(s, k)
+
+    for dj in -k:k
+
+        j = mod1(i + dj, m)
+
+        r_norm_sq = norm(b.x[i, :] - b.x[j, :])^2
+        r_prime_0_x = b.w[i] * dj
+
+        # B(j) = (r(j) ^ 2 - |ρ'(i) * j| ^ 2) / |ρ'(i) * j| ^ 2
+        B = (r_norm_sq - r_prime_0_x^2) / r_prime_0_x^2
+
+        # TODO: remove branch?
+        if i == j
+            B = 0.
+        end
+
+        # TODO: is it possible to use cached data, i.e. call correction inside the first loop?
+
+        # g(j) = n(i) ⋅ n(j) |ρ'(j)|/(2π |ρ'(i)|) * (1 - B + B^2)
+        nx_dot_ny = Kernels._a_dot_b(b.n[i, 1], b.n[i, 2], b.n[j, 1], b.n[j, 2])
+
+        g = nx_dot_ny * b.w[j] / (b.w[i]^2) * (1 - B + B^2)
+
+        op.matrix[i, j] += stencil[dj+k+1] * g / 4π
+
+    end
 
 end
 
 # so client is responsible for allocating the zeros
+# self interaction operators
 function populate_matrices!(
     boundary::DiscreteClosedCurve,
     ops::IntegralOperator..., # tuple of operators with already allocated matrices
 )
-    m, dim_x = size(boundary.x)
+    n, dim_x = size(boundary.x)
 
     # client provides initialized matrices contained in ops
 
     # compute required stencils: {KR, FD2}
+    #
+    #
+
+    stencil_cache = StencilCache{Int32,Vector{Float64}}(Dict(), Dict())
 
     # if both dlp and dlp adjoint are requested, compute once and transpose before applying weights
 
     # loop over i
-    for i in m:-1:1
-        for j in 1:m
+    for i in n:-1:1
+        for j in 1:n
 
-            # figure out what vector ops need to be computed
-            x = @view boundary.x[i, :]
-            y = @view boundary.x[j, :]
-            nx = @view boundary.n[i, :]
-            ny = @view boundary.n[j, :]
-            r = x - y
+            # always every pair gets a fresh cache
+            pairwise_cache = PairwiseCache(Float64)
 
-            # always needed
-            r_norm_sq = Kernels._a_dot_a(r[1], r[2])
-
-
-
-            d = Kernels.PairwiseData()
 
             # call appropriate code for each operator kind
             for op in ops
-                compute_entry!(i, j, op, d, boundary)
+                compute_entry!(i, j, op, pairwise_cache, boundary)
             end
 
-
         end
-        # for op in ops
-        #     banded_correction!(op, stencil)
-        # end
 
+        for op in ops
+            apply_correction!(i, op, stencil_cache, boundary)
+        end
 
-
-        #   loop over j: banded correction using stencils for slp, adjoint dlp
     end
 
 
@@ -348,6 +656,29 @@ function populate_matrices!(
 end
 
 
+# target interaction operators
+function populate_matrices!(
+    boundary::DiscreteClosedCurve{T},
+    targets::DiscreteClosedCurve{T},
+    ops::IntegralOperator..., # only
+) where {T<:AbstractFloat}
+    n, dim_x = size(boundary.x)
+    m, dim_t = size(targets.x)
+
+    # loop over i
+    for i in m:-1:1
+        for j in 1:n
+
+            # always every pair gets a fresh cache
+            pairwise_cache = PairwiseCache(Float64)
+
+            # call appropriate code for each operator kind
+            for op in ops
+                compute_entry!(i, j, op, pairwise_cache, boundary, targets)
+            end
+        end
+    end
+end
 
 
 # self interaction  using kapur rokhlin
@@ -452,7 +783,7 @@ function compute_laplace_slp_matrix_and_normal_derivative(
 
     # zero
 
-    # TODO: @views macro broken somehow
+    # TODO: s macro broken somehow
     @inbounds for i in 1:m, j in 1:n
         A[i, j], dA_dn[i, j] = Kernels.laplace_slp_and_dn(
             # TODO: maybe better to construct r as svector here

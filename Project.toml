@@ -16,6 +16,7 @@ ProfileView = "c46f51b8-102a-5cf2-8d2c-8597cb0e0da7"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 BenchmarkTools = "1.8.0"
@@ -30,3 +31,4 @@ ProfileView = "1.10.3"
 Random = "1.11.0"
 Reexport = "1.2.2"
 Revise = "3.14.2"
+StaticArrays = "1.9.18"

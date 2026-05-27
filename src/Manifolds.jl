@@ -12,14 +12,15 @@ abstract type AbstractManifold end # TODO: move to models
 
 # TODO: maybe set upper bounds as <: AbstractMatrix{<:Number}} for all
 struct DiscreteClosedCurve{
-    TX<:AbstractMatrix{<:Number},
-    TV<:AbstractMatrix{<:Number},
-    TA<:AbstractMatrix{<:Number},
-    TS<:AbstractVector{<:Number}, # scalar
-    TT<:AbstractMatrix{<:Number},
-    TN<:AbstractMatrix{<:Number},
-    TK<:AbstractVector{<:Number}, # scalar
-    TW<:AbstractVector{<:Number}, # scalar
+    T<:AbstractFloat,
+    TX<:AbstractMatrix{T},
+    TV<:AbstractMatrix{T},
+    TA<:AbstractMatrix{T},
+    TS<:AbstractVector{T}, # scalar
+    TT<:AbstractMatrix{T},
+    TN<:AbstractMatrix{T},
+    TK<:AbstractVector{T}, # scalar
+    TW<:AbstractVector{T}, # scalar
 } <: AbstractManifold
     x::TX # locations of points in the manifold
     v::TV # velocities
@@ -31,6 +32,27 @@ struct DiscreteClosedCurve{
     w::TW # weights # TODO: enforce that these be vectors
 end
 
+# dummy, TODO: consider an explicit type for set of target points
+function DiscreteClosedCurve(x)
+
+    n, dim_x = size(x)
+
+    one_1d = ones(n)
+    zero_nd = zeros((n, dim_x))
+    zero_1d = zeros(n)
+
+    return DiscreteClosedCurve(
+        x,
+        zero_nd, #v
+        zero_nd, #a
+        zero_1d, #s
+        zero_nd, #t
+        zero_nd, #n
+        zero_1d, #k
+        one_1d, #w
+    )
+
+end
 
 function DiscreteClosedCurve(x, v, a)
 
