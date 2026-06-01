@@ -36,7 +36,6 @@ function DiscreteClosedCurve(x, v, a)
 
     # TODO: assert shapes
 
-
     s = vec(sqrt.(sum(abs2, v; dims=2))) # TODO: make this vec() produce a container accordingly to container type of x, v, a
     t = v ./ s
 
@@ -55,24 +54,27 @@ function DiscreteClosedCurve(x, v, a)
 
 end
 
-function DiscreteClosedCurve(θ, ρ::Function)
+function DiscreteClosedCurve(x::AbstractMatrix)
+    v = periodic_spectral_diff(x)
+    a = periodic_spectral_diff(v)
+    return DiscreteClosedCurve(x, v, a)
+
+end
+
+function DiscreteClosedCurve(θ::AbstractVector, ρ::Function)
 
     # range [0, 2pi) to evaluate parametrization
     x = Matrix(stack(ρ, θ)') # TODO: don't transpose, work with column major
-    v = periodic_spectral_diff(x)
-    a = periodic_spectral_diff(v)
 
-    return DiscreteClosedCurve(x, v, a)
+    return DiscreteClosedCurve(x)
 
 end
 
 # construct from number of points and parametrization
 # using standard containers
 function DiscreteClosedCurve(n_points::Int, ρ::Function)
-
     # range [0, 2pi) to evaluate parametrization
     θ = range(0, 2π; length=n_points + 1)[1:end-1]
-
     return DiscreteClosedCurve(θ, ρ)
 
 end
@@ -80,7 +82,7 @@ end
 function visualize(m::DiscreteClosedCurve)
 
     fig = Figure()
-    ax = Axis(fig[1, 1])
+    ax = Axis(fig[1, 1]; aspect=DataAspect())
 
     curve = lines!(ax, m.x[:, 1], m.x[:, 2])
 
@@ -94,9 +96,12 @@ function visualize(m::DiscreteClosedCurve)
         lengthscale=0.1,
     )
 
-    Legend(fig[1, 2],
+    Legend(fig[1, 1][1, 2],
         [curve, veloc, accel],
-        ["curve", "normal", "tangent"],
+        ["curve", "normal", "tangent"];
+        # tellwidth=false,
+        # halign=:left,
+        # valign=:bottom,
     )
 
     return fig, ax
