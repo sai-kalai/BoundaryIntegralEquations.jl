@@ -78,8 +78,6 @@ function DiscreteClosedCurve(n_points::Int, ρ::Function)
     # range [0, 2pi) to evaluate parametrization
     θ = range(0, 2π; length=n_points + 1)[1:end-1]
     return DiscreteClosedCurve(θ, ρ)
-
-
 end
 
 function visualize(m::DiscreteClosedCurve)

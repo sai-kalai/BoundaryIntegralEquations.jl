@@ -206,6 +206,7 @@ function compute_laplace_slp_matrix(
     return A
 end
 
+
 function compute_laplace_slp_matrix(
     x::AbstractMatrix, # list of x points (targets), matrix
     weights::AbstractVector, # list of weights
