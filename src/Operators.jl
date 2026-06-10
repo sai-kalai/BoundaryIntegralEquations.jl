@@ -206,8 +206,6 @@ function compute_laplace_slp_matrix(
     return A
 end
 
-
-# self interaction@vec  using kapur rokhlin
 function compute_laplace_slp_matrix(
     x::AbstractMatrix, # list of x points (targets), matrix
     weights::AbstractVector, # list of weights
@@ -229,7 +227,7 @@ function compute_laplace_slp_matrix(
         #diagonal term
         A[i, i] = -log(weights[i]) / 2pi
 
-        for j in 1:i-1
+        for j in 1:(i-1)
             ker = Kernels.laplace_slp(
                 view(x, i, :),
                 view(x, j, :)
@@ -240,7 +238,7 @@ function compute_laplace_slp_matrix(
 
         end
 
-        for dj in -k:k
+        for dj in (-k):k
             j = mod1(i + dj, m)
             A[i, j] += stencil[dj+k+1] / 2pi
         end
@@ -272,7 +270,7 @@ function compute_laplace_slp_matrix_normal_derivative(
         # -1/2 * curvature * 1/2pi
         dA_dn[i, i] = -0.25 / pi * curvatures[i]
 
-        for j in 1:i-1
+        for j in 1:(i-1)
             val = Kernels.laplace_slp_dn(
                 view(x, i, :),
                 view(x, j, :),
@@ -281,7 +279,7 @@ function compute_laplace_slp_matrix_normal_derivative(
             dA_dn[i, j] = val
         end
 
-        for j in i+1:m
+        for j in (i+1):m
             val = Kernels.laplace_slp_dn(
                 view(x, i, :),
                 view(x, j, :),
@@ -347,7 +345,7 @@ function compute_laplace_slp_matrix_and_normal_derivative(
         A[i, i] = 0.
         dA_dn[i, i] = -0.5 * curvatures[i]
 
-        for j in 1:i-1
+        for j in 1:(i-1)
 
             slp, slp_dn = Kernels.laplace_slp_and_dn(
                 view(x, i, :),
@@ -362,7 +360,7 @@ function compute_laplace_slp_matrix_and_normal_derivative(
 
         end
         # NOTE: normal derivative isn't symmetric
-        for j in i+1:m
+        for j in (i+1):m
             dA_dn[i, j] = Kernels.laplace_slp_dn(
                 view(x, i, :),
                 view(x, j, :),
@@ -411,7 +409,7 @@ function compute_laplace_dlp_matrix(
 
         D[i, i] = -0.25 / pi * curvatures[i]
 
-        for j in 1:i-1
+        for j in 1:(i-1)
             val = Kernels.laplace_dlp(
                 view(x, i, :),
                 view(x, j, :),
@@ -419,7 +417,7 @@ function compute_laplace_dlp_matrix(
             )
             D[i, j] = val
         end
-        for j in i+1:m
+        for j in (i+1):m
             val = Kernels.laplace_dlp(
                 view(x, i, :),
                 view(x, j, :),
@@ -447,7 +445,7 @@ function compute_laplace_dlp_matrix_normal_derivative(
         # or leave diagonal empty and let quadrature client handle diagonal
         # dD_dn[i, i] = -pi/4 # NOTE: weights and dirichlet need to be multiplied to diagonal for computing the quadrature
 
-        for j in (mod(i, 2)+1):2:i-1
+        for j in (mod(i, 2)+1):2:(i-1)
 
             # twice weights for staggered grid
             val = 2 * Kernels.laplace_dlp_dn(
@@ -495,7 +493,7 @@ function compute_laplace_dlp_matrix_normal_derivative(
 
 
         # first sum: compute for other points  in the manifold the dlp normal derivative
-        for j in 1:i-1
+        for j in 1:(i-1)
             ker = Kernels.laplace_dlp_dn(
                 view(x, i, :),
                 view(x, j, :),
@@ -510,7 +508,7 @@ function compute_laplace_dlp_matrix_normal_derivative(
         end
 
         # apply banded correction
-        for dj in -k:k
+        for dj in (-k):k
 
             j = mod1(i + dj, m)
 

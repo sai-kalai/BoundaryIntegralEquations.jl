@@ -17,6 +17,7 @@ using ..Models
 # end
 
 
+
 # laplace single layer potential (SLP) kernel
 # k_SLP(x, y) = -1/2pi log(√|x - y|^2)
 function laplace_slp(x, y)

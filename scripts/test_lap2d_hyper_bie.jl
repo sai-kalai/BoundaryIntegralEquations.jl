@@ -19,6 +19,7 @@ using Random
 using BimDiff
 
 
+
 abstract type Solution end
 
 struct DirichletSolution{S<:Side,A<:Approach,C<:HypersingularCorrection} <: Solution

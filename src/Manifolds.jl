@@ -2,7 +2,9 @@ module Manifolds
 
 export AbstractManifold, DiscreteClosedCurve, visualize
 
-using FFTW, LinearAlgebra, GLMakie
+using FFTW,
+    LinearAlgebra,
+    GLMakie
 
 abstract type AbstractManifold end # TODO: move to models
 
@@ -77,6 +79,7 @@ function DiscreteClosedCurve(n_points::Int, ρ::Function)
     θ = range(0, 2π; length=n_points + 1)[1:end-1]
     return DiscreteClosedCurve(θ, ρ)
 
+
 end
 
 function visualize(m::DiscreteClosedCurve)
@@ -127,9 +130,9 @@ function periodic_spectral_diff(f)
 
     # TODO: replace by fftfreq, fftshift
     if iseven(n)
-        k = [0; 1im * (1:n÷2-1); 0; 1im * (-n÷2+1:-1)]
+        k = [0; 1im * (1:(n÷2-1)); 0; 1im * ((-n÷2+1):-1)]
     else
-        k = [0; 1im * (1:(n-1)÷2); 1im * (-(n - 1)÷2:-1)]
+        k = [0; 1im * (1:((n-1)÷2)); 1im * ((-(n-1)÷2):-1)]
     end
 
     f_prime_hat = f_hat .* k

@@ -8,6 +8,7 @@ include("Models.jl")
 include("Kernels.jl")
 include("Operators.jl")
 include("Solvers.jl")
+include("close_evaluation.jl")
 
 @reexport using .Models
 
@@ -15,6 +16,7 @@ using .Manifolds
 export DiscreteClosedCurve, visualize
 
 export fdcoeffs
+
 
 using .Kernels
 
