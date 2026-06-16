@@ -235,7 +235,7 @@ function main()
     indirect = Indirect()
 
     # indicate how to reserve memory
-    allocator = (_m, _n) -> zeros(Float64, _m, _n)
+    allocator = (_m, _n) -> Array{Float64}(undef, _m, _n)
 
     # set up source geometry (starfish domain)
     R = 1 # wobble center
@@ -335,7 +335,7 @@ function main()
     # println("Printing max-norm errors")
     # println("Interior")
 
-    n_vals = 20:20:400
+    n_vals = 20:20:200
 
     num_solutions = Vector{NumericalSolution}()
 
@@ -350,6 +350,7 @@ function main()
 
         D_star_source = AdjointDoubleLayer(laplace, n, n_source; allocator) # ok
         S_source = SingleLayer(laplace, nothing, n, n_source; allocator) # ok
+
         populate_matrices!(Γ_source, Γ, S_source, D_star_source)
 
         σ = S_source * density_source # Dirichlet BC
@@ -363,7 +364,6 @@ function main()
         H_sidi = Hypersingular(laplace, sidi, n, n; allocator) # ok
 
         populate_matrices!(Γ, S, D, D_star, H_sidi, H_zeta)
-
 
         S_target = SingleLayer(laplace, nothing, n_test, n; allocator) # ok
         D_target = DoubleLayer(laplace, n_test, n; allocator) # ok

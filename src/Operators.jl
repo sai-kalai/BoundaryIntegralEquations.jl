@@ -241,13 +241,22 @@ mutable struct PairwiseCache{T<:AbstractFloat}
     r_dot_nx::T
     r_dot_ny::T
     nx_dot_ny::T
+
+    function PairwiseCache{T}() where {T<:AbstractFloat}
+        cache = new{T}()
+        reset!(cache)
+        return cache
+    end
 end
 
-function PairwiseCache(T)
+function reset!(cache::PairwiseCache{T}) where {T}
     nan = T(NaN)
-    PairwiseCache(SA[nan, nan], nan, nan, nan, nan)
+    cache.r = SA[nan, nan]
+    cache.r_norm_sq = nan
+    cache.r_dot_nx = nan
+    cache.r_dot_ny = nan
+    cache.nx_dot_ny = nan
 end
-
 
 function get_r!(d::PairwiseCache, x::SVector, y::SVector)
     if isnan(d.r[1]) || isnan(d.r[2])
@@ -563,7 +572,7 @@ function apply_correction!(
 
     stencil = get_kr!(s, k)
 
-    for dj in -k:k
+    for dj in (-k):k
         j = mod1(i + dj, m)
         val = stencil[dj+k+1] * 0.5 / pi
         op.matrix[i, j] += val * b.w[j]
@@ -584,11 +593,16 @@ function apply_correction!(
 
     stencil = get_fd!(s, k)
 
-    for dj in -k:k
+    for dj in (-k):k
 
         j = mod1(i + dj, m)
 
-        r_norm_sq = norm(b.x[i, :] - b.x[j, :])^2
+        # TODO: remove norm
+        x = make_svector2(b.x, i)
+        y = make_svector2(b.x, j)
+        r = x - y
+
+        r_norm_sq = dot(r, r)
         r_prime_0_x = b.w[i] * dj
 
         # B(j) = (r(j) ^ 2 - |ρ'(i) * j| ^ 2) / |ρ'(i) * j| ^ 2
@@ -612,13 +626,20 @@ function apply_correction!(
 
 end
 
+# barrier function
+function populate_matrices!(
+    boundary::DiscreteClosedCurve{<:Real},
+    ops::IntegralOperator..., # variadic
+)
+    populate_matrices!(boundary, ops)
+end
 # so client is responsible for allocating the zeros
 # self interaction operators
 function populate_matrices!(
-    boundary::DiscreteClosedCurve,
-    ops::IntegralOperator..., # tuple of operators with already allocated matrices
+    boundary::DiscreteClosedCurve{<:Real},
+    ops, # tuple of operators with already allocated matrices
 )
-    n, dim_x = size(boundary.x)
+    n = size(boundary.x, 1)
 
     # client provides initialized matrices contained in ops
 
@@ -629,51 +650,65 @@ function populate_matrices!(
     stencil_cache = StencilCache{Int32,Vector{Float64}}(Dict(), Dict())
 
     # if both dlp and dlp adjoint are requested, compute once and transpose before applying weights
+    pairwise_cache = PairwiseCache{Float64}()
 
     # loop over i
     for i in n:-1:1
         for j in 1:n
 
             # always every pair gets a fresh cache
-            pairwise_cache = PairwiseCache(Float64)
-
-
+            # TODO: don't allocate every time, dummy <3. provide a method to reset state.
             # call appropriate code for each operator kind
-            for op in ops
+            reset!(pairwise_cache)
+            foreach(ops) do op
+                # for op in ops
                 compute_entry!(i, j, op, pairwise_cache, boundary)
             end
 
         end
 
-        for op in ops
+
+        foreach(ops) do op
             apply_correction!(i, op, stencil_cache, boundary)
         end
 
     end
 
-
-
 end
 
+function populate_matrices!(
+    boundary::DiscreteClosedCurve{T},
+    targets::DiscreteClosedCurve{T},
+    ops::IntegralOperator... # only
+) where {T<:AbstractFloat}
+
+    populate_matrices!(boundary, targets, ops)
+
+end
 
 # target interaction operators
 function populate_matrices!(
     boundary::DiscreteClosedCurve{T},
     targets::DiscreteClosedCurve{T},
-    ops::IntegralOperator..., # only
+    ops # only
 ) where {T<:AbstractFloat}
-    n, dim_x = size(boundary.x)
-    m, dim_t = size(targets.x)
+    n = size(boundary.x, 1)
+    m = size(targets.x, 1)
 
+    pairwise_cache = PairwiseCache{Float64}()
     # loop over i
+    #
+    # Ideas:
+    # - replace double nested loop by cartesian?
     for i in m:-1:1
         for j in 1:n
 
             # always every pair gets a fresh cache
-            pairwise_cache = PairwiseCache(Float64)
 
             # call appropriate code for each operator kind
-            for op in ops
+            reset!(pairwise_cache)
+            foreach(ops) do op
+                # for op in ops
                 compute_entry!(i, j, op, pairwise_cache, boundary, targets)
             end
         end
@@ -704,7 +739,7 @@ function compute_laplace_slp_matrix(
         # TODO: consider doing this outside
         A[i, i] = -log(weights[i]) / 2pi
 
-        for j in 1:i-1
+        for j in 1:(i-1)
             ker = Kernels.laplace_slp(
                 view(x, i, :),
                 view(x, j, :)
@@ -715,7 +750,7 @@ function compute_laplace_slp_matrix(
 
         end
 
-        for dj in -k:k
+        for dj in (-k):k
             j = mod1(i + dj, m)
             A[i, j] += stencil[dj+k+1] / 2pi
         end
@@ -743,7 +778,7 @@ function compute_laplace_dlp_adjoint_matrix(
         # -1/2 * curvature * 1/2pi
         dA_dn[i, i] = -0.25 / pi * curvatures[i]
 
-        for j in 1:i-1
+        for j in 1:(i-1)
             val = Kernels.laplace_slp_dn(
                 view(x, i, :),
                 view(x, j, :),
@@ -752,7 +787,7 @@ function compute_laplace_dlp_adjoint_matrix(
             dA_dn[i, j] = val
         end
 
-        for j in i+1:m
+        for j in (i+1):m
             val = Kernels.laplace_slp_dn(
                 view(x, i, :),
                 view(x, j, :),
@@ -818,7 +853,7 @@ function compute_laplace_slp_matrix_and_normal_derivative(
         A[i, i] = 0.
         dA_dn[i, i] = -0.5 * curvatures[i]
 
-        for j in 1:i-1
+        for j in 1:(i-1)
 
             slp, slp_dn = Kernels.laplace_slp_and_dn(
                 view(x, i, :),
@@ -833,7 +868,7 @@ function compute_laplace_slp_matrix_and_normal_derivative(
 
         end
         # NOTE: normal derivative isn't symmetric
-        for j in i+1:m
+        for j in (i+1):m
             dA_dn[i, j] = Kernels.laplace_slp_dn(
                 view(x, i, :),
                 view(x, j, :),
@@ -882,7 +917,7 @@ function compute_laplace_dlp_matrix(
 
         D[i, i] = -0.25 / pi * curvatures[i]
 
-        for j in 1:i-1
+        for j in 1:(i-1)
             val = Kernels.laplace_dlp(
                 view(x, i, :),
                 view(x, j, :),
@@ -890,7 +925,7 @@ function compute_laplace_dlp_matrix(
             )
             D[i, j] = val
         end
-        for j in i+1:m
+        for j in (i+1):m
             val = Kernels.laplace_dlp(
                 view(x, i, :),
                 view(x, j, :),
@@ -919,7 +954,7 @@ function compute_laplace_hypersingular_matrix(
         # or leave diagonal empty and let quadrature client handle diagonal
         # dD_dn[i, i] = -pi/4 # NOTE: weights and dirichlet need to be multiplied to diagonal for computing the quadrature
 
-        for j in (mod(i, 2)+1):2:i-1
+        for j in (mod(i, 2)+1):2:(i-1)
 
             # twice weights for staggered grid
             val = 2 * Kernels.laplace_dlp_dn(
@@ -965,7 +1000,7 @@ function compute_laplace_hypersingular_matrix(
         # dD_dn[i, i] = -π / 6 / weights[i] + curvatures[i]^2 * weights[i] / 4π
 
         # first sum: compute for other points  in the manifold the dlp normal derivative
-        for j in 1:i-1
+        for j in 1:(i-1)
             ker = Kernels.laplace_dlp_dn(
                 view(x, i, :),
                 view(x, j, :),
@@ -980,7 +1015,7 @@ function compute_laplace_hypersingular_matrix(
         end
 
         # apply banded correction
-        for dj in -k:k
+        for dj in (-k):k
 
             j = mod1(i + dj, m)
 

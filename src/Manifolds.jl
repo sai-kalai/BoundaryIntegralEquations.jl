@@ -81,7 +81,7 @@ end
 function DiscreteClosedCurve(n_points::Int, ρ::Function)
 
     # range [0, 2pi) to evaluate parametrization
-    θ = range(0, 2π; length=n_points + 1)[1:end-1]
+    θ = range(0, 2π; length=n_points + 1)[1:(end-1)]
     x = Matrix(stack(ρ, θ)') # TODO: don't transpose, work with column major
     v = periodic_spectral_diff(x)
     a = periodic_spectral_diff(v)
@@ -133,9 +133,9 @@ function periodic_spectral_diff(f)
 
     # TODO: replace by fftfreq, fftshift
     if iseven(n)
-        k = [0; 1im * (1:n÷2-1); 0; 1im * (-n÷2+1:-1)]
+        k = [0; 1im * (1:(n÷2-1)); 0; 1im * ((-n÷2+1):-1)]
     else
-        k = [0; 1im * (1:(n-1)÷2); 1im * (-(n - 1)÷2:-1)]
+        k = [0; 1im * (1:((n-1)÷2)); 1im * ((-(n-1)÷2):-1)]
     end
 
     f_prime_hat = f_hat .* k
