@@ -1,6 +1,10 @@
 module Manifolds
 
-export AbstractManifold, DiscreteClosedCurve, visualize
+export
+    AbstractManifold,
+    DiscreteClosedCurve,
+    visualize,
+    periodic_spectral_diff
 
 using FFTW,
     LinearAlgebra,
@@ -14,14 +18,16 @@ abstract type AbstractManifold end # TODO: move to models
 
 # TODO: maybe set upper bounds as <: AbstractMatrix{<:Number}} for all
 struct DiscreteClosedCurve{
-    TX<:AbstractMatrix{<:Number},
-    TV<:AbstractMatrix{<:Number},
-    TA<:AbstractMatrix{<:Number},
-    TS<:AbstractVector{<:Number}, # scalar
-    TT<:AbstractMatrix{<:Number},
-    TN<:AbstractMatrix{<:Number},
-    TK<:AbstractVector{<:Number}, # scalar
-    TW<:AbstractVector{<:Number}, # scalar
+    T<:Real,
+    TX<:AbstractMatrix{<:T},
+    TV<:AbstractMatrix{<:T},
+    TA<:AbstractMatrix{<:T},
+    TS<:AbstractVector{<:T}, # scalar
+    TT<:AbstractMatrix{<:T},
+    TN<:AbstractMatrix{<:T},
+    TK<:AbstractVector{<:T}, # scalar
+    TW<:AbstractVector{<:T}, # scalar
+    CW<:AbstractVector{<:Complex{T}}, # scalar
 } <: AbstractManifold
     x::TX # locations of points in the manifold
     v::TV # velocities
@@ -31,12 +37,13 @@ struct DiscreteClosedCurve{
     n::TN # unit normal vectors
     k::TK # curvatures # TODO: think 2d vs 3d
     w::TW # weights # TODO: enforce that these be vectors
+    cw::CW
 end
 
 
-function DiscreteClosedCurve(x, v, a)
+function DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMatrix)
 
-    # TODO: assert shapes
+    # TODO: assert shape
 
     s = vec(sqrt.(sum(abs2, v; dims=2))) # TODO: make this vec() produce a container accordingly to container type of x, v, a
     t = v ./ s
@@ -52,7 +59,11 @@ function DiscreteClosedCurve(x, v, a)
 
     w = (2π / N) .* s # WARN: discretization in parameter space h is hardcoded here
 
-    return DiscreteClosedCurve(x, v, a, s, t, n, k, w)
+    # complex weights
+    # cw = (2π / N) .* reinterpret(ComplexF64, v')'
+    cw = (2π / N) .* ComplexF64.(v[:, 1], v[:, 2])
+
+    return DiscreteClosedCurve(x, v, a, s, t, n, k, w, cw)
 
 end
 
@@ -76,7 +87,7 @@ end
 # using standard containers
 function DiscreteClosedCurve(n_points::Int, ρ::Function)
     # range [0, 2pi) to evaluate parametrization
-    θ = range(0, 2π; length=n_points + 1)[1:end-1]
+    θ = range(0, 2π; length=n_points + 1)[1:(end-1)]
     return DiscreteClosedCurve(θ, ρ)
 end
 
