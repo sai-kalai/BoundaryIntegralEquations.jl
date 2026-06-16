@@ -9,7 +9,7 @@ using ..Operators
 
 using ..Manifolds
 
-export solve
+export solve, solve_bie
 
 
 
@@ -31,10 +31,19 @@ function solve(
     return u, τ
 end
 
-# indirect approach
-function solve(
+function solve_bie(
     ::Laplace,
     ::Interior,
+    bc::Dirichlet,
+    D::DoubleLayer,
+)
+    return (-0.5 * I + matrix(D)) \ bc.σ # auxiliary variable
+end
+
+# indirect approach
+function solve(
+    problem::Laplace,
+    side::Interior,
     bc::Dirichlet,
     ::Indirect,
     D::DoubleLayer,
@@ -42,10 +51,11 @@ function solve(
     D_target::DoubleLayer
 )
 
-    η = (-0.5 * I + matrix(D)) \ bc.σ # auxiliary variable
+    φ = solve_bie(problem, side, bc, D)
 
-    u = D_target * η
-    τ = H * η
+
+    u = D_target * φ
+    τ = H * φ
     return u, τ
 end
 
