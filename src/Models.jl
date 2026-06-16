@@ -18,7 +18,8 @@ export
     Zeta,
     BoundaryCondition,
     Dirichlet,
-    Neumann
+    Neumann,
+    data
 
 
 abstract type BoundaryValueProblem end
@@ -41,6 +42,8 @@ struct Zeta{T<:Int} <: HypersingularCorrection
     order::T # NOTE: question here
 end
 
+
+
 abstract type BoundaryCondition end
 struct Dirichlet <: BoundaryCondition
     σ::AbstractVector
@@ -48,5 +51,8 @@ end
 struct Neumann <: BoundaryCondition
     τ::AbstractVector
 end
+
+data(bc::Dirichlet) = bc.σ
+data(bc::Neumann) = bc.τ
 
 end
