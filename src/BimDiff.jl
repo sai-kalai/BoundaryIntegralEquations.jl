@@ -13,7 +13,10 @@ include("close_evaluation.jl")
 @reexport using .Models
 
 using .Manifolds
-export DiscreteClosedCurve, visualize
+export
+    DiscreteClosedCurve,
+    visualize,
+    periodic_spectral_diff
 
 export fdcoeffs
 
@@ -34,9 +37,13 @@ export
     compute_laplace_dlp_matrix_normal_derivative
 
 using .Solvers
-export solve
+export
+    solve,
+    solve_bie
 
 
+using .CloseEvaluation
+export cauchy_integral, compute_boundary_limit
 
 
 export greet
