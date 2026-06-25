@@ -335,7 +335,7 @@ function main()
     # println("Printing max-norm errors")
     # println("Interior")
 
-    n_vals = 20:20:200
+    n_vals = 20:20:40
 
     num_solutions = Vector{NumericalSolution}()
 
