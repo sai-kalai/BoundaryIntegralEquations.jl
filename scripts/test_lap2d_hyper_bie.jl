@@ -15,7 +15,8 @@
 using Revise
 using CairoMakie
 using LinearAlgebra
-using Random
+using Enzyme
+import LinearSolve as LS
 using BimDiff
 
 
@@ -49,8 +50,6 @@ end
 
 
 function main()
-
-    Random.seed!(42) # seed rng for reproducibility
 
     ord = 32       # pick desired convergence order of singular quad
 
@@ -143,7 +142,7 @@ function main()
     # println("Printing max-norm errors")
     # println("Interior")
 
-    n_vals = 20:20:400
+    n_vals = 2000:20:2020
 
     err_u = zeros(Float64, size(n_vals, 1))
     err_τ = zeros(Float64, size(n_vals, 1))
@@ -169,7 +168,7 @@ function main()
 
         Γ = DiscreteClosedCurve(n, ρ) # boundary of the domain
 
-        # fig = visualize(Γ)
+        fig, ax = visualize(Γ)
         # wait(display(fig))
         # break
 
@@ -199,19 +198,112 @@ function main()
         S_target = SingleLayer(laplace, x_test, Γ,)
         D_target = DoubleLayer(laplace, x_test, Γ,)
 
-        u, τ = solve(
-            laplace,
-            interior,
-            Dirichlet(σ), # TODO: since one kernel matrix can be applied to several BCs, overload accepting vector of BC
-            direct,
-            D_star,
-            H_zeta,
-            S_target,
-            D_target,
+        # Dirichlet Zeta Direct
+
+        s = (x) -> begin
+            bc = Dirichlet(σ)
+            solve(
+                laplace,
+                interior,
+                bc, # TODO: since one kernel matrix can be applied to several BCs, overload accepting vector of BC
+                x,
+                Γ,
+                Sidi(),
+                Indirect(),
+            )
+        end
+
+        function s_enzyme(
+            x,
+            σ,
         )
-        push!(solutions, DirichletSolution{Interior,Direct,Zeta}(n, u, τ, zeta))
-        err_u[i] = norm(u_exact - u, Inf)
-        err_τ[i] = norm(τ_exact - τ, Inf)
+            bc = Dirichlet(σ)
+            u, _ = solve(
+                laplace,
+                interior,
+                bc, # TODO: since one kernel matrix can be applied to several BCs, overload accepting vector of BC
+                x,
+                Γ,
+                Sidi(),
+                Indirect(),
+            )
+            return u
+        end
+
+        @time u, τ = s(x_test)
+
+
+        # allocate input shadow memory
+        bx = zero(x_test);
+        by = zero(x_test);
+        bb = zero(σ)
+
+        bx[:, 1] .= 1.;
+        by[:, 2] .= 1.;
+
+
+        @time begin
+            fwd1 = autodiff(
+                ForwardWithPrimal,
+                Const(s_enzyme),
+                Duplicated(x_test, bx),
+                Duplicated(σ, bb), # seemingly very important to add
+            )
+
+            fwd2 = autodiff(
+                ForwardWithPrimal,
+                Const(s_enzyme),
+                Duplicated(x_test, by),
+                Duplicated(σ, bb), # seemingly very important to add
+            )
+        end
+
+        scatter!(ax, x_test[:, 1], x_test[:, 2]; color=u)
+        # arrows2d!(ax, x_test[:, 1], x_test[:, 2], enz1[1], enz2[1]; normalize=true)
+
+        @time begin
+            forward, reverse = autodiff_thunk(
+                ReverseSplitWithPrimal,
+                Const{typeof(s_enzyme)},
+                Duplicated,
+                Duplicated{typeof(x_test)},
+                Duplicated{typeof(σ)},
+            )
+
+            shadow_x_test = zero(x_test)
+            shadow_σ = zero(σ)
+
+            tape, result, shadow_result = forward(
+                Const(s_enzyme),
+                Duplicated(x_test, shadow_x_test),
+                Duplicated(σ, shadow_σ)
+            )
+
+            shadow_result.=1.
+
+            rev = reverse(
+                Const(s_enzyme),
+                Duplicated(x_test, shadow_x_test),
+                Duplicated(σ, shadow_σ),
+                tape,
+            )
+
+        end
+
+
+        break
+
+        # push!(
+        #     num_solutions,
+        #     DirichletSolution{Interior,Direct,Zeta}(
+        #         n,
+        #         u,
+        #         τ,
+        #         zeta,
+        #         norm(u_exact - u, Inf),
+        #         norm(τ_exact - τ, Inf)
+        #     )
+        # )
 
         # hypersingular operator using Sidi's staggered grid
         u, τ = solve(
