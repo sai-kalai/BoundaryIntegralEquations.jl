@@ -221,8 +221,6 @@ end
 
 function main()
 
-    Random.seed!(42) # seed rng for reproducibility
-
     ord = 32       # pick desired convergence order of singular quad
 
     # useful constants
@@ -234,9 +232,6 @@ function main()
     sidi = Sidi()
     direct = Direct()
     indirect = Indirect()
-
-    # indicate how to reserve memory
-    allocator = (_m, _n) -> Array{Float64}(undef, _m, _n)
 
     # set up source geometry (starfish domain)
     R = 1 # wobble center
@@ -288,16 +283,11 @@ function main()
         0.1896218359470367
         -0.4264606237411499
     ]
-    Γ_source = DiscreteClosedCurve(x_source)
 
     n_test = 20
     x_test = ball(0.4, n_test)  # test points in inner domain
-    Γ_test = DiscreteClosedCurve(x_test)
 
-    S_manuf = SingleLayer(laplace, nothing, n_test, n_source; allocator=allocator)
-
-    populate_matrices!(Γ_source, Γ_test, S_manuf)
-
+    S_manuf = compute_laplace_slp_matrix(x_test, x_source)
 
     # matrix = compute_laplace_slp_matrix(x_test, x_source)
     u_exact = S_manuf * density_source # exact solution at test points
@@ -325,9 +315,7 @@ function main()
         -0.2895297179342787
     ]
 
-
     @assert norm(u_exact - u_exact_reference) < 1e-15
-
 
     # scatter!(ax, x_test[:, 1], x_test[:, 2], color=u_exact)
 
@@ -336,7 +324,7 @@ function main()
     # println("Printing max-norm errors")
     # println("Interior")
 
-    n_vals = 20:20:40
+    n_vals = 20:20:400
 
     num_solutions = Vector{NumericalSolution}()
 
@@ -349,30 +337,24 @@ function main()
         # break
 
 
-        D_star_source = AdjointDoubleLayer(laplace, n, n_source; allocator) # ok
-        S_source = SingleLayer(laplace, nothing, n, n_source; allocator) # ok
+        S_source = compute_laplace_slp_matrix(Γ.x, x_source)
+        D_star_source = compute_laplace_dlp_adjoint_matrix(Γ.x, x_source, Γ.n)
 
-        populate_matrices!(Γ_source, Γ, S_source, D_star_source)
 
         σ = S_source * density_source # Dirichlet BC
         τ_exact = D_star_source * density_source # Neumann BC exact solution
 
 
-        S = SingleLayer(laplace, kapur_rokhlin, n, n; allocator) # ok
-        D = DoubleLayer(laplace, n, n; allocator) # ok
-        D_star = AdjointDoubleLayer(laplace, n, n; allocator)  # ok
-        H_zeta = Hypersingular(laplace, zeta, n, n; allocator) # ok
-        H_sidi = Hypersingular(laplace, sidi, n, n; allocator) # ok
 
-        populate_matrices!(Γ, S, D, D_star, H_sidi, H_zeta)
 
-        S_target = SingleLayer(laplace, nothing, n_test, n; allocator) # ok
-        D_target = DoubleLayer(laplace, n_test, n; allocator) # ok
-        populate_matrices!(Γ, Γ_test, S_target, D_target)
+        S = SingleLayer(laplace, Γ, ord)
+        D = DoubleLayer(laplace, Γ)
+        D_star = AdjointDoubleLayer(laplace, Γ)
+        H_zeta = Hypersingular(laplace, Γ, zeta)
+        H_sidi = Hypersingular(laplace, Γ, sidi)
 
-        # display(S_target.matrix)
-        # display(D_target.matrix)
-        # break
+        S_target = SingleLayer(laplace, x_test, Γ,)
+        D_target = DoubleLayer(laplace, x_test, Γ,)
 
         # Dirichlet Zeta Direct
         u, τ = solve(
@@ -431,6 +413,7 @@ function main()
             S_target,
             D_target,
         )
+
         push!(
             num_solutions,
             DirichletSolution{Interior,Direct,Sidi}(
@@ -523,7 +506,6 @@ function main()
 
     return num_solutions
 
-    # wait(display(fig))
 
 end
 
