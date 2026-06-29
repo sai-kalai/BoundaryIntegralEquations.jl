@@ -30,11 +30,12 @@ export
     DoubleLayer,
     AdjointDoubleLayer,
     Hypersingular,
+    populate_matrices!,
     compute_laplace_slp_matrix,
-    compute_laplace_slp_matrix_normal_derivative,
+    compute_laplace_dlp_adjoint_matrix,
     compute_laplace_slp_matrix_and_normal_derivative,
     compute_laplace_dlp_matrix,
-    compute_laplace_dlp_matrix_normal_derivative
+    compute_laplace_hypersingular_matrix
 
 using .Solvers
 export
