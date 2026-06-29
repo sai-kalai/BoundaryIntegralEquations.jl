@@ -1,5 +1,6 @@
 module Solvers
 using Revise
+import LinearSolve as LS
 
 using LinearAlgebra
 
@@ -37,7 +38,11 @@ function solve_bie(
     bc::Dirichlet,
     D::DoubleLayer,
 )
-    return (-0.5 * I + matrix(D)) \ bc.σ # auxiliary variable
+
+    pbm = LS.LinearProblem(-0.5 * I + matrix(D), bc.σ)
+    sln = LS.solve(pbm)
+    # return lu(-0.5 * I + matrix(D)) \ bc.σ # auxiliary variable
+    return sln.u
 end
 
 # indirect approach
@@ -105,7 +110,7 @@ function solve(
     ::HypersingularCorrection,
     ::Approach,
 )
-
+    error("specialized function not found")
 end
 
 function solve(
@@ -150,6 +155,7 @@ function solve(
 
     D = DoubleLayer(problem, boundary)
     H = Hypersingular(problem, boundary, correction)
+
     D_target = DoubleLayer(problem, targets, boundary)
 
     return solve(
