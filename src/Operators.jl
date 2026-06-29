@@ -177,7 +177,7 @@ function Hypersingular(
         boundary.n
     ) .* boundary.w'
 
-    mat[diagind(mat)] .= -pi / 4 ./ boundary.w
+    # mat[diagind(mat)] .= -pi / 4 ./ boundary.w
 
     return Hypersingular(problem, correction, mat)
 end
@@ -444,7 +444,7 @@ function compute_laplace_dlp_matrix_normal_derivative(
     @inbounds for i in 1:m
 
         # or leave diagonal empty and let quadrature client handle diagonal
-        # dD_dn[i, i] = -pi/4 # NOTE: weights and dirichlet need to be multiplied to diagonal for computing the quadrature
+        dD_dn[i, i] = -pi/4 # NOTE: weights and dirichlet need to be multiplied to diagonal for computing the quadrature
 
         for j in (mod(i, 2)+1):2:(i-1)
 
