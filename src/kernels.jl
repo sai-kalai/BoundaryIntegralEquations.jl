@@ -1,14 +1,5 @@
-module Kernels
-
-using ..Models
 
 
-# function kernel(
-#     ::IntegralOperator,
-#     ::Vararg{T},
-# )::T where {T<:Number}
-#
-# end
 
 
 # laplace single layer potential (SLP) kernel
@@ -50,7 +41,6 @@ end
     return a1 * a1 + a2 * a2
 end
 
-end
 
 
 

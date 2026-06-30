@@ -1,47 +1,39 @@
 module BimDiff
-using Reexport
 
+
+
+using CairoMakie
+using LinearAlgebra
+using StaticArrays
+using FFTW
+
+
+
+# includes
 include("finite_differences.jl")
+include("kapur_rokhlin_sep_log.jl")
+include("manifolds.jl")
+include("models.jl")
+include("kernels.jl")
+include("operators.jl")
+include("solvers.jl")
 
-include("Manifolds.jl")
-include("Models.jl")
-include("Kernels.jl")
-include("Operators.jl")
-include("Solvers.jl")
-
-@reexport using .Models
-
-using .Manifolds
+# exports
 export DiscreteClosedCurve, visualize
 
-export fdcoeffs
+export BoundaryValueProblem, Laplace, Helmholtz, Stokes
+export HypersingularCorrection, Sidi, Zeta
+export SingularCorrection, KapurRokhlin
+export IntegralOperator, SingleLayer, DoubleLayer, AdjointDoubleLayer, Hypersingular
+export Side, Interior, Exterior
+export Approach, Direct, Indirect
+export BoundaryCondition, Dirichlet, Neumann
 
-using .Kernels
-
-using .Operators
-export
-    fdcoeffs,
-    SingleLayer,
-    DoubleLayer,
-    AdjointDoubleLayer,
-    Hypersingular,
-    populate_matrices!,
-    compute_laplace_slp_matrix,
-    compute_laplace_dlp_adjoint_matrix,
-    compute_laplace_slp_matrix_and_normal_derivative,
-    compute_laplace_dlp_matrix,
-    compute_laplace_hypersingular_matrix
-
-using .Solvers
+export kernel
+export populate_matrices!
 export solve
 
 
-
-
-export greet
-
-
-greet() = println("Hello World!\n $compute_laplace_slp_matrix")
 
 # trick lsp
 @static if false

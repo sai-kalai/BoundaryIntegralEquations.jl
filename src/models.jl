@@ -1,38 +1,3 @@
-module Models
-
-using ..Manifolds
-
-export
-    #
-    BoundaryValueProblem,
-    Laplace,
-    Helmholtz,
-    Stokes,
-    #
-    IntegralOperator,
-    SingleLayer,
-    DoubleLayer,
-    AdjointDoubleLayer,
-    Hypersingular,
-    #
-    Side,
-    Interior,
-    Exterior,
-    #
-    BoundaryCondition,
-    Dirichlet,
-    Neumann,
-    #
-    Approach,
-    Direct,
-    Indirect,
-    #
-    HypersingularCorrection,
-    Sidi,
-    Zeta,
-    #
-    SingularCorrection,
-    KapurRokhlin
 
 abstract type BoundaryValueProblem end
 struct Laplace <: BoundaryValueProblem end
@@ -108,4 +73,3 @@ struct Neumann <: BoundaryCondition
     τ::AbstractVector
 end
 
-end

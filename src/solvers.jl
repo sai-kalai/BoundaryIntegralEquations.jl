@@ -1,15 +1,4 @@
-module Solvers
-using Revise
 
-using LinearAlgebra
-
-using ..Models
-
-using ..Operators
-
-using ..Manifolds
-
-export solve
 
 
 
@@ -207,4 +196,3 @@ function solve(
 
 end
 
-end

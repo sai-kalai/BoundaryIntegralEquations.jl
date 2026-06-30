@@ -1,8 +1,5 @@
-module Manifolds
 
-export AbstractManifold, DiscreteClosedCurve, visualize
 
-using FFTW, LinearAlgebra, GLMakie
 
 abstract type AbstractManifold end # TODO: move to models
 
@@ -146,4 +143,3 @@ function periodic_spectral_diff(f)
 end
 
 
-end

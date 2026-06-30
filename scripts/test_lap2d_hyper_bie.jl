@@ -13,14 +13,14 @@
 # c.f. Hsiao-Wendland 2008, Sec.1.3-1.4
 
 using Revise
-using CairoMakie
-using LinearAlgebra
-using Random
-using BimDiff
 
+
+using CairoMakie
+using BimDiff
 
 abstract type Solution end
 abstract type NumericalSolution{S,A} end
+
 
 
 mutable struct DirichletSolution{S<:Side,A<:Approach,C<:HypersingularCorrection} <: NumericalSolution{S,A}
@@ -220,8 +220,6 @@ end
 
 function main()
 
-    Random.seed!(42) # seed rng for reproducibility
-
     ord = 32       # pick desired convergence order of singular quad
 
     # useful constants
@@ -335,7 +333,7 @@ function main()
     # println("Printing max-norm errors")
     # println("Interior")
 
-    n_vals = 20:20:40
+    n_vals = 20:20:400
 
     num_solutions = Vector{NumericalSolution}()
 
@@ -369,9 +367,6 @@ function main()
         D_target = DoubleLayer(laplace, n_test, n; allocator) # ok
         populate_matrices!(Γ, Γ_test, S_target, D_target)
 
-        # display(S_target.matrix)
-        # display(D_target.matrix)
-        # break
 
         # Dirichlet Zeta Direct
         u, τ = solve(
