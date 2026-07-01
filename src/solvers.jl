@@ -1,18 +1,3 @@
-module Solvers
-using Revise
-import LinearSolve as LS
-
-using LinearAlgebra
-
-using ..Models
-
-using ..Operators
-
-using ..Manifolds
-
-export solve, solve_bie
-
-
 
 # api to solve with given precomputed operators
 function solve(
@@ -26,6 +11,7 @@ function solve(
     D_target::DoubleLayer
 )
     # TODO: work in place to avoid allocating a new matrix
+
     A = -0.5 * I + matrix(D_star) # TODO: figure out how to seamlessly fulfill the matrix api
     τ = A \ (H * bc.σ)
     u = S_target * τ - D_target * bc.σ
@@ -222,4 +208,3 @@ function solve(
 
 end
 
-end

@@ -1,15 +1,3 @@
-module Manifolds
-
-export
-    AbstractManifold,
-    DiscreteClosedCurve,
-    visualize,
-    periodic_spectral_diff
-
-using FFTW,
-    LinearAlgebra,
-    GLMakie
-
 abstract type AbstractManifold end # TODO: move to models
 
 # IDEA:
@@ -40,6 +28,27 @@ struct DiscreteClosedCurve{
     cw::CW
 end
 
+# # dummy, TODO: consider an explicit type for set of target points
+# function DiscreteClosedCurve(x)
+#
+#     n, dim_x = size(x)
+#
+#     one_1d = ones(n)
+#     zero_nd = zeros((n, dim_x))
+#     zero_1d = zeros(n)
+#
+#     return DiscreteClosedCurve(
+#         x,
+#         zero_nd, #v
+#         zero_nd, #a
+#         zero_1d, #s
+#         zero_nd, #t
+#         zero_nd, #n
+#         zero_1d, #k
+#         one_1d, #w
+#     )
+#
+# end
 
 function DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMatrix)
 
@@ -84,11 +93,12 @@ function DiscreteClosedCurve(θ::AbstractVector, ρ::Function)
 end
 
 # construct from number of points and parametrization
-# using standard containers
+# using equispaced parameter
 function DiscreteClosedCurve(n_points::Int, ρ::Function)
     # range [0, 2pi) to evaluate parametrization
     θ = range(0, 2π; length=n_points + 1)[1:(end-1)]
     return DiscreteClosedCurve(θ, ρ)
+
 end
 
 function visualize(m::DiscreteClosedCurve)
@@ -152,4 +162,3 @@ function periodic_spectral_diff(f)
 end
 
 
-end

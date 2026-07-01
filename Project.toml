@@ -23,8 +23,6 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
-[sources]
-PointInPolyhedron = {rev = "main", url = "git@github.com:Spiffmeister/PointInPolyhedron.jl.git"}
 
 [compat]
 BenchmarkTools = "1.8.0"

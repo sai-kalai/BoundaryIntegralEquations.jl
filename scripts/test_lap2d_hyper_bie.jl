@@ -13,27 +13,35 @@
 # c.f. Hsiao-Wendland 2008, Sec.1.3-1.4
 
 using Revise
-using CairoMakie
+
+
 using LinearAlgebra
 using Enzyme
 import LinearSolve as LS
+
 using BimDiff
 
 
-
 abstract type Solution end
+abstract type NumericalSolution{S,A} end
 
-struct DirichletSolution{S<:Side,A<:Approach,C<:HypersingularCorrection} <: Solution
+
+
+mutable struct DirichletSolution{S<:Side,A<:Approach,C<:HypersingularCorrection} <: NumericalSolution{S,A}
     n
     u::Vector{Float64}
     τ::Vector{Float64}
     correction::C
+    u_err
+    τ_err
 end
 
-struct NeumannSolution{S<:Side,A<:Approach} <: Solution
+struct NeumannSolution{S<:Side,A<:Approach} <: NumericalSolution{S,A}
     n
     u::Vector{Float64}
     σ::Vector{Float64}
+    u_err
+    σ_err
 end
 
 struct ExactSolution{S<:Side} <: Solution
@@ -43,15 +51,191 @@ struct ExactSolution{S<:Side} <: Solution
     τ::Vector{Float64}
 end
 
-# struct SolutionSequence{S<:Solution}
-#     data::Vector{S}
-#     SolutionSequence{S}(n::Int) = SolutionSequence(Vector{S}(undef, n))
-# end
+
+function get_trace_err(s::DirichletSolution)
+    return s.τ_err
+end
+function get_trace_err(s::NeumannSolution)
+    return s.σ_err
+end
+
+solution_label(sol) = begin
+    bc =
+        sol isa DirichletSolution ? "Dirichlet" :
+        sol isa NeumannSolution ? "Neumann" :
+        "Unknown"
+
+    approach =
+        nameof(typeof(sol).parameters[2])
+
+    correction =
+        sol isa DirichletSolution ?
+        string(nameof(typeof(sol).parameters[3])) :
+        ""
+
+    isempty(correction) ?
+    "$bc / $approach" :
+    "$bc / $approach / $correction"
+end
+
+get_color(::DirichletSolution{S,A,Sidi}) where
+{S<:Side,A<:Approach} = :magenta
+get_color(::DirichletSolution{S,A,Zeta}) where
+{S<:Side,A<:Approach} = :red
+get_color(::NeumannSolution) = :blue
+
+get_linestyle(::NumericalSolution{S,Direct}) where
+{S<:Side} = :solid
+get_linestyle(::NumericalSolution{S,Indirect}) where
+{S<:Side} = :dash
+
+function solution_style(sol)
+
+    color = get_color(sol)
+    linestyle = get_linestyle(sol)
+
+    return (; linestyle, color,)
+end
+
+
+function plot_errors(
+    solutions::Vector{NumericalSolution},
+)
+    # ----------------------------
+    # Group by configuration
+    # ----------------------------
+
+    groups = Dict{String,Vector{NumericalSolution}}()
+
+    for sol in solutions
+
+        key = solution_label(sol)
+
+        if !haskey(groups, key)
+            groups[key] = NumericalSolution[]
+        end
+
+        push!(groups[key], sol)
+    end
+
+    # ----------------------------
+    # Plot
+    # ----------------------------
+
+    fig = Figure(size=(900, 600))
+
+
+    ax = Axis(
+        fig[1, 1],
+        xlabel="n",
+        ylabel="∞-error",
+        yscale=log10,
+        xscale=log10,
+    )
+
+    for (label, sols) in groups
+
+        sort!(sols, by=s -> s.n)
+
+        ns = [s.n for s in sols]
+
+        u_errs = [s.u_err for s in sols]
+
+        st = solution_style(first(sols))
+
+        scatterlines!(
+            ax,
+            ns,
+            u_errs,
+            label=label,
+            linestyle=st.linestyle,
+            color=st.color,
+            marker=:circle,
+            markersize=12,
+            linewidth=2,
+        )
+
+        trace_errs = [
+            s isa DirichletSolution ? s.τ_err : s.σ_err
+            for s in sols
+        ]
+
+        scatterlines!(
+            ax,
+            ns,
+            trace_errs,
+            label="$label trace",
+            linestyle=st.linestyle,
+            color=st.color,
+            marker=:rect,
+            markersize=12,
+            linewidth=2,
+        )
+
+    end
+
+
+    Legend(
+        fig[1, 1],
+        [
+            LineElement(linestyle=:solid),
+            LineElement(linestyle=:dash),
+            MarkerElement(color=:blue, marker=:circle),
+            MarkerElement(color=:magenta, marker=:circle),
+            MarkerElement(color=:red, marker=:circle),
+            MarkerElement(color=:black, marker=:circle),
+            MarkerElement(color=:black, marker=:rect),
+        ],
+        [
+            "Direct",
+            "Indirect",
+            "Dirichlet (Zeta)",
+            "Dirichlet (Sidi)",
+            "Neumann",
+            "Solution",
+            "Boundary Trace"
+        ], "Legend";
+        tellwidth=false,
+        halign=:left,
+        valign=:bottom
+    )
+
+    fig
+
+    # order_offset = ord - 2
+    # # trendlines
+    # lines!(
+    #     ax,
+    #     n_vals,
+    #     (n_vals ./ (n_vals[1])) .^ float(-order_offset),
+    #     label="O(h^$(order_offset))",
+    #     linestyle=:dash,
+    #     color=:black)
+    # exponential_decay = 0.1
+    # lines!(ax,
+    #     n_vals,
+    #     exp.(-exponential_decay .* (n_vals .- n_vals[1])),
+    #     label="O(exp(-$exponential_decay / h))",
+    #     linestyle=:dot,
+    #     color=:black
+    # )
+
+end
 
 
 function main()
 
     ord = 32       # pick desired convergence order of singular quad
+
+    # useful constants
+    laplace = Laplace()
+    interior = Interior()
+    exterior = Exterior()
+    kapur_rokhlin = KapurRokhlin(ord)
+    zeta = Zeta(ord)
+    sidi = Sidi()
+    direct = Direct()
+    indirect = Indirect()
 
     # set up source geometry (starfish domain)
     R = 1 # wobble center
@@ -77,6 +261,7 @@ function main()
     # s_ps.x = 1.5*exp(2i*pi*rand(ns,1));	% random source location
     # s_ps.w = 1;                         % dummy wei
     # den_source = randn(ns,1);           % random source densities
+    n_source = 10 # 10 source points
     x_source = [
         -0.5695003215297076 1.387684900752891
         1.193361093146339 0.9087845186646686
@@ -103,10 +288,13 @@ function main()
         -0.4264606237411499
     ]
 
-    x_test = ball(0.4, 20)  # test points in inner domain
+    n_test = 20
+    x_test = ball(0.4, n_test)  # test points in inner domain
 
-    matrix = compute_laplace_slp_matrix(x_test, x_source)
-    u_exact = matrix * density_source # exact solution at test points
+    S_manuf = compute_laplace_slp_matrix(x_test, x_source)
+
+    # matrix = compute_laplace_slp_matrix(x_test, x_source)
+    u_exact = S_manuf * density_source # exact solution at test points
 
     u_exact_reference = [ # computed with octave
         -0.225720785940647
@@ -131,9 +319,7 @@ function main()
         -0.2895297179342787
     ]
 
-
     @assert norm(u_exact - u_exact_reference) < 1e-15
-
 
     # scatter!(ax, x_test[:, 1], x_test[:, 2], color=u_exact)
 
@@ -144,27 +330,9 @@ function main()
 
     n_vals = 2000:20:2020
 
-    err_u = zeros(Float64, size(n_vals, 1))
-    err_τ = zeros(Float64, size(n_vals, 1))
-
-    err_u_sidi = zeros(Float64, size(n_vals, 1))
-    err_τ_sidi = zeros(Float64, size(n_vals, 1))
-
-    err_neumann_u = zeros(Float64, size(n_vals, 1))
-    err_neumann_σ = zeros(Float64, size(n_vals, 1))
-
-    solutions = Vector{Solution}()
-
-    laplace = Laplace()
-    interior = Interior()
-    exterior = Exterior()
-    zeta = Zeta(ord)
-    sidi = Sidi()
-    direct = Direct()
-    indirect = Indirect()
+    num_solutions = Vector{NumericalSolution}()
 
     for (i, n) ∈ enumerate(n_vals)
-
 
         Γ = DiscreteClosedCurve(n, ρ) # boundary of the domain
 
@@ -173,18 +341,12 @@ function main()
         # break
 
 
-        # compute boundary conditions from manufactured solution
-        # special case: using manifold as target and using manifold normals as source to compute the manufactured solution data
-        S_source, dS_dn_source = compute_laplace_slp_matrix_and_normal_derivative(
-            Γ.x, # locations to evaluate derivative
-            x_source, # integration variable
-            Γ.n # normals at the locations
-        )
+        S_source = compute_laplace_slp_matrix(Γ.x, x_source)
+        D_star_source = compute_laplace_dlp_adjoint_matrix(Γ.x, x_source, Γ.n)
+
 
         σ = S_source * density_source # Dirichlet BC
-        τ_exact = dS_dn_source * density_source # Neumann BC exact solution
-
-        push!(solutions, ExactSolution{Interior}(n, u_exact, σ, τ_exact)) # TODO: may be wasteful to store the same exact solution many times, although boundary traces do change...
+        τ_exact = D_star_source * density_source # Neumann BC exact solution
 
 
 
@@ -195,9 +357,11 @@ function main()
         H_zeta = Hypersingular(laplace, Γ, zeta)
         H_sidi = Hypersingular(laplace, Γ, sidi)
 
+
         S_target = SingleLayer(laplace, x_test, Γ,)
         D_target = DoubleLayer(laplace, x_test, Γ,)
 
+<<<<<<< HEAD
         # Dirichlet Zeta Direct
 
         s = (x) -> begin
@@ -305,6 +469,29 @@ function main()
         #     )
         # )
 
+        # Dirichlet Zeta Indirect
+        u, τ = solve(
+            laplace,
+            interior,
+            Dirichlet(σ),
+            indirect,
+            D,
+            H_zeta,
+            D_target,
+        )
+        push!(
+            num_solutions,
+            DirichletSolution{Interior,Indirect,Zeta}(
+                n,
+                u,
+                τ,
+                zeta,
+                norm(u_exact - u, Inf),
+                norm(τ_exact - τ, Inf)
+            )
+        )
+
+        # Dirichlet Sidi Direct
         # hypersingular operator using Sidi's staggered grid
         u, τ = solve(
             laplace,
@@ -316,12 +503,42 @@ function main()
             S_target,
             D_target,
         )
-        push!(solutions, DirichletSolution{Interior,Direct,Sidi}(n, u, τ, sidi))
-        err_u_sidi[i] = norm(u_exact - u, Inf)
-        err_τ_sidi[i] = norm(τ_exact - τ, Inf)
+
+        push!(
+            num_solutions,
+            DirichletSolution{Interior,Direct,Sidi}(
+                n,
+                u,
+                τ,
+                sidi,
+                norm(u_exact - u, Inf),
+                norm(τ_exact - τ, Inf)
+            )
+        )
+        # Dirichlet Sidi Indirect
+        u, τ = solve(
+            laplace,
+            interior,
+            Dirichlet(σ),
+            indirect,
+            D,
+            H_sidi,
+            D_target,
+        )
+        push!(
+            num_solutions,
+            DirichletSolution{Interior,Indirect,Sidi}(
+                n,
+                u,
+                τ,
+                sidi,
+                norm(u_exact - u, Inf),
+                norm(τ_exact - τ, Inf)
+            )
+        )
+
 
         # Neumann problem
-
         # swap bdry conditions
         σ_exact = σ
         τ = τ_exact
@@ -340,12 +557,15 @@ function main()
         offset = u_exact[1] - u[1]
         u .+= offset
         σ .+= offset # TODO: put this inside solver maybe and user passes integration constant
-        push!(solutions, NeumannSolution{Interior,Direct}(n, u, σ))
-
-
-        err_neumann_u[i] = norm(u_exact - u, Inf)
-        err_neumann_σ[i] = norm(σ_exact - σ, Inf)
-
+        push!(
+            num_solutions,
+            NeumannSolution{Interior,Direct}(
+                n,
+                u,
+                σ,
+                norm(u_exact - u, Inf),
+                norm(σ_exact - σ, Inf))
+        )
 
         u, σ = solve(
             laplace,
@@ -360,58 +580,27 @@ function main()
         offset = u_exact[1] - u[1]
         u .+= offset
         σ .+= offset # TODO: put this inside solver maybe and user passes integration constant
-        push!(solutions, NeumannSolution{Interior,Indirect}(n, u, σ))
+        push!(
+            num_solutions,
+            NeumannSolution{Interior,Indirect}(
+                n,
+                u,
+                σ,
+                norm(u_exact - u, Inf),
+                norm(σ_exact - σ, Inf)
+            )
+        )
 
 
     end
 
-    # println("Dirichlet")
-    # for (i, n) in enumerate(n_vals)
-    #     println("N=$n\tu(zeta)=$(err_u[i])\tu(sidi)=$(err_u_sidi[i])\tτ(zeta)=$(err_τ[i])\tτ(sidi)=$(err_τ_sidi[i])")
-    # end
-    #
-    # println("Neumann")
-    # for (i, n) in enumerate(n_vals)
-    #     println("N=$n\tu=$(err_neumann_u[i])\tσ=$(err_neumann_σ[i])")
-    # end
+    return num_solutions
 
-    # fig = Figure()
-    # ax = Axis(
-    #     fig[1, 1],
-    #     xscale=log10,
-    #     yscale=log10,
-    #     xlabel="x",
-    #     ylabel="y"
-    # )
-    # order_offset = ord - 2
-    # lines!(
-    #     ax,
-    #     n_vals,
-    #     (n_vals ./ (n_vals[1])) .^ float(-order_offset),
-    #     label="O(h^$(order_offset))",
-    #     linestyle=:dash,
-    #     color=:black)
-    # exponential_decay = 0.1
-    # lines!(ax,
-    #     n_vals,
-    #     exp.(-exponential_decay .* (n_vals .- n_vals[1])),
-    #     label="O(exp(-$exponential_decay / h))",
-    #     linestyle=:dot,
-    #     color=:black
-    # )
-    # scatterlines!(ax, n_vals, err_u, label="u zeta $(ord)-th order")
-    # scatterlines!(ax, n_vals, err_u_sidi, label="u sidi")
-    # scatterlines!(ax, n_vals, err_τ, label="τ zeta $(ord)-th order")
-    # scatterlines!(ax, n_vals, err_τ_sidi, label="τ sidi")
-    # scatterlines!(ax, n_vals, err_neumann_u, label="Neumann u ")
-    # scatterlines!(ax, n_vals, err_neumann_σ, label="Neumann σ ")
-    # axislegend(ax)
-
-    # wait(display(fig))
 
 end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    using GLMakie
+    wait(display(plot_errors(main())))
 end

@@ -1,32 +1,3 @@
-module Operators
-
-
-
-include("finite_differences.jl")
-include("kapur_rokhlin_sep_log.jl")
-
-
-using LinearAlgebra
-
-
-import ..Kernels
-using ..Manifolds
-using ..Models
-
-export
-    IntegralOperator,
-    SingleLayer,
-    DoubleLayer,
-    AdjointDoubleLayer,
-    Hypersingular,
-    matrix,
-    compute_laplace_slp_matrix,
-    compute_laplace_slp_matrix_and_normal_derivative,
-    compute_laplace_slp_matrix_normal_derivative,
-    compute_laplace_dlp_matrix_normal_derivative,
-    compute_laplace_dlp_matrix
-
-abstract type IntegralOperator end # TODO: move to Models
 
 # NOTE: is this the julian way for a getter/public api?
 function matrix(op::IntegralOperator)::AbstractMatrix
@@ -36,6 +7,7 @@ end
 function Base.:*(op::IntegralOperator, v::AbstractArray)
     return matrix(op) * v
 end
+
 
 function Base.:+(op::IntegralOperator, v::AbstractArray)
     return matrix(op) + v
@@ -49,13 +21,14 @@ function Base.:+(v::AbstractArray, op::IntegralOperator)
     return op + v
 end
 
-
 # a.k.a S
 struct SingleLayer{
     P<:BoundaryValueProblem,
-    M<:AbstractMatrix{<:Number},
+    C<:Union{SingularCorrection,Nothing},
+    M<:AbstractMatrix{<:Number}, # TODO: change order of members/constructor arguments to match order of generic parameters
 } <: IntegralOperator
     problem::P
+    correction::C
     matrix::M
 end
 
@@ -81,7 +54,7 @@ end
 struct Hypersingular{
     P<:BoundaryValueProblem,
     C<:HypersingularCorrection,
-    M<:AbstractMatrix{<:Number}
+    M<:AbstractMatrix{<:Number},
 } <: IntegralOperator
     problem::P
     correction::C
@@ -92,35 +65,27 @@ end
 # construct Laplace SLP from a source manifold and a list of target points
 function SingleLayer(
     problem::Laplace,
-    target::AbstractMatrix, # target points to compute operator
-    boundary::AbstractManifold, # source manifold e.g. domain boundary
+    targets::AbstractMatrix, # target points to compute operator
+    boundary::AbstractManifold; # source manifold e.g. domain boundary
 )
-    mat = compute_laplace_slp_matrix(target, boundary.x) .* boundary.w'
-    return SingleLayer(problem, mat)
+    mat = compute_laplace_slp_matrix(targets, boundary.x) .* boundary.w'
+    return SingleLayer(problem, nothing, mat)
+
 end
 
 # self interaction
 function SingleLayer(
     problem::Laplace,
     boundary::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
-    order::Int, # order of kapur rokhlin singular correction
+    order::Int; # order of kapur rokhlin singular correction
 )
-    mat = compute_laplace_slp_matrix(boundary.x, boundary.w, order)
-    return SingleLayer(problem, mat)
+
+    mat = compute_laplace_slp_matrix(boundary.x, boundary.w, order) .* boundary.w'
+
+    return SingleLayer(problem, KapurRokhlin(order), mat)
+
 end
 
-function DoubleLayer(
-    problem::Laplace,
-    target::AbstractMatrix, # target points to compute operator
-    boundary::AbstractManifold, # source manifold e.g. domain boundary
-)
-    mat = compute_laplace_dlp_matrix(
-        target,
-        boundary.x,
-        boundary.n
-    ) .* boundary.w'
-    return DoubleLayer(problem, mat)
-end
 
 # self interaction
 function DoubleLayer(
@@ -132,16 +97,18 @@ function DoubleLayer(
         boundary.n,
         boundary.k
     ) .* boundary.w'
+
     return DoubleLayer(problem, mat)
 end
 
+# following operators are only self-interaction because they require normal derivative at x
 
 # self interaction
 function AdjointDoubleLayer(
     problem::Laplace,
     boundary::AbstractManifold, # source manifold e.g. domain boundary
 )
-    mat = compute_laplace_slp_matrix_normal_derivative(
+    mat = compute_laplace_dlp_adjoint_matrix(
         boundary.x,
         boundary.n,
         boundary.k
@@ -155,7 +122,7 @@ function Hypersingular(
     boundary::AbstractManifold, # TODO: abstract manifold is no good, need to ensure that passed object has n, k, ...
     correction::Zeta,
 )
-    mat = compute_laplace_dlp_matrix_normal_derivative(
+    mat = compute_laplace_hypersingular_matrix(
         boundary.x,
         boundary.n,
         vec(boundary.k),
@@ -163,8 +130,23 @@ function Hypersingular(
         correction.order,
     )
 
-    return Hypersingular(problem, correction, mat)
+    mat[diagind(mat)] .+= -π / 6 ./ boundary.w + boundary.k .^ 2 .* boundary.w ./ 4π
+
+    return Hypersingular(problem, correction, mat,)
 end
+
+ function DoubleLayer(
+     problem::Laplace,
+     target::AbstractMatrix, # target points to compute operator
+     boundary::AbstractManifold, # source manifold e.g. domain boundary
+ )
+     mat = compute_laplace_dlp_matrix(
+         target,
+         boundary.x,
+         boundary.n
+     ) .* boundary.w'
+     return DoubleLayer(problem, mat)
+ end
 
 # self interaction using Sidi correction
 function Hypersingular(
@@ -172,7 +154,7 @@ function Hypersingular(
     boundary::AbstractManifold,
     correction::Sidi,
 )
-    mat = compute_laplace_dlp_matrix_normal_derivative(
+    mat = compute_laplace_hypersingular_matrix(
         boundary.x,
         boundary.n
     ) .* boundary.w'
@@ -180,6 +162,12 @@ function Hypersingular(
     # mat[diagind(mat)] .= -pi / 4 ./ boundary.w
 
     return Hypersingular(problem, correction, mat)
+end
+
+
+
+function make_svector2(matrix, row)
+    return SVector{2}(matrix[row, 1], matrix[row, 2])
 end
 
 
@@ -198,14 +186,14 @@ function compute_laplace_slp_matrix(
     A = zeros(Float64, m, n)
 
     @inbounds for i in 1:m, j in 1:n
-        A[i, j] = Kernels.laplace_slp(
-            view(x, i, :),
-            view(y, j, :)
+        r = make_svector2(x, i) - make_svector2(y, j)
+        A[i, j] = kernel(
+            SingleLayer{Laplace},
+            dot(r, r)
         )
     end
     return A
 end
-
 
 function compute_laplace_slp_matrix(
     x::AbstractMatrix, # list of x points (targets), matrix
@@ -218,20 +206,22 @@ function compute_laplace_slp_matrix(
     A = zeros(Float64, m, m)
 
     k = clamp((order - 1) ÷ 2, 0, (m - 1) ÷ 2)
+
     stencil = krcoeffs(k + 1)
     stencil = [stencil[end:-1:2]; stencil] # TODO: make this prettier
 
 
-    # TODO: inbounds macro was deleted
     for i in m:-1:1 # loop bacwards
 
         #diagonal term
+        # TODO: consider doing this outside
         A[i, i] = -log(weights[i]) / 2pi
 
         for j in 1:(i-1)
-            ker = Kernels.laplace_slp(
-                view(x, i, :),
-                view(x, j, :)
+            r = make_svector2(x, i) - make_svector2(x, j)
+            ker = kernel(
+                SingleLayer{Laplace},
+                dot(r, r)
             )
 
             A[i, j] += ker
@@ -244,133 +234,9 @@ function compute_laplace_slp_matrix(
             A[i, j] += stencil[dj+k+1] / 2pi
         end
 
-        # TODO: i don't like having 3 loops
-        for j in 1:m
-            A[i, j] *= weights[j] # TODO: inconsistency: sometimes weights are applied inside the compute matrix function, sometimes outside...
-        end
 
     end
     return A
-end
-
-
-# self interaction
-function compute_laplace_slp_matrix_normal_derivative(
-    x::AbstractMatrix, # points of interest
-    nx::AbstractMatrix, # unitary normal vectors at the y points
-    curvatures::AbstractVector, # curvature at x
-)
-
-    m, dim_x = size(x)
-
-    dA_dn = zeros(Float64, m, m)
-
-    @inbounds for i in 1:m
-
-        # diagonal limit
-        # -1/2 * curvature * 1/2pi
-        dA_dn[i, i] = -0.25 / pi * curvatures[i]
-
-        for j in 1:(i-1)
-            val = Kernels.laplace_slp_dn(
-                view(x, i, :),
-                view(x, j, :),
-                view(nx, i, :)
-            )
-            dA_dn[i, j] = val
-        end
-
-        for j in (i+1):m
-            val = Kernels.laplace_slp_dn(
-                view(x, i, :),
-                view(x, j, :),
-                view(nx, i, :)
-            )
-            dA_dn[i, j] = val
-        end
-
-    end
-
-
-    return dA_dn
-end
-
-# obsolete-ish
-function compute_laplace_slp_matrix_and_normal_derivative(
-    x::AbstractMatrix, # points of interest
-    y::AbstractMatrix, # domain boundary manifold
-    nx::AbstractMatrix, # unitary normal vectors at the y points
-)
-    m, dim_x = size(x)
-    n, dim_y = size(y)
-
-    # TODO: assert shapes
-
-    A = zeros(Float64, m, n)
-    dA_dn = zeros(Float64, m, n)
-
-    # zero
-
-    # TODO: @views macro broken somehow
-    @inbounds for i in 1:m, j in 1:n
-        A[i, j], dA_dn[i, j] = Kernels.laplace_slp_and_dn(
-            # TODO: maybe better to construct r as svector here
-            view(x, i, :),
-            view(y, j, :),
-            view(nx, i, :)
-        )
-    end
-
-    # TODO profileview.jl
-    # benchmarktools.jl
-
-    return A, dA_dn
-
-end
-
-# self interaction
-function compute_laplace_slp_matrix_and_normal_derivative(
-    x::AbstractMatrix, # points of interest
-    nx::AbstractMatrix, # unitary normal vectors at the y points
-    curvatures::AbstractVector, # curvature at x
-)
-    m, dim_x = size(x)
-
-    # TODO: assert shapes
-
-    A = zeros(Float64, m, m)
-    dA_dn = zeros(Float64, m, m)
-
-    @inbounds for i in 1:m
-
-        A[i, i] = 0.
-        dA_dn[i, i] = -0.5 * curvatures[i]
-
-        for j in 1:(i-1)
-
-            slp, slp_dn = Kernels.laplace_slp_and_dn(
-                view(x, i, :),
-                view(x, j, :),
-                view(nx, i, :)
-            )
-
-            A[i, j] = slp
-            A[j, i] = slp
-
-            dA_dn[i, j] = slp_dn
-
-        end
-        # NOTE: normal derivative isn't symmetric
-        for j in (i+1):m
-            dA_dn[i, j] = Kernels.laplace_slp_dn(
-                view(x, i, :),
-                view(x, j, :),
-                view(nx, i, :)
-            )
-        end
-    end
-
-    return A, dA_dn
 
 end
 
@@ -386,10 +252,14 @@ function compute_laplace_dlp_matrix(
     A = zeros(Float64, m, n)
 
     @inbounds for i in 1:m, j in 1:n
-        A[i, j] = Kernels.laplace_dlp(
-            view(x, i, :),
-            view(y, j, :),
-            view(ny, j, :)
+
+        r = make_svector2(x, i) - make_svector2(y, j)
+        nyj = make_svector2(ny, j)
+
+        A[i, j] = kernel(
+            DoubleLayer{Laplace},
+            dot(r, r),
+            dot(r, nyj),
         )
     end
     return A
@@ -410,29 +280,86 @@ function compute_laplace_dlp_matrix(
 
         D[i, i] = -0.25 / pi * curvatures[i]
 
-        for j in 1:(i-1)
-            val = Kernels.laplace_dlp(
-                view(x, i, :),
-                view(x, j, :),
-                view(nx, j, :) # index with j
+        for j in Iterators.flatten((1:(i-1), (i+1):m))
+            r = make_svector2(x, i) - make_svector2(x, j)
+            nxj = make_svector2(nx, j)
+
+            val = kernel(
+                DoubleLayer{Laplace},
+                dot(r, r),
+                dot(r, nxj),
             )
             D[i, j] = val
         end
-        for j in (i+1):m
-            val = Kernels.laplace_dlp(
-                view(x, i, :),
-                view(x, j, :),
-                view(nx, j, :)
-            )
-            D[i, j] = val
-        end
+
     end
     return D
 end
 
 
+# not self interaction: special case when making a manufactured solution
+
+function compute_laplace_dlp_adjoint_matrix(
+    x,
+    y,
+    nx
+)
+    m, dim_x = size(x)
+    n, dim_y = size(y)
+    dA_dn = zeros(Float64, m, n)
+
+    for i in 1:m, j in 1:n
+        xi = make_svector2(x, i)
+        yj = make_svector2(y, j)
+        nxi = make_svector2(nx, i)
+        r = xi - yj
+
+        dA_dn[i, j] = kernel(
+            AdjointDoubleLayer{Laplace},
+            dot(r, r),
+            dot(r, nxi),
+        )
+    end
+
+    return dA_dn
+end
+
+# self interaction
+function compute_laplace_dlp_adjoint_matrix(
+    x::AbstractMatrix, # points of interest
+    nx::AbstractMatrix, # unitary normal vectors at the y points
+    curvatures::AbstractVector, # curvature at x
+)
+
+    m, dim_x = size(x)
+
+    dA_dn = zeros(Float64, m, m)
+
+    @inbounds for i in 1:m
+
+        # diagonal limit
+        # -1/2 * curvature * 1/2pi
+        dA_dn[i, i] = -0.25 / pi * curvatures[i]
+
+        for j in Iterators.flatten((1:(i-1), (i+1):m))
+            xi = make_svector2(x, i)
+            xj = make_svector2(x, j)
+            nxi = make_svector2(nx, i)
+            r = xi - xj
+
+            val = kernel(
+                AdjointDoubleLayer{Laplace},
+                dot(r, r),
+                dot(r, nxi),
+            )
+            dA_dn[i, j] = val
+        end
+    end
+    return dA_dn
+end
+
 # self interaction using Sidi's / Richarson's method
-function compute_laplace_dlp_matrix_normal_derivative(
+function compute_laplace_hypersingular_matrix(
     x::AbstractMatrix,
     nx::AbstractMatrix,
 )
@@ -443,19 +370,27 @@ function compute_laplace_dlp_matrix_normal_derivative(
 
     @inbounds for i in 1:m
 
+        # TODO: measure: is it faster to do it here or outside the loop?
         # or leave diagonal empty and let quadrature client handle diagonal
         dD_dn[i, i] = -pi/4 # NOTE: weights and dirichlet need to be multiplied to diagonal for computing the quadrature
 
         for j in (mod(i, 2)+1):2:(i-1)
 
+            xi = make_svector2(x, i)
+            xj = make_svector2(x, j)
+            nxi = make_svector2(nx, i)
+            nxj = make_svector2(nx, j)
+            r = xi - xj
+
             # twice weights for staggered grid
-            val = 2 * Kernels.laplace_dlp_dn(
-                view(x, i, :),
-                view(x, j, :),
-                view(nx, i, :),
-                view(nx, j, :),
+            val = 2 * kernel(
+                Hypersingular{Laplace},
+                dot(r, r),
+                dot(r, nxi),
+                dot(r, nxj),
+                dot(nxi, nxj),
             )
-            # WARN: this one turns out to be symmetric for some reason...?
+
             dD_dn[i, j] = val
             dD_dn[j, i] = val
 
@@ -468,7 +403,7 @@ function compute_laplace_dlp_matrix_normal_derivative(
 end
 
 # self interaction using FD correction
-function compute_laplace_dlp_matrix_normal_derivative(
+function compute_laplace_hypersingular_matrix(
     x::AbstractMatrix,
     nx::AbstractMatrix,
     curvatures::AbstractVector,
@@ -490,16 +425,23 @@ function compute_laplace_dlp_matrix_normal_derivative(
     # `x` in the paper, i.e. for each point in the manifold, each row in the matrix
     @inbounds for i in m:-1:1
 
-        dD_dn[i, i] = -π / 6 / weights[i] + curvatures[i]^2 * weights[i] / 4π
-
+        # dD_dn[i, i] = -π / 6 / weights[i] + curvatures[i]^2 * weights[i] / 4π
 
         # first sum: compute for other points  in the manifold the dlp normal derivative
         for j in 1:(i-1)
-            ker = Kernels.laplace_dlp_dn(
-                view(x, i, :),
-                view(x, j, :),
-                view(nx, i, :),
-                view(nx, j, :),
+
+            xi = make_svector2(x, i)
+            xj = make_svector2(x, j)
+            nxi = make_svector2(nx, i)
+            nxj = make_svector2(nx, j)
+            r = xi - xj
+
+            ker = kernel(
+                Hypersingular{Laplace},
+                dot(r, r),
+                dot(r, nxi),
+                dot(r, nxj),
+                dot(nxi, nxj),
             )
 
             # this way asymmetric weighting can be applied
@@ -525,9 +467,9 @@ function compute_laplace_dlp_matrix_normal_derivative(
             end
 
             # g(j) = n(i) ⋅ n(j) |ρ'(j)|/(2π |ρ'(i)|) * (1 - B + B^2)
-            #
-            nx_dot_ny = Kernels._a_dot_b(nx[i, 1], nx[i, 2], nx[j, 1], nx[j, 2])
-            # nx_dot_ny = dot(nx[i, :], nx[j, :])
+            nxi = make_svector2(nx, i)
+            nxj = make_svector2(nx, j)
+            nx_dot_ny = dot(nxi, nxj)
 
             g = nx_dot_ny * weights[j] / (weights[i]^2) * (1 - B + B^2)
 
@@ -543,5 +485,4 @@ function compute_laplace_dlp_matrix_normal_derivative(
 end
 
 
-end
 

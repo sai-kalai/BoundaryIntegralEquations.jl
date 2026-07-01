@@ -74,7 +74,7 @@ function main()
         dims=1
     )
 
-    n_vals = 200:80:200
+    n_vals = 20:80:200
     errs = zeros(Float64, size(n_vals, 1))
 
     ord = 32
@@ -228,7 +228,6 @@ function main()
         # Colorbar(fig[1, 2][1, 3], sc2; label="log10 error inf norm")
         #
         # wait(display(fig))
-        break
     end
     #
     # fig3 = Figure()
@@ -242,3 +241,8 @@ function main()
     # wait(display(fig3))
 
 end
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end
+
