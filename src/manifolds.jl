@@ -30,6 +30,7 @@ struct DiscreteClosedCurve{
 end
 
 # dummy, TODO: consider an explicit type for set of target points
+# Replace by type that explicitly achieves this instead
 function DiscreteClosedCurve(x)
 
     n, dim_x = size(x)

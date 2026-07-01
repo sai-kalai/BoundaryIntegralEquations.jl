@@ -33,6 +33,42 @@ struct SingleLayer{
     matrix::M
 end
 
+default_allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
+
+# TODO: decide and enforce oeder globally: source, target or target, source?
+# source-target interaction
+function SingleLayer(
+    problem::Laplace,
+    targets::AbstractMatrix, # target points to compute operator
+    boundary::AbstractManifold; # source manifold e.g. domain boundary
+    matrix_factory::Function=default_allocator,
+)
+    m, dim_t = size(targets)
+    n, dim_x = size(boundary.x)
+
+    matrix = matrix_factory(m, n)::AbstractMatrix
+    op = SingleLayer(problem, nothing, matrix)
+
+    populate_matrices!(boundary, targets, op)
+    return op
+end
+
+# self interaction
+function SingleLayer(
+    problem::Laplace,
+    boundary::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    order::Int; # order of kapur rokhlin singular correction
+    matrix_factory::Function=default_allocator,
+)
+
+    n, dim_x = size(boundary.x)
+    matrix = matrix_factory(n, n)::AbstractMatrix # allocate memory
+    op = SingleLayer(problem, KapurRokhlin(order), matrix)
+
+    populate_matrices!(boundary, op)
+    return op
+end
+
 # a.k.a D a.k.a. ∂S/∂ny
 struct DoubleLayer{
     P<:BoundaryValueProblem,
@@ -42,6 +78,38 @@ struct DoubleLayer{
     matrix::M
 end
 
+# source-target interaction
+function DoubleLayer(
+    problem::Laplace,
+    targets::AbstractMatrix, # target points to compute operator
+    boundary::AbstractManifold; # source manifold e.g. domain boundary
+    matrix_factory::Function=default_allocator,
+)
+    m, dim_t = size(targets)
+    n, dim_x = size(boundary.x)
+
+    matrix = matrix_factory(m, n)::AbstractMatrix
+    op = DoubleLayer(problem, matrix)
+
+    populate_matrices!(boundary, targets, op)
+    return op
+end
+
+# self interaction
+function DoubleLayer(
+    problem::Laplace,
+    boundary::AbstractManifold; # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    matrix_factory::Function=default_allocator,
+)
+
+    n, dim_x = size(boundary.x)
+    matrix = matrix_factory(n, n)::AbstractMatrix
+    op = DoubleLayer(problem, matrix)
+
+    populate_matrices!(boundary, op)
+    return op
+end
+
 # a.k.a  D* a.k.a. ∂S/∂nx
 struct AdjointDoubleLayer{
     P<:BoundaryValueProblem,
@@ -49,6 +117,40 @@ struct AdjointDoubleLayer{
 } <: IntegralOperator
     problem::P
     matrix::M
+end
+
+# self interaction
+function AdjointDoubleLayer(
+    problem::Laplace,
+    boundary::AbstractManifold; # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    matrix_factory::Function=default_allocator,
+)
+
+    n, dim_x = size(boundary.x)
+    matrix = matrix_factory(n, n)::AbstractMatrix
+    op = AdjointDoubleLayer(problem, matrix)
+
+    populate_matrices!(boundary, op)
+    return op
+end
+
+# source-target interaction: edge case for manufactured solution
+function AdjointDoubleLayer(
+    problem::Laplace,
+    targets::AbstractMatrix,
+    target_normals::AbstractMatrix,
+    boundary::AbstractManifold; # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    matrix_factory::Function=default_allocator,
+)
+
+    m, dim_x = size(targets)
+    n, dim_x = size(boundary.x)
+
+    matrix = matrix_factory(m, n)::AbstractMatrix
+    op = AdjointDoubleLayer(problem, matrix)
+
+    populate_matrices!(boundary, targets, op; target_normals=target_normals)
+    return op
 end
 
 # a.k.a  N a.k.a. ∂S²/∂nx∂ny
@@ -62,102 +164,21 @@ struct Hypersingular{
     matrix::M
 end
 
-# construct empty operator
-function SingleLayer(
-    problem::P,
-    correction::C,
-    m::Int, n::Int;
-    allocator=(m, n) -> zeros(Float64, m, n) # default to Matrix{Float64}
-) where {
-    P<:BoundaryValueProblem,
-    C<:Union{SingularCorrection,Nothing}
-}
-    mat = allocator(m, n)
-    return SingleLayer(problem, correction, mat)
-end
-
-# construct Laplace SLP from a source manifold and a list of target points
-function SingleLayer(
-    problem::Laplace,
-    targets::AbstractMatrix, # target points to compute operator
-    boundary::AbstractManifold; # source manifold e.g. domain boundary
-    allocator=(m, n) -> zeros(Float64, m, n) # default to Matrix{Float64}
-)
-    m, dim_t = size(targets)
-    n, dim_x = size(boundary.x)
-
-    op = SingleLayer(problem, nothing, m, n; allocator=allocator)
-
-    populate_matrices!(boundary, targets, op)
-    # op.matrix .*= boundary.w'
-
-    return op
-end
-
 # self interaction
-function SingleLayer(
+function Hypersingular(
     problem::Laplace,
     boundary::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
-    order::Int; # order of kapur rokhlin singular correction
-    allocator=(m, n) -> zeros(Float64, m, n) # default to Matrix{Float64}
+    correction::Hypersingular;
+    matrix_factory::Function=default_allocator,
 )
+
     n, dim_x = size(boundary.x)
-    op = SingleLayer(problem, KapurRokhlin(order), n, n; allocator=allocator)
 
+    matrix = matrix_factory(n, n)::AbstractMatrix
+    op = Hypersingular(problem, correction, matrix)
     populate_matrices!(boundary, op)
-    # op.matrix .*= boundary.w'
-
     return op
 end
-
-# construct empty operator
-function DoubleLayer(
-    problem::P,
-    m::Int,
-    n::Int;
-    allocator=(m, n) -> zeros(Float64, m, n) # default to Matrix{Float64}
-) where {
-    P<:BoundaryValueProblem,
-}
-    mat = allocator(m, n)
-    return DoubleLayer(problem, mat)
-end
-
-
-
-
-# construct empty operator
-function AdjointDoubleLayer(
-    problem::P,
-    m::Int,
-    n::Int;
-    allocator=(m, n) -> zeros(Float64, m, n) # default to Matrix{Float64}
-) where {
-    P<:BoundaryValueProblem,
-}
-    mat = allocator(m, n)
-    return AdjointDoubleLayer(problem, mat)
-end
-
-
-
-# construct empty operator
-function Hypersingular(
-    problem::P,
-    correction::C,
-    m::Int,
-    n::Int;
-    allocator=(m, n) -> zeros(Float64, m, n) # default to Matrix{Float64}
-) where {
-    P<:BoundaryValueProblem,
-    C<:HypersingularCorrection
-}
-    mat = allocator(m, n)
-    return Hypersingular(problem, correction, mat)
-end
-
-
-
 
 # store data to avoid recomputing
 mutable struct PairwiseCache{T<:AbstractFloat}
@@ -235,10 +256,11 @@ function compute_entry!(
     op::SingleLayer{Laplace,Nothing},
     d::PairwiseCache,
     b::DiscreteClosedCurve,
-    t::DiscreteClosedCurve, # target points
+    t::AbstractMatrix, # target points
+    target_normals, # ignored
 )
 
-    x = make_svector2(t.x, i)
+    x = make_svector2(t, i)
     y = make_svector2(b.x, j)
 
     op.matrix[i, j] = kernel(
@@ -254,9 +276,10 @@ function compute_entry!(
     op::DoubleLayer{Laplace}, # WARN: no explicit indication to separate types corresponding to self vs target interaction
     d::PairwiseCache,
     b::DiscreteClosedCurve,
-    t::DiscreteClosedCurve,
+    t::AbstractMatrix,
+    target_normals, # ignored
 )
-    x = make_svector2(t.x, i) # target point
+    x = make_svector2(t, i) # target point
     y = make_svector2(b.x, j) # source point
     ny = make_svector2(b.n, j) # normal at y
 
@@ -270,17 +293,17 @@ end
 
 
 function compute_entry!(
-    # WARN: Massive hack
     i::Int,
     j::Int,
     op::AdjointDoubleLayer{Laplace},
     d::PairwiseCache,
     b::DiscreteClosedCurve, # outside points in this case
-    t::DiscreteClosedCurve, # boundary in this case
+    t::AbstractMatrix, # boundary in this case
+    target_normals::AbstractMatrix,
 )
-    x = make_svector2(t.x, i) # target point
+    x = make_svector2(t, i) # target point
     y = make_svector2(b.x, j) # source point
-    nx = make_svector2(t.n, i) # normal at x
+    nx = make_svector2(target_normals, i) # normal at x
 
 
     val = kernel(
@@ -301,7 +324,7 @@ function compute_entry!(
     j::Int,
     op::SingleLayer{Laplace,KapurRokhlin},
     d::PairwiseCache,
-    b::DiscreteClosedCurve
+    b::DiscreteClosedCurve,
 )
 
     if j < i
@@ -333,7 +356,7 @@ function compute_entry!(
     j::Int,
     op::DoubleLayer{Laplace},
     d::PairwiseCache,
-    b::DiscreteClosedCurve
+    b::DiscreteClosedCurve,
 )
     if j == i
         #diagonal
@@ -351,6 +374,7 @@ function compute_entry!(
         ) * b.w[j]
     end
 end
+
 function compute_entry!(
     i::Int,
     j::Int,
@@ -605,22 +629,31 @@ end
 
 function populate_matrices!(
     boundary::DiscreteClosedCurve{T},
-    targets::DiscreteClosedCurve{T},
-    ops::IntegralOperator... # only
+    targets::AbstractMatrix{T},
+    ops::IntegralOperator...; # only
+    target_normals::Union{AbstractMatrix{T},Nothing}=nothing, # the AdjointDoubleLayer operator needs the normal vectors at the target locations
 ) where {T<:AbstractFloat}
 
-    populate_matrices!(boundary, targets, ops)
+    populate_matrices!(boundary, targets, ops; target_normals=target_normals)
 
 end
 
 # target interaction operators
 function populate_matrices!(
     boundary::DiscreteClosedCurve{T},
-    targets::DiscreteClosedCurve{T},
-    ops # only
+    targets::AbstractMatrix{T},
+    ops;
+    target_normals::Union{AbstractMatrix{T},Nothing}=nothing,
 ) where {T<:AbstractFloat}
+
+
+    if any(x -> x isa AdjointDoubleLayer, ops) && isnothing(target_normals)
+        error("Requested AdjointDoubleLayer, but provided no target unit normals")
+    end
+
+
     n = size(boundary.x, 1)
-    m = size(targets.x, 1)
+    m = size(targets, 1)
 
     pairwise_cache = PairwiseCache{Float64}()
     # loop over i
@@ -636,7 +669,7 @@ function populate_matrices!(
             reset!(pairwise_cache)
             foreach(ops) do op
                 # for op in ops
-                compute_entry!(i, j, op, pairwise_cache, boundary, targets)
+                compute_entry!(i, j, op, pairwise_cache, boundary, targets, target_normals)
             end
         end
     end

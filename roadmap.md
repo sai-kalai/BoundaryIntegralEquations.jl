@@ -2,6 +2,7 @@ next steps:
 
 Try to make one branch for each
 
+
 - [ ] change access pattern to column-major, record performance before and after
 - [ ] package more into one struct such that solve(instance) has all the info
 - [x] fix the modules: use one single module for the whole code instead of per-file, see Inti
@@ -18,4 +19,6 @@ Try to make one branch for each
     evaluate(x points)
 - [ ] implement distance policy fro close evaluation
 - [ ] move close evaluation and autodiff outside of scripts
+
+
 

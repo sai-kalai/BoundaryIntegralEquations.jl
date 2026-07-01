@@ -234,7 +234,7 @@ function main()
     indirect = Indirect()
 
     # indicate how to reserve memory
-    allocator = (_m, _n) -> Array{Float64}(undef, _m, _n)
+    allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
 
     # set up source geometry (starfish domain)
     R = 1 # wobble center
@@ -286,16 +286,16 @@ function main()
         0.1896218359470367
         -0.4264606237411499
     ]
+
+    # TODO: only locations are meaningful on this variable, others are not used... how to avoid this?
     Γ_source = DiscreteClosedCurve(x_source)
 
     n_test = 20
     x_test = ball(0.4, n_test)  # test points in inner domain
+
     Γ_test = DiscreteClosedCurve(x_test)
 
-    S_manuf = SingleLayer(laplace, nothing, n_test, n_source; allocator=allocator)
-
-    populate_matrices!(Γ_source, Γ_test, S_manuf)
-
+    S_manuf = SingleLayer(laplace, x_test, Γ_source; matrix_factory=allocator)
 
     # matrix = compute_laplace_slp_matrix(x_test, x_source)
     u_exact = S_manuf * density_source # exact solution at test points
@@ -346,28 +346,29 @@ function main()
         # wait(display(fig))
         # break
 
+        # target: domain boundary, source: manufactured solution point sources
+        S_source = SingleLayer(laplace, nothing, allocator(n, n_source)) # ok
+        D_star_source = AdjointDoubleLayer(laplace, allocator(n, n_source)) # ok
 
-        D_star_source = AdjointDoubleLayer(laplace, n, n_source; allocator) # ok
-        S_source = SingleLayer(laplace, nothing, n, n_source; allocator) # ok
+        populate_matrices!(Γ_source, Γ.x, S_source, D_star_source; target_normals=Γ.n)
 
-        populate_matrices!(Γ_source, Γ, S_source, D_star_source)
+        @assert D_star_source.matrix ≈ AdjointDoubleLayer(laplace, Γ.x, Γ.n, Γ_source; matrix_factory=allocator).matrix
 
         σ = S_source * density_source # Dirichlet BC
         τ_exact = D_star_source * density_source # Neumann BC exact solution
 
 
-        S = SingleLayer(laplace, kapur_rokhlin, n, n; allocator) # ok
-        D = DoubleLayer(laplace, n, n; allocator) # ok
-        D_star = AdjointDoubleLayer(laplace, n, n; allocator)  # ok
-        H_zeta = Hypersingular(laplace, zeta, n, n; allocator) # ok
-        H_sidi = Hypersingular(laplace, sidi, n, n; allocator) # ok
+        S = SingleLayer(laplace, kapur_rokhlin, allocator(n, n)) # ok
+        D = DoubleLayer(laplace, allocator(n, n)) # ok
+        D_star = AdjointDoubleLayer(laplace, allocator(n, n))  # ok
+        H_zeta = Hypersingular(laplace, zeta, allocator(n, n)) # ok
+        H_sidi = Hypersingular(laplace, sidi, allocator(n, n)) # ok
 
         populate_matrices!(Γ, S, D, D_star, H_sidi, H_zeta)
 
-        S_target = SingleLayer(laplace, nothing, n_test, n; allocator) # ok
-        D_target = DoubleLayer(laplace, n_test, n; allocator) # ok
-        populate_matrices!(Γ, Γ_test, S_target, D_target)
-
+        S_target = SingleLayer(laplace, nothing, allocator(n_test, n)) # ok
+        D_target = DoubleLayer(laplace, allocator(n_test, n)) # ok
+        populate_matrices!(Γ, x_test, S_target, D_target)
 
         # Dirichlet Zeta Direct
         u, τ = solve(

@@ -32,11 +32,7 @@ struct KapurRokhlin <: SingularCorrection
     order::Int
 end
 
-"""
-$(TYPEDEF)
 
-Specify the side of the domain
-"""
 abstract type Side end
 struct Interior <: Side end
 struct Exterior <: Side end
