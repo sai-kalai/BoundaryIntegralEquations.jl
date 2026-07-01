@@ -17,7 +17,7 @@ using Revise
 
 using LinearAlgebra
 using Enzyme
-import LinearSolve as LS
+using GLMakie
 
 using BimDiff
 
@@ -361,7 +361,6 @@ function main()
         S_target = SingleLayer(laplace, x_test, Γ,)
         D_target = DoubleLayer(laplace, x_test, Γ,)
 
-<<<<<<< HEAD
         # Dirichlet Zeta Direct
 
         s = (x) -> begin

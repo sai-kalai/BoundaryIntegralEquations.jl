@@ -7,6 +7,7 @@ module BimDiff
 using CairoMakie
 using LinearAlgebra
 using StaticArrays
+using LinearSolve
 using FFTW
 
 #

@@ -25,8 +25,8 @@ function solve_bie(
     D::DoubleLayer,
 )
 
-    pbm = LS.LinearProblem(-0.5 * I + matrix(D), bc.σ)
-    sln = LS.solve(pbm)
+    pbm = LinearSolve.LinearProblem(-0.5 * I + matrix(D), bc.σ)
+    sln = LinearSolve.solve(pbm)
     # return lu(-0.5 * I + matrix(D)) \ bc.σ # auxiliary variable
     return sln.u
 end
