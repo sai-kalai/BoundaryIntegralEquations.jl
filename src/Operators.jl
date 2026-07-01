@@ -339,9 +339,8 @@ function compute_entry!(
         get_r_norm_sq!(d, x, y),
         get_r_dot_ny!(d, x, y, ny),
     ) * b.w[j]
-
-
 end
+
 
 function compute_entry!(
     # WARN: Massive hack
@@ -388,8 +387,8 @@ function compute_entry!(
             get_r_norm_sq!(d, x, y)
         )
 
-        op.matrix[i, j] += val * b.w[j]
-        op.matrix[j, i] += val * b.w[i]
+        op.matrix[i, j] = val * b.w[j]
+        op.matrix[j, i] = val * b.w[i]
 
     elseif j == i
         #diagonal
@@ -496,12 +495,13 @@ function compute_entry!(
     if j == i
         #diagonal
         val = -π / 6 / b.w[i] + b.k[i]^2 * b.w[i] / 4π
-        op.matrix[i, i] += val
+        op.matrix[i, i] = val
 
     elseif j > i
+        # skipped symmetric
         return
-    else
 
+    else
         # off-diagonal sweep
         x = make_svector2(b.x, i)
         y = make_svector2(b.x, j)
