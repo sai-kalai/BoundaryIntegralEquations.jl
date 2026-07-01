@@ -14,8 +14,8 @@
 
 using Revise
 
+using LinearAlgebra
 
-using CairoMakie
 using BimDiff
 
 abstract type Solution end
@@ -46,6 +46,7 @@ struct ExactSolution{S<:Side} <: Solution
     σ::Vector{Float64}
     τ::Vector{Float64}
 end
+
 
 function get_trace_err(s::DirichletSolution)
     return s.τ_err
@@ -523,5 +524,6 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    using GLMakie
+    wait(display(plot_errors(main())))
 end
