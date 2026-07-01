@@ -1,12 +1,3 @@
-module CloseEvaluation
-using GLMakie
-
-using ..Models
-using ..Manifolds
-using ..Operators
-
-export cauchy_integral, compute_boundary_limit
-
 """
     cauchy_integral(target, source::DiscreteClosedCurve, boundary_data)
 
@@ -144,4 +135,3 @@ function compute_boundary_limit(
 
 end
 
-end

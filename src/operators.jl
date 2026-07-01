@@ -1,27 +1,3 @@
-module Operators
-
-using StaticArrays
-
-
-
-include("finite_differences.jl")
-include("kapur_rokhlin_sep_log.jl")
-
-
-using LinearAlgebra
-
-
-import ..Kernels
-using ..Manifolds
-using ..Models
-
-export
-    matrix,
-    compute_laplace_slp_matrix,
-    compute_laplace_dlp_adjoint_matrix,
-    compute_laplace_hypersingular_matrix,
-    compute_laplace_dlp_matrix
-
 
 # NOTE: is this the julian way for a getter/public api?
 function matrix(op::IntegralOperator)::AbstractMatrix
@@ -31,6 +7,7 @@ end
 function Base.:*(op::IntegralOperator, v::AbstractArray)
     return matrix(op) * v
 end
+
 
 function Base.:+(op::IntegralOperator, v::AbstractArray)
     return matrix(op) + v
@@ -44,9 +21,49 @@ function Base.:+(v::AbstractArray, op::IntegralOperator)
     return op + v
 end
 
+# a.k.a S
+struct SingleLayer{
+    P<:BoundaryValueProblem,
+    C<:Union{SingularCorrection,Nothing},
+    M<:AbstractMatrix{<:Number}, # TODO: change order of members/constructor arguments to match order of generic parameters
+} <: IntegralOperator
+    problem::P
+    correction::C
+    matrix::M
+end
+
+# a.k.a D a.k.a. ∂S/∂ny
+struct DoubleLayer{
+    P<:BoundaryValueProblem,
+    M<:AbstractMatrix{<:Number}
+} <: IntegralOperator
+    problem::P
+    matrix::M
+end
+
+# a.k.a  D* a.k.a. ∂S/∂nx
+struct AdjointDoubleLayer{
+    P<:BoundaryValueProblem,
+    M<:AbstractMatrix{<:Number}
+} <: IntegralOperator
+    problem::P
+    matrix::M
+end
+
+# a.k.a  N a.k.a. ∂S²/∂nx∂ny
+struct Hypersingular{
+    P<:BoundaryValueProblem,
+    C<:HypersingularCorrection,
+    M<:AbstractMatrix{<:Number},
+} <: IntegralOperator
+    problem::P
+    correction::C
+    matrix::M
+end
+
 
 # construct Laplace SLP from a source manifold and a list of target points
-function Models.SingleLayer(
+function SingleLayer(
     problem::Laplace,
     targets::AbstractMatrix, # target points to compute operator
     boundary::AbstractManifold; # source manifold e.g. domain boundary
@@ -57,7 +74,7 @@ function Models.SingleLayer(
 end
 
 # self interaction
-function Models.SingleLayer(
+function SingleLayer(
     problem::Laplace,
     boundary::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
     order::Int; # order of kapur rokhlin singular correction
@@ -66,23 +83,12 @@ function Models.SingleLayer(
     mat = compute_laplace_slp_matrix(boundary.x, boundary.w, order) .* boundary.w'
 
     return SingleLayer(problem, KapurRokhlin(order), mat)
+
 end
 
-function Models.DoubleLayer(
-    problem::Laplace,
-    target::AbstractMatrix, # target points to compute operator
-    boundary::AbstractManifold, # source manifold e.g. domain boundary
-)
-    mat = compute_laplace_dlp_matrix(
-        target,
-        boundary.x,
-        boundary.n
-    ) .* boundary.w'
-    return DoubleLayer(problem, mat)
-end
 
 # self interaction
-function Models.DoubleLayer(
+function DoubleLayer(
     problem::Laplace,
     boundary::AbstractManifold, # source manifold e.g. domain boundary
 )
@@ -98,7 +104,7 @@ end
 # following operators are only self-interaction because they require normal derivative at x
 
 # self interaction
-function Models.AdjointDoubleLayer(
+function AdjointDoubleLayer(
     problem::Laplace,
     boundary::AbstractManifold, # source manifold e.g. domain boundary
 )
@@ -111,7 +117,7 @@ function Models.AdjointDoubleLayer(
 end
 
 # self interaction using zeta correction
-function Models.Hypersingular(
+function Hypersingular(
     problem::Laplace,
     boundary::AbstractManifold, # TODO: abstract manifold is no good, need to ensure that passed object has n, k, ...
     correction::Zeta,
@@ -129,8 +135,21 @@ function Models.Hypersingular(
     return Hypersingular(problem, correction, mat,)
 end
 
+ function DoubleLayer(
+     problem::Laplace,
+     target::AbstractMatrix, # target points to compute operator
+     boundary::AbstractManifold, # source manifold e.g. domain boundary
+ )
+     mat = compute_laplace_dlp_matrix(
+         target,
+         boundary.x,
+         boundary.n
+     ) .* boundary.w'
+     return DoubleLayer(problem, mat)
+ end
+
 # self interaction using Sidi correction
-function Models.Hypersingular(
+function Hypersingular(
     problem::Laplace,
     boundary::AbstractManifold,
     correction::Sidi,
@@ -168,7 +187,7 @@ function compute_laplace_slp_matrix(
 
     @inbounds for i in 1:m, j in 1:n
         r = make_svector2(x, i) - make_svector2(y, j)
-        A[i, j] = Kernels.kernel(
+        A[i, j] = kernel(
             SingleLayer{Laplace},
             dot(r, r)
         )
@@ -200,7 +219,7 @@ function compute_laplace_slp_matrix(
 
         for j in 1:(i-1)
             r = make_svector2(x, i) - make_svector2(x, j)
-            ker = Kernels.kernel(
+            ker = kernel(
                 SingleLayer{Laplace},
                 dot(r, r)
             )
@@ -218,9 +237,8 @@ function compute_laplace_slp_matrix(
 
     end
     return A
+
 end
-
-
 
 
 function compute_laplace_dlp_matrix(
@@ -238,7 +256,7 @@ function compute_laplace_dlp_matrix(
         r = make_svector2(x, i) - make_svector2(y, j)
         nyj = make_svector2(ny, j)
 
-        A[i, j] = Kernels.kernel(
+        A[i, j] = kernel(
             DoubleLayer{Laplace},
             dot(r, r),
             dot(r, nyj),
@@ -266,7 +284,7 @@ function compute_laplace_dlp_matrix(
             r = make_svector2(x, i) - make_svector2(x, j)
             nxj = make_svector2(nx, j)
 
-            val = Kernels.kernel(
+            val = kernel(
                 DoubleLayer{Laplace},
                 dot(r, r),
                 dot(r, nxj),
@@ -296,7 +314,7 @@ function compute_laplace_dlp_adjoint_matrix(
         nxi = make_svector2(nx, i)
         r = xi - yj
 
-        dA_dn[i, j] = Kernels.kernel(
+        dA_dn[i, j] = kernel(
             AdjointDoubleLayer{Laplace},
             dot(r, r),
             dot(r, nxi),
@@ -329,7 +347,7 @@ function compute_laplace_dlp_adjoint_matrix(
             nxi = make_svector2(nx, i)
             r = xi - xj
 
-            val = Kernels.kernel(
+            val = kernel(
                 AdjointDoubleLayer{Laplace},
                 dot(r, r),
                 dot(r, nxi),
@@ -365,7 +383,7 @@ function compute_laplace_hypersingular_matrix(
             r = xi - xj
 
             # twice weights for staggered grid
-            val = 2 * Kernels.kernel(
+            val = 2 * kernel(
                 Hypersingular{Laplace},
                 dot(r, r),
                 dot(r, nxi),
@@ -418,7 +436,7 @@ function compute_laplace_hypersingular_matrix(
             nxj = make_svector2(nx, j)
             r = xi - xj
 
-            ker = Kernels.kernel(
+            ker = kernel(
                 Hypersingular{Laplace},
                 dot(r, r),
                 dot(r, nxi),
@@ -466,7 +484,5 @@ function compute_laplace_hypersingular_matrix(
     return dD_dn
 end
 
-
-end
 
 

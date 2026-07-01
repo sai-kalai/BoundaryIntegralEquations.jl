@@ -13,14 +13,17 @@
 # c.f. Hsiao-Wendland 2008, Sec.1.3-1.4
 
 using Revise
-using LinearAlgebra
-using Random
-using BimDiff
 
+using LinearAlgebra
+using BimDiff
+using LinearAlgebra
+
+using BimDiff
 
 
 abstract type Solution end
 abstract type NumericalSolution{S,A} end
+
 
 
 mutable struct DirichletSolution{S<:Side,A<:Approach,C<:HypersingularCorrection} <: NumericalSolution{S,A}
@@ -46,6 +49,7 @@ struct ExactSolution{S<:Side} <: Solution
     σ::Vector{Float64}
     τ::Vector{Float64}
 end
+
 
 function get_trace_err(s::DirichletSolution)
     return s.τ_err
@@ -352,8 +356,10 @@ function main()
         H_zeta = Hypersingular(laplace, Γ, zeta)
         H_sidi = Hypersingular(laplace, Γ, sidi)
 
+
         S_target = SingleLayer(laplace, x_test, Γ,)
         D_target = DoubleLayer(laplace, x_test, Γ,)
+
 
         # Dirichlet Zeta Direct
         u, τ = solve(

@@ -1,17 +1,3 @@
-module Solvers
-using Revise
-
-using LinearAlgebra
-
-using ..Models
-
-using ..Operators
-
-using ..Manifolds
-
-export solve, solve_bie
-
-
 
 # api to solve with given precomputed operators
 function solve(
@@ -217,4 +203,3 @@ function solve(
 
 end
 
-end
