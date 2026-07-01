@@ -9,6 +9,7 @@ function Base.:*(op::IntegralOperator, v::AbstractArray)
     return matrix(op) * v
 end
 
+
 function Base.:+(op::IntegralOperator, v::AbstractArray)
     return matrix(op) + v
 end
@@ -21,6 +22,45 @@ function Base.:+(v::AbstractArray, op::IntegralOperator)
     return op + v
 end
 
+# a.k.a S
+struct SingleLayer{
+    P<:BoundaryValueProblem,
+    C<:Union{SingularCorrection,Nothing},
+    M<:AbstractMatrix{<:Number}, # TODO: change order of members/constructor arguments to match order of generic parameters
+} <: IntegralOperator
+    problem::P
+    correction::C
+    matrix::M
+end
+
+# a.k.a D a.k.a. ∂S/∂ny
+struct DoubleLayer{
+    P<:BoundaryValueProblem,
+    M<:AbstractMatrix{<:Number}
+} <: IntegralOperator
+    problem::P
+    matrix::M
+end
+
+# a.k.a  D* a.k.a. ∂S/∂nx
+struct AdjointDoubleLayer{
+    P<:BoundaryValueProblem,
+    M<:AbstractMatrix{<:Number}
+} <: IntegralOperator
+    problem::P
+    matrix::M
+end
+
+# a.k.a  N a.k.a. ∂S²/∂nx∂ny
+struct Hypersingular{
+    P<:BoundaryValueProblem,
+    C<:HypersingularCorrection,
+    M<:AbstractMatrix{<:Number},
+} <: IntegralOperator
+    problem::P
+    correction::C
+    matrix::M
+end
 
 # construct empty operator
 function SingleLayer(
@@ -226,9 +266,8 @@ function compute_entry!(
         get_r_norm_sq!(d, x, y),
         get_r_dot_ny!(d, x, y, ny),
     ) * b.w[j]
-
-
 end
+
 
 function compute_entry!(
     # WARN: Massive hack
@@ -275,8 +314,8 @@ function compute_entry!(
             get_r_norm_sq!(d, x, y)
         )
 
-        op.matrix[i, j] += val * b.w[j]
-        op.matrix[j, i] += val * b.w[i]
+        op.matrix[i, j] = val * b.w[j]
+        op.matrix[j, i] = val * b.w[i]
 
     elseif j == i
         #diagonal
@@ -344,12 +383,20 @@ function compute_entry!(
     b::DiscreteClosedCurve
 )
 
-    if j > i
-        return
-    elseif j == i
+
+    if j == i
+        # diagonal correction
         op.matrix[i, i] = -π / 4 / b.w[i]
 
-    elseif isodd(i) ⊻ isodd(j)
+    elseif iseven(i) == iseven(j)
+        # checkered pattern zero-out
+        op.matrix[i, j] = 0.
+
+    elseif j > i
+        # skip upper triangular
+        return
+
+    else
         x = make_svector2(b.x, i)
         y = make_svector2(b.x, j)
         nx = make_svector2(b.n, i)
@@ -367,9 +414,6 @@ function compute_entry!(
         op.matrix[i, j] = val * b.w[j]
         op.matrix[j, i] = val * b.w[i]
     end
-
-
-
 end
 
 function compute_entry!(
@@ -383,12 +427,13 @@ function compute_entry!(
     if j == i
         #diagonal
         val = -π / 6 / b.w[i] + b.k[i]^2 * b.w[i] / 4π
-        op.matrix[i, i] += val
+        op.matrix[i, i] = val
 
     elseif j > i
+        # skipped symmetric
         return
-    else
 
+    else
         # off-diagonal sweep
         x = make_svector2(b.x, i)
         y = make_svector2(b.x, j)
@@ -411,9 +456,6 @@ function compute_entry!(
 end
 
 # store stencils of possibly several orders
-
-
-
 mutable struct StencilCache{
     I<:Integer,
     V<:AbstractVector{<:AbstractFloat}
@@ -544,11 +586,9 @@ function populate_matrices!(
         for j in 1:n
 
             # always every pair gets a fresh cache
-            # TODO: don't allocate every time, dummy <3. provide a method to reset state.
-            # call appropriate code for each operator kind
             reset!(pairwise_cache)
             foreach(ops) do op
-                # for op in ops
+                # call appropriate code for each operator kind
                 compute_entry!(i, j, op, pairwise_cache, boundary)
             end
 
