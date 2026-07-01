@@ -13,7 +13,6 @@
 # c.f. Hsiao-Wendland 2008, Sec.1.3-1.4
 
 using Revise
-using CairoMakie
 using LinearAlgebra
 using Random
 using BimDiff
@@ -511,5 +510,6 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    using GLMakie
+    wait(display(plot_errors(main())))
 end
