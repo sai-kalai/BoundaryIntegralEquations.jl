@@ -76,7 +76,7 @@ export BoundaryCondition, Dirichlet, Neumann
 
 export kernel
 export populate_matrices!
-export solve
+export solve_and_evaluate
 
 
 
