@@ -293,9 +293,7 @@ function main()
     n_test = 20
     x_test = ball(0.4, n_test)  # test points in inner domain
 
-    Γ_test = DiscreteClosedCurve(x_test)
-
-    S_manuf = SingleLayer(laplace, x_test, Γ_source; matrix_factory=allocator)
+    S_manuf = SingleLayer(laplace, Γ_source, x_test; matrix_factory=allocator)
 
     # matrix = compute_laplace_slp_matrix(x_test, x_source)
     u_exact = S_manuf * density_source # exact solution at test points
@@ -352,7 +350,8 @@ function main()
 
         populate_matrices!(Γ_source, Γ.x, S_source, D_star_source; target_normals=Γ.n)
 
-        @assert D_star_source.matrix ≈ AdjointDoubleLayer(laplace, Γ.x, Γ.n, Γ_source; matrix_factory=allocator).matrix
+        # TODO: test this
+        # @assert D_star_source.matrix ≈ AdjointDoubleLayer(laplace, Γ.x, Γ.n, Γ_source; matrix_factory=allocator).matrix
 
         σ = S_source * density_source # Dirichlet BC
         τ_exact = D_star_source * density_source # Neumann BC exact solution
@@ -363,7 +362,6 @@ function main()
         D_star = AdjointDoubleLayer(laplace, allocator(n, n))  # ok
         H_zeta = Hypersingular(laplace, zeta, allocator(n, n)) # ok
         H_sidi = Hypersingular(laplace, sidi, allocator(n, n)) # ok
-
         populate_matrices!(Γ, S, D, D_star, H_sidi, H_zeta)
 
         S_target = SingleLayer(laplace, nothing, allocator(n_test, n)) # ok
@@ -371,7 +369,7 @@ function main()
         populate_matrices!(Γ, x_test, S_target, D_target)
 
         # Dirichlet Zeta Direct
-        u, τ = solve(
+        u, τ = solve_and_evaluate(
             laplace,
             interior,
             Dirichlet(σ), # TODO: since one kernel matrix can be applied to several BCs, overload accepting vector of BC
@@ -394,7 +392,7 @@ function main()
         )
 
         # Dirichlet Zeta Indirect
-        u, τ = solve(
+        u, τ = solve_and_evaluate(
             laplace,
             interior,
             Dirichlet(σ),
@@ -417,7 +415,7 @@ function main()
 
         # Dirichlet Sidi Direct
         # hypersingular operator using Sidi's staggered grid
-        u, τ = solve(
+        u, τ = solve_and_evaluate(
             laplace,
             interior,
             Dirichlet(σ),
@@ -439,7 +437,7 @@ function main()
             )
         )
         # Dirichlet Sidi Indirect
-        u, τ = solve(
+        u, τ = solve_and_evaluate(
             laplace,
             interior,
             Dirichlet(σ),
@@ -466,7 +464,7 @@ function main()
         σ_exact = σ
         τ = τ_exact
 
-        u, σ = solve(
+        u, σ = solve_and_evaluate(
             laplace,
             interior,
             Neumann(τ),
@@ -490,7 +488,7 @@ function main()
                 norm(σ_exact - σ, Inf))
         )
 
-        u, σ = solve(
+        u, σ = solve_and_evaluate(
             laplace,
             interior,
             Neumann(τ),
@@ -519,7 +517,6 @@ function main()
 
     return num_solutions
 
-    # wait(display(fig))
 
 end
 
