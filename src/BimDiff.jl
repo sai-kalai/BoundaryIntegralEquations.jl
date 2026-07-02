@@ -76,9 +76,11 @@ export IntegralOperator, SingleLayer, DoubleLayer, AdjointDoubleLayer, Hypersing
 export Approach, Direct, Indirect
 export BoundaryCondition, Dirichlet, Neumann
 export kernel
-export solve, solve_bie
+export solve_bie, solve_and_evaluate
 export cauchy_integral, compute_boundary_limit
 export compute_laplace_slp_matrix, compute_laplace_dlp_adjoint_matrix
+
+
 
 # trick lsp
 @static if false

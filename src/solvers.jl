@@ -1,10 +1,19 @@
 
-# api to solve with given precomputed operators
-function solve(
-    ::Laplace,
-    ::Interior,
+
+
+#
+# Laplace - Interior - Dirichlet - Direct
+#
+
+# given precomputed operators
+function solve_and_evaluate(
+    # solve this
+    problem::Laplace,
+    side::Interior,
     bc::Dirichlet,
-    ::Direct,
+    # with ansatz
+    approach::Direct,
+    # using data
     D_star::AdjointDoubleLayer,
     H::Hypersingular,
     S_target::SingleLayer,
@@ -12,7 +21,7 @@ function solve(
 )
     # TODO: work in place to avoid allocating a new matrix
 
-    A = -0.5 * I + matrix(D_star) # TODO: figure out how to seamlessly fulfill the matrix api
+    A = -0.5 * I + matrix(D_star) # TODO: replace \ by LinearSolve
     τ = A \ (H * bc.σ)
     u = S_target * τ - D_target * bc.σ
     return u, τ
@@ -27,30 +36,114 @@ function solve_bie(
     return (-0.5 * I + matrix(D)) \ bc.σ # auxiliary variable
 end
 
-# indirect approach
-function solve(
+
+# compute operators internally
+function solve_and_evaluate(
+    # solve this
     problem::Laplace,
     side::Interior,
     bc::Dirichlet,
+    # with ansatz
+    approach::Direct,
+    correction::HypersingularCorrection,
+    # using data
+    source::AbstractManifold,
+    target::AbstractMatrix;
+    matrix_factory::Function=default_allocator,
+)
+
+
+    D_star = AdjointDoubleLayer(problem, source; matrix_factory)
+    H = Hypersingular(problem, source, correction; matrix_factory)
+
+    S_target = SingleLayer(problem, source, target; matrix_factory)
+    D_target = DoubleLayer(problem, source, target; matrix_factory)
+
+    return solve_and_evaluate(
+        problem,
+        side,
+        bc,
+        approach,
+        D_star,
+        H,
+        S_target,
+        D_target
+    )
+
+end
+
+#
+# Laplace - Interior - Dirichlet - Indirect
+#
+
+# given operators
+function solve_and_evaluate(
+    # solve this
+    problem::Laplace,
+    side::Interior,
+    bc::Dirichlet,
+    # using ansatz
     ::Indirect,
+    # with data
     D::DoubleLayer,
     H::Hypersingular,
     D_target::DoubleLayer
 )
 
     φ = solve_bie(problem, side, bc, D)
-
-
     u = D_target * φ
     τ = H * φ
     return u, τ
 end
 
-function solve(
+# compute operators
+function solve_and_evaluate(
+    # solve this
+    problem::Laplace,
+    side::Interior,
+    bc::Dirichlet,
+    # with ansatz
+    approach::Indirect,
+    correction::HypersingularCorrection,
+    # using data
+    source::AbstractManifold,
+    target::AbstractMatrix;
+    matrix_factory::Function=default_allocator,
+)
+
+    n = size(source, 1)
+    m = size(target, 1)
+
+    D = DoubleLayer(problem, matrix_factory(n, n))
+    H = Hypersingular(problem, correction, matrix_factory(n, n))
+
+    D_target = DoubleLayer(problem, matrix_factory(m, n))
+
+    return solve_and_evaluate(
+        problem,
+        side,
+        bc,
+        approach,
+        D,
+        H,
+        D_target,
+    )
+end
+
+
+#
+# Laplace - Interior - Neumann - Direct
+#
+
+#given operators
+function solve_and_evaluate(
+    # solve this
     ::Laplace,
     ::Interior,
     bc::Neumann,
+    # with ansatz
     ::Direct,
+    # using data
     S::SingleLayer,
     D::DoubleLayer,
     S_target::SingleLayer,
@@ -63,11 +156,19 @@ function solve(
     return u, σ
 end
 
-function solve(
+#
+# Laplace - Interior - Neumann - Indirect
+#
+
+# given operators
+function solve_and_evaluate(
+    # solve this
     ::Laplace,
     ::Interior,
     bc::Neumann,
+    # with ansatz
     ::Indirect,
+    # using data
     S::SingleLayer,
     D_star::AdjointDoubleLayer,
     S_target::SingleLayer,
@@ -81,91 +182,32 @@ function solve(
     return u, σ
 end
 
+#
+# Laplace - Interior - Neumann - Direct
+#
 
-# api to compute operators internally
-function solve(
-    ::BoundaryValueProblem,
-    ::Side,
-    ::BoundaryCondition,
-    targets::AbstractMatrix, # by convention, k(x, y), so targets go first
-    ::AbstractManifold,
-    ::HypersingularCorrection,
-    ::Approach,
-)
-
-end
-
-function solve(
+# compute operators
+function solve_and_evaluate(
+    # solve this
     problem::Laplace,
     side::Interior,
-    bc::Dirichlet,
-    targets::AbstractMatrix,
-    boundary::AbstractManifold,
-    correction::HypersingularCorrection,
-    approach::Direct,
-)
-    # operators with quadrature weights applied
-    # TODO: how to save computation by getting both operators at the same time
-    S = SingleLayer(problem, targets, boundary)
-    D = DoubleLayer(problem, targets, boundary)
-
-    D_star = AdjointDoubleLayer(problem, boundary)
-    H = Hypersingular(problem, boundary, correction)
-
-    return solve(
-        problem,
-        side,
-        bc,
-        approach,
-        D_star,
-        H,
-        S,
-        D
-    )
-
-end
-
-function solve(
-    problem::Laplace,
-    side::Interior,
-    bc::Dirichlet,
-    targets::AbstractMatrix,
-    boundary::AbstractManifold,
-    correction::HypersingularCorrection,
-    approach::Indirect,
-)
-
-    D = DoubleLayer(problem, boundary)
-    H = Hypersingular(problem, boundary, correction)
-    D_target = DoubleLayer(problem, targets, boundary)
-
-    return solve(
-        problem,
-        side,
-        bc,
-        approach,
-        D,
-        H,
-        D_target,
-    )
-end
-
-
-function solve(
-    problem::Laplace,
-    side::Interior,
-    targets::AbstractMatrix,
-    boundary::AbstractManifold,
     bc::Neumann,
+    # with ansatz
     approach::Direct,
+    correction::SingularCorrection,
+    # using data
+    source::AbstractManifold,
+    target::AbstractMatrix;
+    matrix_factory::Function=default_allocator,
 )
 
-    S = SingleLayer(problem, boundary,)
-    D = DoubleLayer(problem, boundary,)
-    S_target = SingleLayer(problem, targets, boundary,)
-    D_target = DoubleLayer(problem, targets, boundary,)
+    S = SingleLayer(problem, source, correction; matrix_factory=matrix_factory)
+    D = DoubleLayer(problem, source; matrix_factory=matrix_factory)
 
-    return solve(
+    S_target = SingleLayer(problem, source, target; matrix_factory)
+    D_target = DoubleLayer(problem, source, target; matrix_factory)
+
+    return solve_and_evaluate(
         problem,
         side,
         bc,
@@ -177,20 +219,30 @@ function solve(
     )
 end
 
-function solve(
+#
+# Laplace - Interior - Neumann - Indirect
+#
+
+function solve_and_evaluate(
+    # solve this
     problem::Laplace,
     side::Interior,
-    targets::AbstractMatrix,
-    boundary::AbstractManifold,
     bc::Neumann,
+    # with ansatz
     approach::Indirect,
+    correction::SingularCorrection,
+    # using data
+    source::AbstractManifold,
+    target::AbstractMatrix;
+    matrix_factory::Function=default_allocator,
 )
 
-    S = SingleLayer(problem, boundary)
-    D_star = AdjointDoubleLayer(problem, boundary)
-    S_target = SingleLayer(problem, targets, boundary,)
+    S = SingleLayer(problem, source, correction; matrix_factory)
+    D_star = AdjointDoubleLayer(problem, source;  matrix_factory)
 
-    return solve(
+    S_target = SingleLayer(problem, source, target; matrix_factory)
+
+    return solve_and_evaluate(
         problem,
         side,
         bc,

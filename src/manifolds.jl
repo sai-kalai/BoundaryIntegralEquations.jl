@@ -4,6 +4,12 @@ abstract type AbstractManifold end # TODO: move to models
 # specialize the concept of manifold. e.g. geometric manifold has tangents, etc.
 # curve, closed curve, 2d, 3d, surface, closed surface, ...
 
+
+function Base.size(m::AbstractManifold)
+    return size(m.x)
+end
+
+
 # TODO: maybe set upper bounds as <: AbstractMatrix{<:Number}} for all
 struct DiscreteClosedCurve{
     T<:Real,
@@ -28,27 +34,7 @@ struct DiscreteClosedCurve{
     cw::CW
 end
 
-# # dummy, TODO: consider an explicit type for set of target points
-# function DiscreteClosedCurve(x)
-#
-#     n, dim_x = size(x)
-#
-#     one_1d = ones(n)
-#     zero_nd = zeros((n, dim_x))
-#     zero_1d = zeros(n)
-#
-#     return DiscreteClosedCurve(
-#         x,
-#         zero_nd, #v
-#         zero_nd, #a
-#         zero_1d, #s
-#         zero_nd, #t
-#         zero_nd, #n
-#         zero_1d, #k
-#         one_1d, #w
-#     )
-#
-# end
+
 
 function DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMatrix)
 

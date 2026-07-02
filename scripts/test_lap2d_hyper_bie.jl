@@ -236,6 +236,9 @@ function main()
     direct = Direct()
     indirect = Indirect()
 
+    # indicate how to reserve memory
+    allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
+
     # set up source geometry (starfish domain)
     R = 1 # wobble center
     a = 0.3 # wobble amplitude
@@ -286,6 +289,7 @@ function main()
         0.1896218359470367
         -0.4264606237411499
     ]
+
 
     n_test = 20
     x_test = ball(0.4, n_test)  # test points in inner domain
@@ -339,30 +343,31 @@ function main()
         # wait(display(fig))
         # break
 
+        # target: domain boundary, source: manufactured solution point sources
+        S_source = SingleLayer(laplace, nothing, allocator(n, n_source)) # ok
+        D_star_source = AdjointDoubleLayer(laplace, allocator(n, n_source)) # ok
 
         S_source = compute_laplace_slp_matrix(Γ.x, x_source)
         D_star_source = compute_laplace_dlp_adjoint_matrix(Γ.x, x_source, Γ.n)
-
 
         σ = S_source * density_source # Dirichlet BC
         τ_exact = D_star_source * density_source # Neumann BC exact solution
 
 
 
-
-        S = SingleLayer(laplace, Γ, ord)
+        S = SingleLayer(laplace, Γ, kapur_rokhlin)
         D = DoubleLayer(laplace, Γ)
         D_star = AdjointDoubleLayer(laplace, Γ)
         H_zeta = Hypersingular(laplace, Γ, zeta)
         H_sidi = Hypersingular(laplace, Γ, sidi)
 
 
-        S_target = SingleLayer(laplace, x_test, Γ,)
-        D_target = DoubleLayer(laplace, x_test, Γ,)
+        S_target = SingleLayer(laplace, Γ, x_test,)
+        D_target = DoubleLayer(laplace, Γ, x_test,)
 
 
         # Dirichlet Zeta Direct
-        u, τ = solve(
+        u, τ = solve_and_evaluate(
             laplace,
             interior,
             Dirichlet(σ), # TODO: since one kernel matrix can be applied to several BCs, overload accepting vector of BC
@@ -385,7 +390,7 @@ function main()
         )
 
         # Dirichlet Zeta Indirect
-        u, τ = solve(
+        u, τ = solve_and_evaluate(
             laplace,
             interior,
             Dirichlet(σ),
@@ -408,7 +413,7 @@ function main()
 
         # Dirichlet Sidi Direct
         # hypersingular operator using Sidi's staggered grid
-        u, τ = solve(
+        u, τ = solve_and_evaluate(
             laplace,
             interior,
             Dirichlet(σ),
@@ -431,7 +436,7 @@ function main()
             )
         )
         # Dirichlet Sidi Indirect
-        u, τ = solve(
+        u, τ = solve_and_evaluate(
             laplace,
             interior,
             Dirichlet(σ),
@@ -458,7 +463,7 @@ function main()
         σ_exact = σ
         τ = τ_exact
 
-        u, σ = solve(
+        u, σ = solve_and_evaluate(
             laplace,
             interior,
             Neumann(τ),
@@ -482,7 +487,7 @@ function main()
                 norm(σ_exact - σ, Inf))
         )
 
-        u, σ = solve(
+        u, σ = solve_and_evaluate(
             laplace,
             interior,
             Neumann(τ),
