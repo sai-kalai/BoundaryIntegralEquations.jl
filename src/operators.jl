@@ -9,7 +9,6 @@ function Base.:*(op::IntegralOperator, v::AbstractArray)
     return matrix(op) * v
 end
 
-
 function Base.:+(op::IntegralOperator, v::AbstractArray)
     return matrix(op) + v
 end
@@ -27,6 +26,7 @@ struct SingleLayer{
     P<:BoundaryValueProblem,
     C<:Union{SingularCorrection,Nothing},
     M<:AbstractMatrix{<:Number}, # TODO: change order of members/constructor arguments to match order of generic parameters
+    # TODO: include bitpattern of floating point representation as a type param
 } <: IntegralOperator
     problem::P
     correction::C
@@ -35,37 +35,37 @@ end
 
 default_allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
 
-# TODO: decide and enforce oeder globally: source, target or target, source?
 # source-target interaction
 function SingleLayer(
     problem::Laplace,
-    targets::AbstractMatrix, # target points to compute operator
-    boundary::AbstractManifold; # source manifold e.g. domain boundary
+    source::AbstractManifold, # source manifold e.g. domain boundary
+    target::AbstractMatrix; # target points to compute operator
     matrix_factory::Function=default_allocator,
 )
-    m, dim_t = size(targets)
-    n, dim_x = size(boundary.x)
+    m, dim_t = size(target)
+    n, dim_x = size(source.x)
 
     matrix = matrix_factory(m, n)::AbstractMatrix
     op = SingleLayer(problem, nothing, matrix)
 
-    populate_matrices!(boundary, targets, op)
+    populate_matrices!(source, target, op)
     return op
 end
 
 # self interaction
 function SingleLayer(
     problem::Laplace,
-    boundary::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
-    order::Int; # order of kapur rokhlin singular correction
+    source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    correction::SingularCorrection; # order of kapur rokhlin singular correction
     matrix_factory::Function=default_allocator,
 )
 
-    n, dim_x = size(boundary.x)
-    matrix = matrix_factory(n, n)::AbstractMatrix # allocate memory
-    op = SingleLayer(problem, KapurRokhlin(order), matrix)
+    n, dim_x = size(source.x)
 
-    populate_matrices!(boundary, op)
+    matrix = matrix_factory(n, n)::AbstractMatrix # allocate memory
+    op = SingleLayer(problem, correction, matrix)
+
+    populate_matrices!(source, op)
     return op
 end
 
@@ -81,32 +81,32 @@ end
 # source-target interaction
 function DoubleLayer(
     problem::Laplace,
-    targets::AbstractMatrix, # target points to compute operator
-    boundary::AbstractManifold; # source manifold e.g. domain boundary
+    source::AbstractManifold, # source manifold e.g. domain boundary
+    target::AbstractMatrix; # target points to compute operator
     matrix_factory::Function=default_allocator,
 )
-    m, dim_t = size(targets)
-    n, dim_x = size(boundary.x)
+    m, dim_t = size(target)
+    n, dim_x = size(source.x)
 
     matrix = matrix_factory(m, n)::AbstractMatrix
     op = DoubleLayer(problem, matrix)
 
-    populate_matrices!(boundary, targets, op)
+    populate_matrices!(source, target, op)
     return op
 end
 
 # self interaction
 function DoubleLayer(
     problem::Laplace,
-    boundary::AbstractManifold; # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    source::AbstractManifold;
     matrix_factory::Function=default_allocator,
 )
 
-    n, dim_x = size(boundary.x)
+    n, dim_x = size(source.x)
     matrix = matrix_factory(n, n)::AbstractMatrix
     op = DoubleLayer(problem, matrix)
 
-    populate_matrices!(boundary, op)
+    populate_matrices!(source, op)
     return op
 end
 
@@ -122,34 +122,34 @@ end
 # self interaction
 function AdjointDoubleLayer(
     problem::Laplace,
-    boundary::AbstractManifold; # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    source::AbstractManifold; # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
     matrix_factory::Function=default_allocator,
 )
 
-    n, dim_x = size(boundary.x)
+    n, dim_x = size(source.x)
     matrix = matrix_factory(n, n)::AbstractMatrix
     op = AdjointDoubleLayer(problem, matrix)
 
-    populate_matrices!(boundary, op)
+    populate_matrices!(source, op)
     return op
 end
 
 # source-target interaction: edge case for manufactured solution
 function AdjointDoubleLayer(
     problem::Laplace,
-    targets::AbstractMatrix,
-    target_normals::AbstractMatrix,
-    boundary::AbstractManifold; # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    target::AbstractMatrix,
+    target_normals::AbstractMatrix;
     matrix_factory::Function=default_allocator,
 )
 
-    m, dim_x = size(targets)
-    n, dim_x = size(boundary.x)
+    m, dim_x = size(target)
+    n, dim_x = size(source.x)
 
     matrix = matrix_factory(m, n)::AbstractMatrix
     op = AdjointDoubleLayer(problem, matrix)
 
-    populate_matrices!(boundary, targets, op; target_normals=target_normals)
+    populate_matrices!(source, target, op; target_normals=target_normals)
     return op
 end
 
@@ -167,16 +167,16 @@ end
 # self interaction
 function Hypersingular(
     problem::Laplace,
-    boundary::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
-    correction::Hypersingular;
+    source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    correction::HypersingularCorrection;
     matrix_factory::Function=default_allocator,
 )
 
-    n, dim_x = size(boundary.x)
+    n, dim_x = size(source.x)
 
     matrix = matrix_factory(n, n)::AbstractMatrix
     op = Hypersingular(problem, correction, matrix)
-    populate_matrices!(boundary, op)
+    populate_matrices!(source, op)
     return op
 end
 
@@ -195,6 +195,7 @@ mutable struct PairwiseCache{T<:AbstractFloat}
     end
 end
 
+# TODO: move cache stuff to another file
 function reset!(cache::PairwiseCache{T}) where {T}
     nan = T(NaN)
     cache.r = SA[nan, nan]
@@ -243,106 +244,101 @@ function get_nx_dot_ny!(d::PairwiseCache, nx::SVector, ny::SVector)
 end
 
 
-
-
 function make_svector2(matrix, row)
     return SVector{2}(matrix[row, 1], matrix[row, 2])
 end
 
 # not self interaction
 function compute_entry!(
+    op::SingleLayer{Laplace,Nothing},
+    c::PairwiseCache,
     i::Int,
     j::Int,
-    op::SingleLayer{Laplace,Nothing},
-    d::PairwiseCache,
-    b::DiscreteClosedCurve,
+    s::DiscreteClosedCurve, # source manifold
     t::AbstractMatrix, # target points
     target_normals, # ignored
 )
 
     x = make_svector2(t, i)
-    y = make_svector2(b.x, j)
+    y = make_svector2(s.x, j)
 
     op.matrix[i, j] = kernel(
         op,
-        get_r_norm_sq!(d, x, y)
-    ) * b.w[j]
+        get_r_norm_sq!(c, x, y)
+    ) * s.w[j]
 end
 
 
 function compute_entry!(
+    op::DoubleLayer{Laplace}, # WARN: no explicit indication to separate types corresponding to self vs target interaction
+    c::PairwiseCache,
     i::Int,
     j::Int,
-    op::DoubleLayer{Laplace}, # WARN: no explicit indication to separate types corresponding to self vs target interaction
-    d::PairwiseCache,
-    b::DiscreteClosedCurve,
+    s::DiscreteClosedCurve,
     t::AbstractMatrix,
     target_normals, # ignored
 )
     x = make_svector2(t, i) # target point
-    y = make_svector2(b.x, j) # source point
-    ny = make_svector2(b.n, j) # normal at y
+    y = make_svector2(s.x, j) # source point
+    ny = make_svector2(s.n, j) # normal at y
 
 
     op.matrix[i, j] = kernel(
         op,
-        get_r_norm_sq!(d, x, y),
-        get_r_dot_ny!(d, x, y, ny),
-    ) * b.w[j]
+        get_r_norm_sq!(c, x, y),
+        get_r_dot_ny!(c, x, y, ny),
+    ) * s.w[j]
 end
 
 
 function compute_entry!(
+    op::AdjointDoubleLayer{Laplace},
+    c::PairwiseCache,
     i::Int,
     j::Int,
-    op::AdjointDoubleLayer{Laplace},
-    d::PairwiseCache,
-    b::DiscreteClosedCurve, # outside points in this case
+    s::DiscreteClosedCurve, # outside points in this case
     t::AbstractMatrix, # boundary in this case
     target_normals::AbstractMatrix,
 )
     x = make_svector2(t, i) # target point
-    y = make_svector2(b.x, j) # source point
+    y = make_svector2(s.x, j) # source point
     nx = make_svector2(target_normals, i) # normal at x
 
 
     val = kernel(
         op,
-        get_r_norm_sq!(d, x, y),
+        get_r_norm_sq!(c, x, y),
         dot(x - y, nx)#get_r_dot_nx!(d, x, y, nx),
     )
-
-
-    op.matrix[i, j] = val * b.w[j]
-
+    op.matrix[i, j] = val * s.w[j]
 end
 
 
 # self interaction
 function compute_entry!(
+    op::SingleLayer{Laplace,KapurRokhlin},
+    c::PairwiseCache,
     i::Int,
     j::Int,
-    op::SingleLayer{Laplace,KapurRokhlin},
-    d::PairwiseCache,
-    b::DiscreteClosedCurve,
+    s::DiscreteClosedCurve,
 )
 
     if j < i
         # lower  triangular sweep
-        x = make_svector2(b.x, i)
-        y = make_svector2(b.x, j)
+        x = make_svector2(s.x, i)
+        y = make_svector2(s.x, j)
 
         val = kernel(
             op,
-            get_r_norm_sq!(d, x, y)
+            get_r_norm_sq!(c, x, y)
         )
 
-        op.matrix[i, j] = val * b.w[j]
-        op.matrix[j, i] = val * b.w[i]
+        op.matrix[i, j] = val * s.w[j]
+        op.matrix[j, i] = val * s.w[i]
 
     elseif j == i
         #diagonal
-        op.matrix[i, i] = -0.5 * log(b.w[i]) / π * b.w[i]
+        op.matrix[i, i] = -0.5 * log(s.w[i]) / π * s.w[i]
 
     elseif j > i
         return
@@ -352,65 +348,65 @@ function compute_entry!(
 end
 
 function compute_entry!(
-    i::Int,
-    j::Int,
     op::DoubleLayer{Laplace},
-    d::PairwiseCache,
-    b::DiscreteClosedCurve,
+    c::PairwiseCache,
+    i::Int,
+    j::Int,
+    s::DiscreteClosedCurve,
 )
     if j == i
         #diagonal
-        op.matrix[i, i] = -0.25 * b.k[i] / π * b.w[i]
+        op.matrix[i, i] = -0.25 * s.k[i] / π * s.w[i]
     else
         # off-diagonal sweep
-        x = make_svector2(b.x, i)
-        y = make_svector2(b.x, j)
-        ny = make_svector2(b.n, j)
+        x = make_svector2(s.x, i)
+        y = make_svector2(s.x, j)
+        ny = make_svector2(s.n, j)
 
         op.matrix[i, j] = kernel(
             op,
-            get_r_norm_sq!(d, x, y),
-            get_r_dot_ny!(d, x, y, ny),
-        ) * b.w[j]
+            get_r_norm_sq!(c, x, y),
+            get_r_dot_ny!(c, x, y, ny),
+        ) * s.w[j]
     end
 end
 
 function compute_entry!(
-    i::Int,
-    j::Int,
     op::AdjointDoubleLayer{Laplace},
-    d::PairwiseCache,
-    b::DiscreteClosedCurve
+    c::PairwiseCache,
+    i::Int,
+    j::Int,
+    s::DiscreteClosedCurve
 )
     if j == i
         #diagonal
-        op.matrix[i, i] = -0.25 * b.k[i] / π * b.w[i]
+        op.matrix[i, i] = -0.25 * s.k[i] / π * s.w[i]
     else
         # off-diagonal sweep
-        x = make_svector2(b.x, i)
-        y = make_svector2(b.x, j)
-        nx = make_svector2(b.n, i)
+        x = make_svector2(s.x, i)
+        y = make_svector2(s.x, j)
+        nx = make_svector2(s.n, i)
 
         op.matrix[i, j] = kernel(
             op,
-            get_r_norm_sq!(d, x, y),
-            get_r_dot_nx!(d, x, y, nx),
-        ) * b.w[j]
+            get_r_norm_sq!(c, x, y),
+            get_r_dot_nx!(c, x, y, nx),
+        ) * s.w[j]
     end
 end
 
 function compute_entry!(
+    op::Hypersingular{Laplace,Sidi},
+    c::PairwiseCache,
     i::Int,
     j::Int,
-    op::Hypersingular{Laplace,Sidi},
-    d::PairwiseCache,
-    b::DiscreteClosedCurve
+    s::DiscreteClosedCurve
 )
 
 
     if j == i
         # diagonal correction
-        op.matrix[i, i] = -π / 4 / b.w[i]
+        op.matrix[i, i] = -π / 4 / s.w[i]
 
     elseif iseven(i) == iseven(j)
         # checkered pattern zero-out
@@ -421,36 +417,36 @@ function compute_entry!(
         return
 
     else
-        x = make_svector2(b.x, i)
-        y = make_svector2(b.x, j)
-        nx = make_svector2(b.n, i)
-        ny = make_svector2(b.n, j)
+        x = make_svector2(s.x, i)
+        y = make_svector2(s.x, j)
+        nx = make_svector2(s.n, i)
+        ny = make_svector2(s.n, j)
 
 
         val = 2 * kernel(
             op,
-            get_r_norm_sq!(d, x, y),
-            get_r_dot_nx!(d, x, y, nx),
-            get_r_dot_ny!(d, x, y, ny),
-            get_nx_dot_ny!(d, nx, ny),
+            get_r_norm_sq!(c, x, y),
+            get_r_dot_nx!(c, x, y, nx),
+            get_r_dot_ny!(c, x, y, ny),
+            get_nx_dot_ny!(c, nx, ny),
         )
 
-        op.matrix[i, j] = val * b.w[j]
-        op.matrix[j, i] = val * b.w[i]
+        op.matrix[i, j] = val * s.w[j]
+        op.matrix[j, i] = val * s.w[i]
     end
 end
 
 function compute_entry!(
+    op::Hypersingular{Laplace,Zeta},
+    c::PairwiseCache,
     i::Int,
     j::Int,
-    op::Hypersingular{Laplace,Zeta},
-    d::PairwiseCache,
-    b::DiscreteClosedCurve
+    s::DiscreteClosedCurve
 )
 
     if j == i
         #diagonal
-        val = -π / 6 / b.w[i] + b.k[i]^2 * b.w[i] / 4π
+        val = -π / 6 / s.w[i] + s.k[i]^2 * s.w[i] / 4π
         op.matrix[i, i] = val
 
     elseif j > i
@@ -459,22 +455,22 @@ function compute_entry!(
 
     else
         # off-diagonal sweep
-        x = make_svector2(b.x, i)
-        y = make_svector2(b.x, j)
-        nx = make_svector2(b.n, i)
-        ny = make_svector2(b.n, j)
+        x = make_svector2(s.x, i)
+        y = make_svector2(s.x, j)
+        nx = make_svector2(s.n, i)
+        ny = make_svector2(s.n, j)
 
 
         val = kernel(
             op,
-            get_r_norm_sq!(d, x, y),
-            get_r_dot_nx!(d, x, y, nx),
-            get_r_dot_ny!(d, x, y, ny),
-            get_nx_dot_ny!(d, nx, ny),
+            get_r_norm_sq!(c, x, y),
+            get_r_dot_nx!(c, x, y, nx),
+            get_r_dot_ny!(c, x, y, ny),
+            get_nx_dot_ny!(c, nx, ny),
         )
 
-        op.matrix[i, j] = val * b.w[j]
-        op.matrix[j, i] = val * b.w[i]
+        op.matrix[i, j] = val * s.w[j]
+        op.matrix[j, i] = val * s.w[i]
     end
 
 end
@@ -497,66 +493,66 @@ function get_kr!(c::StencilCache, k::Int)
     end
 end
 
-function get_fd!(d::StencilCache, k::Int)
-    get!(d.fd, k) do
+function get_fd!(c::StencilCache, k::Int)
+    get!(c.fd, k) do
         stencil = fdcoeffs(2, k)
         [stencil[end:-1:2]; stencil] # TODO: make this prettier
     end
 end
 
 function apply_correction!(
-    i::Int,
     op::IntegralOperator,
-    s::StencilCache,
-    b::DiscreteClosedCurve,
+    c::StencilCache,
+    i::Int,
+    s::DiscreteClosedCurve,
 )
     return
 end
 
 function apply_correction!(
-    i::Int,
     op::SingleLayer{Laplace,KapurRokhlin},
-    s::StencilCache,
-    b::DiscreteClosedCurve
+    c::StencilCache,
+    i::Int,
+    s::DiscreteClosedCurve
 )
     ord = op.correction.order
-    m = size(b.x, 1)
+    m = size(s.x, 1)
     k = clamp((ord - 1) ÷ 2, 0, (m - 1) ÷ 2)
 
-    stencil = get_kr!(s, k)
+    stencil = get_kr!(c, k)
 
     for dj in (-k):k
         j = mod1(i + dj, m)
         val = stencil[dj+k+1] * 0.5 / pi
-        op.matrix[i, j] += val * b.w[j]
+        op.matrix[i, j] += val * s.w[j]
 
     end
 
 end
 
 function apply_correction!(
-    i::Int,
     op::Hypersingular{Laplace,Zeta},
-    s::StencilCache,
-    b::DiscreteClosedCurve
+    c::StencilCache,
+    i::Int,
+    s::DiscreteClosedCurve
 )
-    m = size(b.x, 1)
+    m = size(s.x, 1)
     ord = op.correction.order
     k = (ord - 2) ÷ 2
 
-    stencil = get_fd!(s, k)
+    stencil = get_fd!(c, k)
 
     for dj in (-k):k
 
         j = mod1(i + dj, m)
 
         # TODO: remove norm
-        x = make_svector2(b.x, i)
-        y = make_svector2(b.x, j)
+        x = make_svector2(s.x, i)
+        y = make_svector2(s.x, j)
         r = x - y
 
         r_norm_sq = dot(r, r)
-        r_prime_0_x = b.w[i] * dj
+        r_prime_0_x = s.w[i] * dj
 
         # B(j) = (r(j) ^ 2 - |ρ'(i) * j| ^ 2) / |ρ'(i) * j| ^ 2
         B = (r_norm_sq - r_prime_0_x^2) / r_prime_0_x^2
@@ -569,9 +565,9 @@ function apply_correction!(
         # TODO: is it possible to use cached data, i.e. call correction inside the first loop?
 
         # g(j) = n(i) ⋅ n(j) |ρ'(j)|/(2π |ρ'(i)|) * (1 - B + B^2)
-        nx_dot_ny = _a_dot_b(b.n[i, 1], b.n[i, 2], b.n[j, 1], b.n[j, 2])
+        nx_dot_ny = _a_dot_b(s.n[i, 1], s.n[i, 2], s.n[j, 1], s.n[j, 2])
 
-        g = nx_dot_ny * b.w[j] / (b.w[i]^2) * (1 - B + B^2)
+        g = nx_dot_ny * s.w[j] / (s.w[i]^2) * (1 - B + B^2)
 
         op.matrix[i, j] += stencil[dj+k+1] * g / 4π
 
@@ -581,18 +577,19 @@ end
 
 # barrier function
 function populate_matrices!(
-    boundary::DiscreteClosedCurve{<:Real},
+    source::DiscreteClosedCurve{<:Real},
     ops::IntegralOperator..., # variadic
 )
-    populate_matrices!(boundary, ops)
+    populate_matrices!(source, ops)
 end
+
 # so client is responsible for allocating the zeros
 # self interaction operators
 function populate_matrices!(
-    boundary::DiscreteClosedCurve{<:Real},
+    source::DiscreteClosedCurve{<:Real},
     ops, # tuple of operators with already allocated matrices
 )
-    n = size(boundary.x, 1)
+    n = size(source.x, 1)
 
     # client provides initialized matrices contained in ops
 
@@ -613,14 +610,14 @@ function populate_matrices!(
             reset!(pairwise_cache)
             foreach(ops) do op
                 # call appropriate code for each operator kind
-                compute_entry!(i, j, op, pairwise_cache, boundary)
+                compute_entry!(op, pairwise_cache, i, j, source)
             end
 
         end
 
 
         foreach(ops) do op
-            apply_correction!(i, op, stencil_cache, boundary)
+            apply_correction!(op, stencil_cache, i, source)
         end
 
     end
@@ -628,32 +625,32 @@ function populate_matrices!(
 end
 
 function populate_matrices!(
-    boundary::DiscreteClosedCurve{T},
-    targets::AbstractMatrix{T},
+    source::DiscreteClosedCurve{T},
+    target::AbstractMatrix{T},
     ops::IntegralOperator...; # only
     target_normals::Union{AbstractMatrix{T},Nothing}=nothing, # the AdjointDoubleLayer operator needs the normal vectors at the target locations
 ) where {T<:AbstractFloat}
 
-    populate_matrices!(boundary, targets, ops; target_normals=target_normals)
+    populate_matrices!(source, target, ops, ; target_normals=target_normals)
 
 end
 
 # target interaction operators
 function populate_matrices!(
-    boundary::DiscreteClosedCurve{T},
-    targets::AbstractMatrix{T},
+    source::DiscreteClosedCurve{T},
+    target::AbstractMatrix{T},
     ops;
     target_normals::Union{AbstractMatrix{T},Nothing}=nothing,
 ) where {T<:AbstractFloat}
 
 
     if any(x -> x isa AdjointDoubleLayer, ops) && isnothing(target_normals)
-        error("Requested AdjointDoubleLayer, but provided no target unit normals")
+        error("Requested AdjointDoubleLayer, but provided no unit outward normals at the target points")
     end
 
 
-    n = size(boundary.x, 1)
-    m = size(targets, 1)
+    n = size(source.x, 1)
+    m = size(target, 1)
 
     pairwise_cache = PairwiseCache{Float64}()
     # loop over i
@@ -669,7 +666,7 @@ function populate_matrices!(
             reset!(pairwise_cache)
             foreach(ops) do op
                 # for op in ops
-                compute_entry!(i, j, op, pairwise_cache, boundary, targets, target_normals)
+                compute_entry!(op, pairwise_cache, i, j, source, target, target_normals)
             end
         end
     end
