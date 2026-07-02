@@ -7,6 +7,12 @@ abstract type AbstractManifold end # TODO: move to models
 # specialize the concept of manifold. e.g. geometric manifold has tangents, etc.
 # curve, closed curve, 2d, 3d, surface, closed surface, ...
 
+
+function Base.size(m::AbstractManifold)
+    return size(m.x)
+end
+
+
 # TODO: maybe set upper bounds as <: AbstractMatrix{<:Number}} for all
 struct DiscreteClosedCurve{
     T<:AbstractFloat,
