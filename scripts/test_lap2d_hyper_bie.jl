@@ -236,23 +236,6 @@ function main()
     # indicate how to reserve memory
     allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
 
-    # set up source geometry (starfish domain)
-    R = 1 # wobble center
-    a = 0.3 # wobble amplitude
-    w = 5 # wobble frequency
-    function ρ(t)
-        z = (R + a * cos.(w * t)) * cis(t) # parametrization of boundary
-        return [real(z), imag(z)] # TODO: play with static arrays
-    end
-
-    # evenly distributed points in a circumference of radius r
-    function ball(r, n)
-        z = r .* cis.(2pi * (1:n) / n)
-        return hcat(real.(z), imag.(z))
-    end
-
-
-    # fig, ax = visualize(m)
 
     # Interior Laplace BVPs
     # data generated with octave using seed 42
@@ -332,13 +315,13 @@ function main()
     # println("Printing max-norm errors")
     # println("Interior")
 
-    n_vals = 20:20:400
+    n_vals = 20:20:200
 
     num_solutions = Vector{NumericalSolution}()
 
     for (i, n) ∈ enumerate(n_vals)
 
-        Γ = DiscreteClosedCurve(n, ρ) # boundary of the domain
+        Γ = DiscreteClosedCurve(n, starfish) # boundary of the domain
 
         # fig = visualize(Γ)
         # wait(display(fig))

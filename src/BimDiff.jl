@@ -60,6 +60,7 @@ include("manifolds.jl")
 include("operators.jl")
 include("kernels.jl")
 include("solvers.jl")
+include("utils.jl")
 
 #
 # exports
@@ -78,6 +79,7 @@ export kernel
 export populate_matrices!
 export solve_and_evaluate
 
+export starfish, ball
 
 
 # trick lsp
