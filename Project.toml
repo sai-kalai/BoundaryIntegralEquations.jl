@@ -35,4 +35,10 @@ ProfileView = "1.10.3"
 Random = "1.11.0"
 Reexport = "1.2.2"
 Revise = "3.14.2"
+SafeTestsets = "0.1.0"
 StaticArrays = "1.9.18"
+Test = "1.11.0"
+
+[extras]
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

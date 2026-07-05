@@ -1,11 +1,8 @@
-
-
-
-
 using BimDiff
+using Test
 
-using FFTW
-using LinearAlgebra
+@testset "BimDiff.jl" begin
 
+    @test @assert false
 
-println("hello")
+end
