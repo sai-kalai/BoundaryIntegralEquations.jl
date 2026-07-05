@@ -32,7 +32,7 @@ struct SingleLayer{
     matrix::M
 end
 
-default_allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
+default_allocator = (_m, _n) -> zeros( _m, _n)
 
 # source-target interaction
 function SingleLayer(
@@ -210,7 +210,7 @@ function compute_laplace_slp_matrix(
 
     mat = matrix_factory(m, n)
 
-    @inbounds for i in 1:m, j in 1:n
+    for i in 1:m, j in 1:n
         r = make_svector2(x, i) - make_svector2(y, j)
         mat[i, j] = kernel(
             SingleLayer{Laplace},
@@ -237,7 +237,7 @@ function compute_laplace_slp_matrix(
     stencil = [stencil[end:-1:2]; stencil] # TODO: make this prettier
 
 
-    for i in n:-1:1 # loop bacwards
+    for i in n:-1:1 # loop backwards
 
         #diagonal term
         # TODO: consider doing this outside
@@ -250,8 +250,8 @@ function compute_laplace_slp_matrix(
                 dot(r, r)
             )
 
-            mat[i, j] += ker
-            mat[j, i] += ker
+            mat[i, j] = ker
+            mat[j, i] = ker
 
         end
 
@@ -396,7 +396,6 @@ function compute_laplace_hypersingular_matrix(
     ny::AbstractMatrix;
     matrix_factory::Function=default_allocator,
 )
-
 
     n, dim_x = size(y)
 
