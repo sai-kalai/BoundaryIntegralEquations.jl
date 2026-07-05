@@ -237,7 +237,7 @@ function main()
     indirect = Indirect()
 
     # indicate how to reserve memory
-    allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
+    allocator = (_m, _n) -> zeros(_m, _n)
 
     # set up source geometry (starfish domain)
     R = 1 # wobble center
@@ -326,7 +326,6 @@ function main()
 
     # scatter!(ax, x_test[:, 1], x_test[:, 2], color=u_exact)
 
-    # wait(display(fig))
 
     # println("Printing max-norm errors")
     # println("Interior")
@@ -344,11 +343,9 @@ function main()
         # break
 
         # target: domain boundary, source: manufactured solution point sources
-        S_source = SingleLayer(laplace, nothing, allocator(n, n_source)) # ok
-        D_star_source = AdjointDoubleLayer(laplace, allocator(n, n_source)) # ok
-
         S_source = compute_laplace_slp_matrix(Γ.x, x_source)
         D_star_source = compute_laplace_dlp_adjoint_matrix(Γ.x, x_source, Γ.n)
+
 
         σ = S_source * density_source # Dirichlet BC
         τ_exact = D_star_source * density_source # Neumann BC exact solution
@@ -362,8 +359,12 @@ function main()
         H_sidi = Hypersingular(laplace, Γ, sidi)
 
 
+
+
         S_target = SingleLayer(laplace, Γ, x_test,)
         D_target = DoubleLayer(laplace, Γ, x_test,)
+
+
 
 
         # Dirichlet Zeta Direct
