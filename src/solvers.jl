@@ -1,17 +1,96 @@
 
 
+struct BoundaryValueProblem{
+    E<:DifferentialEquation,
+    C<:BoundaryCondition,
+    S<:DomainSide,
+    B<:AbstractManifold,
+}
+    equation::E
+    boundary::B
+    bc::C
+    side::S
+end
+
+abstract type BoundaryIntegralEquationSolution end
 
 #
 # Laplace - Interior - Dirichlet - Direct
 #
 
-# given precomputed operators
+#given operators
+function solve_bie(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,DiscreteClosedCurve},
+    ::Direct,
+    D_star::AdjointDoubleLayer,
+    H::Hypersingular,
+)
+    # TODO: work in place to avoid allocating a new matrix
+    A = -0.5 * I + matrix(D_star) # TODO: replace \ by LinearSolve
+    τ = A \ (H * problem.bc.σ)
+    return τ
+
+end
+
+# compute operators
+function solve_bie(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,DiscreteClosedCurve},
+    approach::Direct,
+    correction::HypersingularCorrection,
+    ;
+    matrix_factory::Function=default_allocator,
+)
+
+    n = size(problem.boundary, 1)
+
+    D_star = AdjointDoubleLayer(problem, matrix_factory(n, n))
+    H = Hypersingular(problem, correction, matrix_factory(n, n))
+    populate_matrices!(problem.boundary, D_star, H)
+
+    τ = solve_bie(problem, approach, D_star, H)
+
+    return τ
+
+end
+
+
+# given operators
+function evaluate(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,DiscreteClosedCurve},
+    ::Direct,
+    τ::Vector,
+    S_target::SingleLayer,
+    D_target::DoubleLayer,
+)
+    u = S_target * τ - D_target * problem.bc.σ
+    return u
+end
+
+# compute operators
+function evaluate(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,DiscreteClosedCurve},
+    ::Direct,
+    τ::Vector,
+    x::AbstractMatrix,
+    ;
+    matrix_factory::Function=default_allocator,
+)
+
+
+    m = size(x, 1)
+    n = size(problem.boundary, 1)
+
+    S_target = SingleLayer(problem, nothing, matrix_factory(m, n))
+    D_target = DoubleLayer(problem, matrix_factory(m, n))
+    populate_matrices!(problem.boundary, x, S_target, D_target)
+
+    u = S_target * τ - D_target * problem.bc.σ
+    return u
+end
+
+# given operators
 function solve_and_evaluate(
-    # solve this
-    problem::Laplace,
-    side::Interior,
-    bc::Dirichlet,
-    # with ansatz
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,DiscreteClosedCurve},
     approach::Direct,
     # using data
     D_star::AdjointDoubleLayer,
@@ -19,51 +98,32 @@ function solve_and_evaluate(
     S_target::SingleLayer,
     D_target::DoubleLayer
 )
-    # TODO: work in place to avoid allocating a new matrix
 
-    A = -0.5 * I + matrix(D_star) # TODO: replace \ by LinearSolve
-    τ = A \ (H * bc.σ)
-    u = S_target * τ - D_target * bc.σ
+    τ = solve_bie(problem, approach, D_star, H)
+
+    u = evaluate(problem, approach, τ, S_target, D_target)
+
     return u, τ
 end
+
 
 # compute operators internally
 function solve_and_evaluate(
     # solve this
-    problem::Laplace,
-    side::Interior,
-    bc::Dirichlet,
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,DiscreteClosedCurve},
     # with ansatz
     approach::Direct,
     correction::HypersingularCorrection,
     # using data
-    source::AbstractManifold,
     target::AbstractMatrix;
     matrix_factory::Function=default_allocator,
 )
 
-    m = size(target, 1)
-    n = size(source, 1)
+    τ = solve_bie(problem, approach, correction; matrix_factory=matrix_factory)
 
+    u = evaluate(problem, approach, τ, target; matrix_factory=matrix_factory)
 
-    D_star = AdjointDoubleLayer(problem, matrix_factory(n, n))
-    H = Hypersingular(problem, correction, matrix_factory(n, n))
-    populate_matrices!(source, D_star, H)
-
-    S_target = SingleLayer(problem, nothing, matrix_factory(m, n))
-    D_target = DoubleLayer(problem, matrix_factory(m, n))
-    populate_matrices!(source, target, S_target, D_target)
-
-    return solve_and_evaluate(
-        problem,
-        side,
-        bc,
-        approach,
-        D_star,
-        H,
-        S_target,
-        D_target
-    )
+    return u, τ
 
 end
 

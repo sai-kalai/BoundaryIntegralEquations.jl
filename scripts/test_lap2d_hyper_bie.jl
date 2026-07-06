@@ -23,7 +23,7 @@ abstract type NumericalSolution{S,A} end
 
 
 
-mutable struct DirichletSolution{S<:Side,A<:Approach,C<:HypersingularCorrection} <: NumericalSolution{S,A}
+mutable struct DirichletSolution{S<:DomainSide,A<:Approach,C<:HypersingularCorrection} <: NumericalSolution{S,A}
     n
     u::Vector{Float64}
     τ::Vector{Float64}
@@ -32,7 +32,7 @@ mutable struct DirichletSolution{S<:Side,A<:Approach,C<:HypersingularCorrection}
     τ_err
 end
 
-struct NeumannSolution{S<:Side,A<:Approach} <: NumericalSolution{S,A}
+struct NeumannSolution{S<:DomainSide,A<:Approach} <: NumericalSolution{S,A}
     n
     u::Vector{Float64}
     σ::Vector{Float64}
@@ -40,7 +40,7 @@ struct NeumannSolution{S<:Side,A<:Approach} <: NumericalSolution{S,A}
     σ_err
 end
 
-struct ExactSolution{S<:Side} <: Solution
+struct ExactSolution{S<:DomainSide} <: Solution
     n
     u::Vector{Float64}
     σ::Vector{Float64}
@@ -75,15 +75,15 @@ solution_label(sol) = begin
 end
 
 get_color(::DirichletSolution{S,A,Sidi}) where
-{S<:Side,A<:Approach} = :magenta
+{S<:DomainSide,A<:Approach} = :magenta
 get_color(::DirichletSolution{S,A,Zeta}) where
-{S<:Side,A<:Approach} = :red
+{S<:DomainSide,A<:Approach} = :red
 get_color(::NeumannSolution) = :blue
 
 get_linestyle(::NumericalSolution{S,Direct}) where
-{S<:Side} = :solid
+{S<:DomainSide} = :solid
 get_linestyle(::NumericalSolution{S,Indirect}) where
-{S<:Side} = :dash
+{S<:DomainSide} = :dash
 
 function solution_style(sol)
 

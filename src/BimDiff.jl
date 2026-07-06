@@ -16,10 +16,12 @@ abstract type IntegralOperator end
 
 # TODO: bvp should already be aware of not only the pde, but also type of bc, side of domain
 # solve stage should allow choice of approach
-abstract type BoundaryValueProblem end
-struct Laplace <: BoundaryValueProblem end
-struct Helmholtz <: BoundaryValueProblem end
-struct Stokes <: BoundaryValueProblem end
+abstract type DifferentialEquation end
+struct Laplace <: DifferentialEquation end
+struct Helmholtz <: DifferentialEquation end
+struct Stokes <: DifferentialEquation end
+
+
 
 abstract type HypersingularCorrection end
 struct Sidi <: HypersingularCorrection end
@@ -33,9 +35,9 @@ struct KapurRokhlin <: SingularCorrection
 end
 
 
-abstract type Side end
-struct Interior <: Side end
-struct Exterior <: Side end
+abstract type DomainSide end
+struct Interior <: DomainSide end
+struct Exterior <: DomainSide end
 
 abstract type Approach end
 struct Direct <: Approach end
@@ -66,10 +68,10 @@ include("solvers.jl")
 #
 export DiscreteClosedCurve, visualize
 
-export BoundaryValueProblem, Laplace, Helmholtz, Stokes
+export DifferentialEquation, Laplace, Helmholtz, Stokes
 export HypersingularCorrection, Sidi, Zeta
 export SingularCorrection, KapurRokhlin
-export Side, Interior, Exterior
+export DomainSide, Interior, Exterior
 export IntegralOperator, SingleLayer, DoubleLayer, AdjointDoubleLayer, Hypersingular
 export Approach, Direct, Indirect
 export BoundaryCondition, Dirichlet, Neumann

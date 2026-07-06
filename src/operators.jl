@@ -23,7 +23,7 @@ end
 
 # a.k.a S
 struct SingleLayer{
-    P<:BoundaryValueProblem,
+    P<:DifferentialEquation,
     C<:Union{SingularCorrection,Nothing},
     M<:AbstractMatrix{<:Number}, # TODO: change order of members/constructor arguments to match order of generic parameters
     # TODO: include bitpattern of floating point representation as a type param
@@ -71,7 +71,7 @@ end
 
 # a.k.a D a.k.a. ∂S/∂ny
 struct DoubleLayer{
-    P<:BoundaryValueProblem,
+    P<:DifferentialEquation,
     M<:AbstractMatrix{<:Number}
 } <: IntegralOperator
     problem::P
@@ -112,7 +112,7 @@ end
 
 # a.k.a  D* a.k.a. ∂S/∂nx
 struct AdjointDoubleLayer{
-    P<:BoundaryValueProblem,
+    P<:DifferentialEquation,
     M<:AbstractMatrix{<:Number}
 } <: IntegralOperator
     problem::P
@@ -155,7 +155,7 @@ end
 
 # a.k.a  N a.k.a. ∂S²/∂nx∂ny
 struct Hypersingular{
-    P<:BoundaryValueProblem,
+    P<:DifferentialEquation,
     C<:HypersingularCorrection,
     M<:AbstractMatrix{<:Number},
 } <: IntegralOperator
