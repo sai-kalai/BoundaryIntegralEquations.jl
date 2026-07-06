@@ -19,3 +19,30 @@ Try to make one branch for each
 - [ ] implement distance policy fro close evaluation
 - [ ] move close evaluation and autodiff outside of scripts
 
+
+
+
+
+Meeting with Dean
+
+- documentation !!!
+- bonus: use documentation to write thesis
+
+- close field switching policy
+    - error analysis: how to identify when error grows for a better policy
+    - smoother transition in error
+
+
+- exterior points
+
+- map2disc
+- Helmholtz on hold
+- CI CD github action
+
+- journal paper: this is the problem and method
+
+- JOSS maybe publication
+- Andreas Buchheit
+
+
+
