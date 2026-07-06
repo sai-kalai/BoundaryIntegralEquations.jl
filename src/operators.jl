@@ -21,6 +21,8 @@ function Base.:+(v::AbstractArray, op::IntegralOperator)
     return op + v
 end
 
+
+
 # a.k.a S
 struct SingleLayer{
     P<:BoundaryValueProblem,
