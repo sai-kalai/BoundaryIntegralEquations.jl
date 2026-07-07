@@ -7,124 +7,107 @@ struct BoundaryValueProblem{
     B<:AbstractManifold,
 }
     equation::E
-    boundary::B
     bc::C
     side::S
+    boundary::B
 end
 
-abstract type BoundaryIntegralEquationSolution end
+
+# two variants are given: one where the operators are precomputed, and one that
+# computes the operators.
 
 #
 # Laplace - Interior - Dirichlet - Direct
 #
 
 #given operators
-function solve_bie(
-    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,DiscreteClosedCurve},
+function solve(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     ::Direct,
     D_star::AdjointDoubleLayer,
     H::Hypersingular,
-)
+)::Neumann
     # TODO: work in place to avoid allocating a new matrix
-    A = -0.5 * I + matrix(D_star) # TODO: replace \ by LinearSolve
-    τ = A \ (H * problem.bc.σ)
-    return τ
-
+    A = -0.5 + D_star # TODO: replace \ by LinearSolve
+    τ = A \ (H * problem.bc)
+    return Neumann(τ) # this is actually already the unknown Neumann data
 end
 
 # compute operators
-function solve_bie(
-    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,DiscreteClosedCurve},
+function solve(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     approach::Direct,
     correction::HypersingularCorrection,
     ;
     matrix_factory::Function=default_allocator,
-)
+)::Neumann
 
     n = size(problem.boundary, 1)
 
-    D_star = AdjointDoubleLayer(problem, matrix_factory(n, n))
-    H = Hypersingular(problem, correction, matrix_factory(n, n))
+    D_star = AdjointDoubleLayer(problem.equation, matrix_factory(n, n))
+    H = Hypersingular(problem.equation, correction, matrix_factory(n, n))
     populate_matrices!(problem.boundary, D_star, H)
 
-    τ = solve_bie(problem, approach, D_star, H)
-
-    return τ
-
+    return solve(problem, approach, D_star, H)
 end
 
 
 # given operators
 function evaluate(
-    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,DiscreteClosedCurve},
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     ::Direct,
-    τ::Vector,
+    τ::Neumann,
     S_target::SingleLayer,
     D_target::DoubleLayer,
-)
-    u = S_target * τ - D_target * problem.bc.σ
-    return u
+)::Tuple{AbstractVector,Neumann}
+    u = S_target * τ - D_target * problem.bc
+    return u, τ
 end
 
 # compute operators
 function evaluate(
-    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,DiscreteClosedCurve},
-    ::Direct,
-    τ::Vector,
-    x::AbstractMatrix,
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
+    approach::Direct,
+    τ::Neumann,
+    target::AbstractMatrix,
     ;
     matrix_factory::Function=default_allocator,
-)
-
-
-    m = size(x, 1)
+)::Tuple{AbstractVector,Neumann}
+    m = size(target, 1)
     n = size(problem.boundary, 1)
 
-    S_target = SingleLayer(problem, nothing, matrix_factory(m, n))
-    D_target = DoubleLayer(problem, matrix_factory(m, n))
-    populate_matrices!(problem.boundary, x, S_target, D_target)
-
-    u = S_target * τ - D_target * problem.bc.σ
-    return u
+    S_target = SingleLayer(problem.equation, nothing, matrix_factory(m, n))
+    D_target = DoubleLayer(problem.equation, matrix_factory(m, n))
+    populate_matrices!(problem.boundary, target, S_target, D_target)
+    return evaluate(problem, approach, τ, S_target, D_target)
 end
 
 # given operators
 function solve_and_evaluate(
-    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,DiscreteClosedCurve},
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     approach::Direct,
-    # using data
     D_star::AdjointDoubleLayer,
     H::Hypersingular,
     S_target::SingleLayer,
     D_target::DoubleLayer
-)
-
-    τ = solve_bie(problem, approach, D_star, H)
-
-    u = evaluate(problem, approach, τ, S_target, D_target)
-
+)::Tuple{AbstractVector,Neumann}
+    density = solve(problem, approach, D_star, H)
+    u, τ = evaluate(problem, approach, density, S_target, D_target)
     return u, τ
 end
 
 
-# compute operators internally
+# compute operators
 function solve_and_evaluate(
-    # solve this
-    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,DiscreteClosedCurve},
-    # with ansatz
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     approach::Direct,
     correction::HypersingularCorrection,
-    # using data
     target::AbstractMatrix;
     matrix_factory::Function=default_allocator,
-)
-
-    τ = solve_bie(problem, approach, correction; matrix_factory=matrix_factory)
-
-    u = evaluate(problem, approach, τ, target; matrix_factory=matrix_factory)
-
+)::Tuple{AbstractVector,Neumann}
+    density = solve(problem, approach, correction; matrix_factory=matrix_factory)
+    u, τ = evaluate(problem, approach, density, target; matrix_factory=matrix_factory)
     return u, τ
-
 end
 
 #
@@ -132,58 +115,107 @@ end
 #
 
 # given operators
+function solve(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    D::DoubleLayer
+)::BoundaryDensity
+
+    φ = (-0.5 + D) \ problem.bc.σ
+
+    return BoundaryDensity(φ)
+end
+
+# compute operators
+function solve(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    ;
+    matrix_factory::Function=default_allocator,
+)::BoundaryDensity
+
+    n = size(problem.boundary, 1)
+    D = DoubleLayer(problem.equation, matrix_factory(n, n))
+    populate_matrices!(problem.boundary, D)
+
+    solve(problem, approach, D)
+end
+
+# given  operators
+function evaluate(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    φ::BoundaryDensity,
+    H::Hypersingular,
+    D_target::DoubleLayer,
+)::Tuple{AbstractVector,Neumann}
+    τ = H * φ
+    u = D_target * φ
+    return u, Neumann(τ)
+end
+
+
+# compute operators
+function evaluate(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    correction::HypersingularCorrection,
+    φ::BoundaryDensity,
+    target::AbstractMatrix,
+    ;
+    matrix_factory::Function=default_allocator,
+)::Tuple{AbstractVector,Neumann}
+
+    m = size(target, 1)
+    n = size(problem.boundary, 1)
+
+    H = Hypersingular(problem, correction, matrix_factory(n, n))
+    populate_matrices!(problem.boundary, H)
+
+    D_target = DoubleLayer(problem, matrix_factory(m, n))
+    populate_matrices!(problem.boundary, target, D_target)
+
+    return evaluate(problem, approach, φ, H, D_target)
+end
+
+
+# given operators
 function solve_and_evaluate(
-    # solve this
-    ::Laplace,
-    ::Interior,
-    bc::Dirichlet,
-    # using ansatz
-    ::Indirect,
-    # with data
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
     D::DoubleLayer,
     H::Hypersingular,
     D_target::DoubleLayer
-)
+)::Tuple{AbstractVector,Neumann}
 
-    φ = (-0.5 * I + matrix(D)) \ bc.σ
+    φ = solve(problem, approach, D)
 
-    u = D_target * φ
-    τ = H * φ
+    u, τ = evaluate(problem, approach, φ, H, D_target)
+
     return u, τ
 end
 
 # compute operators
 function solve_and_evaluate(
-    # solve this
-    problem::Laplace,
-    side::Interior,
-    bc::Dirichlet,
-    # with ansatz
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     approach::Indirect,
     correction::HypersingularCorrection,
-    # using data
-    source::AbstractManifold,
-    target::AbstractMatrix;
+    target::AbstractMatrix,
+    ;
     matrix_factory::Function=default_allocator,
-)
+)::Tuple{AbstractVector,Neumann}
 
-    n = size(source, 1)
     m = size(target, 1)
+    n = size(problem.boundary, 1)
 
-    D = DoubleLayer(problem, matrix_factory(n, n))
-    H = Hypersingular(problem, correction, matrix_factory(n, n))
+    D = DoubleLayer(problem.equation, matrix_factory(n, n))
+    H = Hypersingular(problem.equation, correction, matrix_factory(n, n))
+    populate_matrices!(problem.boundary, D, H)
 
     D_target = DoubleLayer(problem, matrix_factory(m, n))
+    populate_matrices!(problem.boundary, target, D_target)
 
-    return solve_and_evaluate(
-        problem,
-        side,
-        bc,
-        approach,
-        D,
-        H,
-        D_target,
-    )
+    return solve_and_evaluate(problem, approach, D, H, D_target)
 end
 
 
@@ -191,132 +223,207 @@ end
 # Laplace - Interior - Neumann - Direct
 #
 
+# given operators
+function solve(
+    problem::BoundaryValueProblem{Laplace,Neumann,Interior,<:DiscreteClosedCurve},
+    approach::Direct,
+    S::SingleLayer,
+    D::DoubleLayer,
+)::Dirichlet
+
+    σ = Dirichlet((0.5 + D) \ (S * problem.bc))
+
+    return σ
+end
+
+# compute operators
+function solve(
+    problem::BoundaryValueProblem{Laplace,Neumann,Interior,<:DiscreteClosedCurve},
+    approach::Direct,
+    correction::SingularCorrection,
+    ;
+    matrix_factory::Function=default_allocator,
+)::Dirichlet
+
+    n = size(problem.boundary, 1)
+    S = SingleLayer(problem.equation, correction, matrix_factory(n, n))
+    D = DoubleLayer(problem.equation, matrix_factory(n, n))
+    populate_matrices!(problem.boundary, S, D)
+
+    return solve(problem, approach, S, D)
+end
+
+# given  operators
+function evaluate(
+    problem::BoundaryValueProblem{Laplace,Neumann,Interior,<:DiscreteClosedCurve},
+    approach::Direct,
+    σ::Dirichlet,
+    S_target::SingleLayer,
+    D_target::DoubleLayer,
+)::Tuple{AbstractVector,Dirichlet}
+    u = S_target * problem.bc - D_target * σ
+    return u, σ
+end
+
+
+# compute operators
+function evaluate(
+    problem::BoundaryValueProblem{Laplace,Neumann,Interior,<:DiscreteClosedCurve},
+    approach::Direct,
+    σ::Dirichlet,
+    target::AbstractMatrix,
+    ;
+    matrix_factory::Function=default_allocator,
+)::Tuple{AbstractVector,Dirichlet}
+
+    m = size(target, 1)
+    n = size(problem.boundary, 1)
+
+
+    S_target = SingleLayer(problem, nothing, matrix_factory(m, n))
+    D_target = DoubleLayer(problem, matrix_factory(m, n))
+    populate_matrices!(problem.boundary, target, D_target)
+
+    return evaluate(problem, approach, σ, S_target, D_target)
+end
+
 #given operators
 function solve_and_evaluate(
-    # solve this
-    ::Laplace,
-    ::Interior,
-    bc::Neumann,
-    # with ansatz
-    ::Direct,
-    # using data
+    problem::BoundaryValueProblem{Laplace,Neumann,Interior,<:DiscreteClosedCurve},
+    approach::Direct,
     S::SingleLayer,
     D::DoubleLayer,
     S_target::SingleLayer,
     D_target::DoubleLayer,
-)
-    σ = (0.5 * I + matrix(D)) \ (S * bc.τ)
+)::Tuple{AbstractVector,Dirichlet}
 
-    u = S_target * bc.τ - D_target * σ
-
-    return u, σ
-end
-
-#
-# Laplace - Interior - Neumann - Indirect
-#
-
-# given operators
-function solve_and_evaluate(
-    # solve this
-    ::Laplace,
-    ::Interior,
-    bc::Neumann,
-    # with ansatz
-    ::Indirect,
-    # using data
-    S::SingleLayer,
-    D_star::AdjointDoubleLayer,
-    S_target::SingleLayer,
-)
-    η = (0.5 * I + matrix(D_star)) \ bc.τ
-
-    u = S_target * η
-
-    σ = S * η
+    density = solve(problem, approach, S, D)
+    u, σ = evaluate(problem, approach, density, S_target, D_target)
 
     return u, σ
 end
-
-#
-# Laplace - Interior - Neumann - Direct
-#
 
 # compute operators
 function solve_and_evaluate(
-    # solve this
-    problem::Laplace,
-    side::Interior,
-    bc::Neumann,
-    # with ansatz
+    problem::BoundaryValueProblem{Laplace,Neumann,Interior,<:DiscreteClosedCurve},
     approach::Direct,
     correction::SingularCorrection,
-    # using data
-    source::AbstractManifold,
-    target::AbstractMatrix;
-    matrix_factory::Function=default_allocator,
-)
+    target::AbstractMatrix,
+    ;
+    matrix_factory::Function=default_allocator
+)::Tuple{AbstractVector,Dirichlet}
 
-    n = size(source, 1)
-    m = size(target, 1)
+    density = solve(problem, approach, correction; matrix_factory=matrix_factory)
+    u, σ = evaluate(problem, approach, density, target; matrix_factory=matrix_factory)
 
-    S = SingleLayer(problem, correction, matrix_factory(n, n))
-    D = DoubleLayer(problem, matrix_factory(n, n))
-    populate_matrices!(source, S, D)
-
-    S_target = SingleLayer(problem, nothing, matrix_factory(m, n))
-    D_target = DoubleLayer(problem, matrix_factory(m, n))
-    populate_matrices!(source, target, S_target, D_target)
-
-    return solve_and_evaluate(
-        problem,
-        side,
-        bc,
-        approach,
-        S,
-        D,
-        S_target,
-        D_target,
-    )
+    return u, σ
 end
 
 #
 # Laplace - Interior - Neumann - Indirect
 #
 
-function solve_and_evaluate(
-    # solve this
-    problem::Laplace,
-    side::Interior,
-    bc::Neumann,
-    # with ansatz
+
+# given operators
+function solve(
+    problem::BoundaryValueProblem{Laplace,Neumann,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    D_star,
+)::BoundaryDensity
+
+    ψ = (0.5 + D_star) \ problem.bc.τ
+
+    return BoundaryDensity(ψ)
+end
+
+# compute operators
+function solve(
+    problem::BoundaryValueProblem{Laplace,Neumann,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    ;
+    matrix_factory::Function=default_allocator,
+)::Dirichlet
+
+    n = size(problem.boundary, 1)
+    D_star = AdjointDoubleLayer(problem.equation, matrix_factory(n, n))
+    populate_matrices!(problem.boundary, D_star)
+
+    return solve(problem, approach, D_star)
+end
+
+# given  operators
+function evaluate(
+    problem::BoundaryValueProblem{Laplace,Neumann,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    ψ::BoundaryDensity,
+    S::SingleLayer,
+    S_target::SingleLayer,
+)::Tuple{AbstractVector,Dirichlet}
+
+    σ = Dirichlet(S * ψ)
+    u = S_target * ψ
+
+    return u, σ
+end
+
+# compute operators
+function evaluate(
+    problem::BoundaryValueProblem{Laplace,Neumann,Interior,<:DiscreteClosedCurve},
     approach::Indirect,
     correction::SingularCorrection,
-    # using data
-    source::AbstractManifold,
-    target::AbstractMatrix;
+    ψ::BoundaryDensity,
+    target::AbstractMatrix,
+    ;
     matrix_factory::Function=default_allocator,
-)
-    n = size(source, 1)
+)::Tuple{AbstractVector,Dirichlet}
+
     m = size(target, 1)
+    n = size(problem.boundary, 1)
 
-    S = SingleLayer(problem, correction, matrix_factory(n, n))
-    D_star = AdjointDoubleLayer(problem, matrix_factory(n, n))
-    populate_matrices!(source, S, D_star)
+    S = SingleLayer(problem.equation, correction, matrix_factory(n, n))
+    populate_matrices!(problem.boundary, S)
 
-    S_target = SingleLayer(problem, nothing, matrix_factory(m, n))
-    populate_matrices!(source, target, S_target)
+    S_target = SingleLayer(problem.equation, nothing, matrix_factory(m, n))
+    populate_matrices!(problem.boundary, target, S_target)
 
-    return solve_and_evaluate(
-        problem,
-        side,
-        bc,
-        approach,
-        S,
-        D_star,
-        S_target,
-    )
+    return evaluate(problem, approach, ψ, S, S_target)
+end
 
+# given operators
+function solve_and_evaluate(
+    problem::BoundaryValueProblem{Laplace,Neumann,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    S::SingleLayer,
+    D_star::AdjointDoubleLayer,
+    S_target::SingleLayer,
+)::Tuple{AbstractVector,Dirichlet}
+    density = solve(problem, approach, D_star)
+    u, σ = evaluate(problem, approach, density, S, S_target)
+    return u, σ
+end
 
+# compute operators
+function solve_and_evaluate(
+    problem::BoundaryValueProblem{Laplace,Neumann,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    correction::SingularCorrection,
+    target::AbstractMatrix,
+    ;
+    matrix_factory::Function=default_allocator,
+)::Tuple{AbstractVector,Dirichlet}
+
+    m = size(target, 1)
+    n = size(problem.boundary, 1)
+
+    S = SingleLayer(problem.equation, correction, matrix_factory(n, n))
+    D_star = AdjointDoubleLayer(problem.equation, matrix_factory(n, n))
+    populate_matrices!(problem.boundary, S)
+
+    S_target = SingleLayer(problem.equation, nothing, matrix_factory(m, n))
+    populate_matrices!(problem.boundary, target, S_target)
+
+    u, σ = solve_and_evaluate(problem, approach, S, D_star, S_target)
+
+    return u, σ
 end
 
