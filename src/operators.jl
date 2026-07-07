@@ -53,7 +53,7 @@ default_allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
 
 # source-target interaction
 function SingleLayer(
-    problem::Laplace,
+    equation::Laplace,
     source::AbstractManifold, # source manifold e.g. domain boundary
     target::AbstractMatrix; # target points to compute operator
     matrix_factory::Function=default_allocator,
@@ -62,7 +62,7 @@ function SingleLayer(
     n, dim_x = size(source.x)
 
     matrix = matrix_factory(m, n)::AbstractMatrix
-    op = SingleLayer(problem, nothing, matrix)
+    op = SingleLayer(equation, nothing, matrix)
 
     populate_matrices!(source, target, op)
     return op
@@ -70,7 +70,7 @@ end
 
 # self interaction
 function SingleLayer(
-    problem::Laplace,
+    equation::Laplace,
     source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
     correction::SingularCorrection; # order of kapur rokhlin singular correction
     matrix_factory::Function=default_allocator,
@@ -79,7 +79,7 @@ function SingleLayer(
     n, dim_x = size(source.x)
 
     matrix = matrix_factory(n, n)::AbstractMatrix # allocate memory
-    op = SingleLayer(problem, correction, matrix)
+    op = SingleLayer(equation, correction, matrix)
 
     populate_matrices!(source, op)
     return op
@@ -87,16 +87,16 @@ end
 
 # a.k.a D a.k.a. ∂S/∂ny
 struct DoubleLayer{
-    P<:DifferentialEquation,
+    E<:DifferentialEquation,
     M<:AbstractMatrix{<:Number}
 } <: IntegralOperator
-    problem::P
+    equation::E
     matrix::M
 end
 
 # source-target interaction
 function DoubleLayer(
-    problem::Laplace,
+    equation::Laplace,
     source::AbstractManifold, # source manifold e.g. domain boundary
     target::AbstractMatrix; # target points to compute operator
     matrix_factory::Function=default_allocator,
@@ -105,7 +105,7 @@ function DoubleLayer(
     n, dim_x = size(source.x)
 
     matrix = matrix_factory(m, n)::AbstractMatrix
-    op = DoubleLayer(problem, matrix)
+    op = DoubleLayer(equation, matrix)
 
     populate_matrices!(source, target, op)
     return op
@@ -113,14 +113,14 @@ end
 
 # self interaction
 function DoubleLayer(
-    problem::Laplace,
+    equation::Laplace,
     source::AbstractManifold;
     matrix_factory::Function=default_allocator,
 )
 
     n, dim_x = size(source.x)
     matrix = matrix_factory(n, n)::AbstractMatrix
-    op = DoubleLayer(problem, matrix)
+    op = DoubleLayer(equation, matrix)
 
     populate_matrices!(source, op)
     return op
@@ -128,23 +128,23 @@ end
 
 # a.k.a  D* a.k.a. ∂S/∂nx
 struct AdjointDoubleLayer{
-    P<:DifferentialEquation,
+    E<:DifferentialEquation,
     M<:AbstractMatrix{<:Number}
 } <: IntegralOperator
-    problem::P
+    equation::E
     matrix::M
 end
 
 # self interaction
 function AdjointDoubleLayer(
-    problem::Laplace,
+    equation::Laplace,
     source::AbstractManifold; # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
     matrix_factory::Function=default_allocator,
 )
 
     n, dim_x = size(source.x)
     matrix = matrix_factory(n, n)::AbstractMatrix
-    op = AdjointDoubleLayer(problem, matrix)
+    op = AdjointDoubleLayer(equation, matrix)
 
     populate_matrices!(source, op)
     return op
@@ -152,7 +152,7 @@ end
 
 # source-target interaction: edge case for manufactured solution
 function AdjointDoubleLayer(
-    problem::Laplace,
+    equation::Laplace,
     source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
     target::AbstractMatrix,
     target_normals::AbstractMatrix;
@@ -163,7 +163,7 @@ function AdjointDoubleLayer(
     n, dim_x = size(source.x)
 
     matrix = matrix_factory(m, n)::AbstractMatrix
-    op = AdjointDoubleLayer(problem, matrix)
+    op = AdjointDoubleLayer(equation, matrix)
 
     populate_matrices!(source, target, op; target_normals=target_normals)
     return op
@@ -171,18 +171,18 @@ end
 
 # a.k.a  N a.k.a. ∂S²/∂nx∂ny
 struct Hypersingular{
-    P<:DifferentialEquation,
+    E<:DifferentialEquation,
     C<:HypersingularCorrection,
     M<:AbstractMatrix{<:Number},
 } <: IntegralOperator
-    problem::P
+    equation::E
     correction::C
     matrix::M
 end
 
 # self interaction
 function Hypersingular(
-    problem::Laplace,
+    equation::Laplace,
     source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
     correction::HypersingularCorrection;
     matrix_factory::Function=default_allocator,
@@ -191,7 +191,7 @@ function Hypersingular(
     n, dim_x = size(source.x)
 
     matrix = matrix_factory(n, n)::AbstractMatrix
-    op = Hypersingular(problem, correction, matrix)
+    op = Hypersingular(equation, correction, matrix)
     populate_matrices!(source, op)
     return op
 end
