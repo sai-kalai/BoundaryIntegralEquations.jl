@@ -1,3 +1,5 @@
 using SafeTestsets
 
-@safetestset "BimDiff tests" begin include("quick_test.jl") end
+
+@safetestset "Integral operators" include("test_operators.jl")
+# @safetestset "BimDiff tests" include("quick_test.jl")

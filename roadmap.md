@@ -16,8 +16,9 @@ Try to make one branch for each
 - [ ] implement 2nd derivative approximation for hypersingular kernel using AD
 
 - [x] design better api instead of passing allocator function. maybe, pass already allocated memory
-    - [ ] adopt api in separate matrices branch, such that testing is homogeneous
 
+    - [x] adopt api in separate matrices branch, such that testing is homogeneous
+    - [ ] fix undef initializer
 - [ ] api for solving the  BIE attached to the BVP and reusing the density for computing at arbitary points
     struct containing side, bc type,
     solve()
@@ -27,9 +28,7 @@ Try to make one branch for each
 - [ ] implement distance policy for close evaluation
 
 - [ ] move close evaluation and autodiff outside of scripts
-
 - [x] enforce consistent order of arguments across the codebase (source, then target)
-
 - [ ] extend the type system for representing geometry
     use cases:
     - boundary: smooth manifold, all information, incl. parametrization

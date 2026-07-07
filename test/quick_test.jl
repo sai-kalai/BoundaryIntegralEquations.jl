@@ -1,8 +1,17 @@
+
+
 using BimDiff
 using Test
 
-@testset "BimDiff.jl" begin
+# include("TestFixtures.jl")
+# import TestFixtures
 
-    @test @assert false
+@testset "quick test" begin
+
+    @test false
+
+    # x, s = TestFixtures.point_sources()
+    #
+    # @test size(s, 1) == size(s, 1)
 
 end

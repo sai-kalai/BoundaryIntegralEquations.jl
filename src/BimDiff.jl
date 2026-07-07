@@ -1,6 +1,7 @@
 module BimDiff
 
 
+
 #
 # external packages
 #
@@ -14,12 +15,14 @@ using FFTW
 #
 abstract type IntegralOperator end
 
+
 # TODO: bvp should already be aware of not only the pde, but also type of bc, side of domain
 # solve stage should allow choice of approach
 abstract type DifferentialEquation end
 struct Laplace <: DifferentialEquation end
 struct Helmholtz <: DifferentialEquation end
 struct Stokes <: DifferentialEquation end
+
 
 
 
@@ -54,6 +57,7 @@ include("manifolds.jl")
 include("operators.jl")
 include("kernels.jl")
 include("solvers.jl")
+include("utils.jl")
 
 #
 # exports
@@ -72,14 +76,21 @@ export kernel
 export populate_matrices!
 export BoundaryValueProblem, solve, evaluate, solve_and_evaluate
 
+export starfish, ball
+
 
 
 # trick lsp
 @static if false
-    # include("../scripts/*.jl")
     include("../scripts/main.jl")
     include("../scripts/precomputed_coeffs.jl")
-    include("../scripts/test_lap2d_hyper_bie.jl")
+
+    include("../test/quick_test.jl")
+    include("../test/convergence/laplace_2d.jl")
+    include("../test/test_operators.jl")
+
+    # does not work
+    include.(filter(contains(r".jl$"), readdir("../test/"; join=true)))
 end
 
 end # module BimDiff
