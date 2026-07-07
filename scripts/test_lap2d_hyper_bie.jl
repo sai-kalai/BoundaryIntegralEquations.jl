@@ -274,7 +274,7 @@ function main()
         -0.6316051289445703 -1.360542157042888
     ]
 
-    density_source = [                       # random source densities
+    density_source = BoundaryDensity([                       # random source densities
         0.8286315202713013
         0.2222102135419846
         -0.1199957281351089
@@ -285,7 +285,7 @@ function main()
         -0.8932550549507141
         0.1896218359470367
         -0.4264606237411499
-    ]
+    ])
 
     # TODO: only locations are meaningful on this variable, others are not used... how to avoid this?
     Γ_source = DiscreteClosedCurve(x_source)
@@ -369,10 +369,14 @@ function main()
         populate_matrices!(Γ, x_test, S_target, D_target)
 
         # Dirichlet Zeta Direct
+
         u, τ = solve_and_evaluate(
-            laplace,
-            interior,
-            Dirichlet(σ), # TODO: since one kernel matrix can be applied to several BCs, overload accepting vector of BC
+            BoundaryValueProblem(
+                laplace,
+                Dirichlet(σ),
+                interior,
+                Γ
+            ),
             direct,
             D_star,
             H_zeta,
@@ -393,9 +397,12 @@ function main()
 
         # Dirichlet Zeta Indirect
         u, τ = solve_and_evaluate(
-            laplace,
-            interior,
-            Dirichlet(σ),
+            BoundaryValueProblem(
+                laplace,
+                Dirichlet(σ),
+                interior,
+                Γ
+            ),
             indirect,
             D,
             H_zeta,
@@ -416,9 +423,12 @@ function main()
         # Dirichlet Sidi Direct
         # hypersingular operator using Sidi's staggered grid
         u, τ = solve_and_evaluate(
-            laplace,
-            interior,
-            Dirichlet(σ),
+            BoundaryValueProblem(
+                laplace,
+                Dirichlet(σ),
+                interior,
+                Γ
+            ),
             direct,
             D_star,
             H_sidi,
@@ -438,9 +448,12 @@ function main()
         )
         # Dirichlet Sidi Indirect
         u, τ = solve_and_evaluate(
-            laplace,
-            interior,
-            Dirichlet(σ),
+            BoundaryValueProblem(
+                laplace,
+                Dirichlet(σ),
+                interior,
+                Γ
+            ),
             indirect,
             D,
             H_sidi,
@@ -465,19 +478,22 @@ function main()
         τ = τ_exact
 
         u, σ = solve_and_evaluate(
-            laplace,
-            interior,
-            Neumann(τ),
+            BoundaryValueProblem(
+                laplace,
+                Neumann(τ),
+                interior,
+                Γ
+            ),
             direct,
             S,
             D,
             S_target,
             D_target,
         )
-        # "recover constant" in the original code...
+        # "recover constant" in the original code
         offset = u_exact[1] - u[1]
         u .+= offset
-        σ .+= offset # TODO: put this inside solver maybe and user passes integration constant
+        data(σ) .+= offset # TODO: put this inside solver maybe and user passes integration constant
         push!(
             num_solutions,
             NeumannSolution{Interior,Direct}(
@@ -489,9 +505,12 @@ function main()
         )
 
         u, σ = solve_and_evaluate(
-            laplace,
-            interior,
-            Neumann(τ),
+            BoundaryValueProblem(
+                laplace,
+                Neumann(τ),
+                interior,
+                Γ
+            ),
             indirect,
             S,
             D_star,
@@ -500,7 +519,7 @@ function main()
         # "recover constant" in the original code...
         offset = u_exact[1] - u[1]
         u .+= offset
-        σ .+= offset # TODO: put this inside solver maybe and user passes integration constant
+        data(σ) .+= offset # TODO: put this inside solver maybe and user passes integration constant
         push!(
             num_solutions,
             NeumannSolution{Interior,Indirect}(
