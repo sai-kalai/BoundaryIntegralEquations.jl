@@ -4,7 +4,7 @@ module BimDiff
 #
 # external packages
 #
-using CairoMakie
+using GLMakie
 using LinearAlgebra
 using StaticArrays
 using FFTW
@@ -44,20 +44,12 @@ struct Direct <: Approach end
 struct Indirect <: Approach end
 
 
-abstract type BoundaryCondition end
-struct Dirichlet <: BoundaryCondition
-    σ::AbstractVector
-end
-struct Neumann <: BoundaryCondition
-    τ::AbstractVector
-end
-
-
 #
 # includes
 #
 include("finite_differences.jl")
 include("kapur_rokhlin_sep_log.jl")
+include("densities.jl")
 include("manifolds.jl")
 include("operators.jl")
 include("kernels.jl")
@@ -74,11 +66,11 @@ export SingularCorrection, KapurRokhlin
 export DomainSide, Interior, Exterior
 export IntegralOperator, SingleLayer, DoubleLayer, AdjointDoubleLayer, Hypersingular
 export Approach, Direct, Indirect
-export BoundaryCondition, Dirichlet, Neumann
+export BoundaryDensity, BoundaryCondition, Dirichlet, Neumann, data
 
 export kernel
 export populate_matrices!
-export solve_and_evaluate
+export BoundaryValueProblem, solve, evaluate, solve_and_evaluate
 
 
 
