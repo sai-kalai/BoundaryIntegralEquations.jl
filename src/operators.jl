@@ -5,30 +5,46 @@ function matrix(op::IntegralOperator)::AbstractMatrix
     return op.matrix
 end
 
-function Base.:*(op::IntegralOperator, v::AbstractArray)
-    return matrix(op) * v
+# add scalar to the diagonal
+function Base.:+(op::IntegralOperator, s::Number)
+    return matrix(op) + I * s
+end
+function Base.:+(s::Number, op::IntegralOperator)
+    return op + s
+end
+function Base.:-(op::IntegralOperator, s::Number)
+    return op + (-1 * s)
+end
+function Base.:-(s::Number, op::IntegralOperator)
+    return op - s
 end
 
-function Base.:+(op::IntegralOperator, v::AbstractArray)
-    return matrix(op) + v
-end
 
-function Base.:*(v::AbstractArray, op::IntegralOperator)
-    return op * v
-end
-
-function Base.:+(v::AbstractArray, op::IntegralOperator)
-    return op + v
-end
+# function Base.:*(op::IntegralOperator, v::AbstractArray)
+#     return matrix(op) * v
+# end
+#
+# function Base.:+(op::IntegralOperator, v::AbstractArray)
+#     return matrix(op) + v
+# end
+#
+#
+# function Base.:*(v::AbstractArray, op::IntegralOperator)
+#     return op * v
+# end
+#
+# function Base.:+(v::AbstractArray, op::IntegralOperator)
+#     return op + v
+# end
 
 # a.k.a S
 struct SingleLayer{
-    P<:DifferentialEquation,
+    E<:DifferentialEquation,
     C<:Union{SingularCorrection,Nothing},
     M<:AbstractMatrix{<:Number}, # TODO: change order of members/constructor arguments to match order of generic parameters
     # TODO: include bitpattern of floating point representation as a type param
 } <: IntegralOperator
-    problem::P
+    equation::E
     correction::C
     matrix::M
 end
