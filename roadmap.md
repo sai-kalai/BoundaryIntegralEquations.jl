@@ -4,7 +4,7 @@ Try to make one branch for each
 
 
 - [ ] change access pattern to column-major, record performance before and after
-- [ ] package more into one struct such that solve(instance) has all the info
+- [x] package more into one struct such that solve(instance) has all the info
 - [x] fix the modules: use one single module for the whole code instead of per-file, see Inti
 - [ ] write docstrings
 - [x] write unit tests for correctness
@@ -16,10 +16,9 @@ Try to make one branch for each
 - [ ] implement 2nd derivative approximation for hypersingular kernel using AD
 
 - [x] design better api instead of passing allocator function. maybe, pass already allocated memory
-
     - [x] adopt api in separate matrices branch, such that testing is homogeneous
     - [ ] fix undef initializer
-- [ ] api for solving the  BIE attached to the BVP and reusing the density for computing at arbitary points
+- [x] api for solving the  BIE attached to the BVP and reusing the density for computing at arbitary points
     struct containing side, bc type,
     solve()
     evaluate(x points)
@@ -38,6 +37,7 @@ Try to make one branch for each
 
 - [ ] consider using Manifolds.jl
 
+- [ ] array of structures instead of structure of arrays
 
 
 
