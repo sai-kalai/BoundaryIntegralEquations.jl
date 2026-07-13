@@ -62,6 +62,14 @@ function DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMa
 
 end
 
+"""
+    DiscreteClosedCurve(x::AbstractMatrix)
+
+given positions, compute the velocities and accelerations using periodic spectral differentiation
+
+# Arguments
+- `x::AbstractMatrix`: locations of the points
+"""
 function DiscreteClosedCurve(x::AbstractMatrix)
     v = periodic_spectral_diff(x)
     a = periodic_spectral_diff(v)
@@ -69,6 +77,15 @@ function DiscreteClosedCurve(x::AbstractMatrix)
 
 end
 
+"""
+    DiscreteClosedCurve(θ::AbstractVector, ρ::Function)
+
+construct curve given a list of parameter values and a parametrization
+
+# Arguments
+- `θ::AbstractVector`: list of nodes in parameter space
+- `ρ::Function`: function that parametrizes the curve
+"""
 function DiscreteClosedCurve(θ::AbstractVector, ρ::Function)
 
     # range [0, 2pi) to evaluate parametrization
@@ -80,6 +97,16 @@ end
 
 # construct from number of points and parametrization
 # using equispaced parameter
+"""
+    DiscreteClosedCurve(n_points::Int, ρ::Function)
+
+construct curve given a number of points and a parametrization using equispaced
+nodes in parameter space
+
+# Arguments
+- `n_points::Int`: number of nodes
+- `ρ::Function`: function that parametrizes the curve
+"""
 function DiscreteClosedCurve(n_points::Int, ρ::Function)
     # range [0, 2pi) to evaluate parametrization
     θ = range(0, 2π; length=n_points + 1)[1:(end-1)]
