@@ -12,7 +12,9 @@
 #
 # c.f. Hsiao-Wendland 2008, Sec.1.3-1.4
 
+using Test
 using Revise
+
 
 
 using LinearAlgebra
@@ -22,12 +24,14 @@ using GLMakie
 using BimDiff
 
 
+
+include("../fixtures.jl")
+
 abstract type Solution end
 abstract type NumericalSolution{S,A} end
 
 
-
-mutable struct DirichletSolution{S<:Side,A<:Approach,C<:HypersingularCorrection} <: NumericalSolution{S,A}
+mutable struct DirichletSolution{S<:DomainSide,A<:Approach,C<:HypersingularCorrection} <: NumericalSolution{S,A}
     n
     u::Vector{Float64}
     τ::Vector{Float64}
@@ -36,7 +40,7 @@ mutable struct DirichletSolution{S<:Side,A<:Approach,C<:HypersingularCorrection}
     τ_err
 end
 
-struct NeumannSolution{S<:Side,A<:Approach} <: NumericalSolution{S,A}
+struct NeumannSolution{S<:DomainSide,A<:Approach} <: NumericalSolution{S,A}
     n
     u::Vector{Float64}
     σ::Vector{Float64}
@@ -44,7 +48,7 @@ struct NeumannSolution{S<:Side,A<:Approach} <: NumericalSolution{S,A}
     σ_err
 end
 
-struct ExactSolution{S<:Side} <: Solution
+struct ExactSolution{S<:DomainSide} <: Solution
     n
     u::Vector{Float64}
     σ::Vector{Float64}
@@ -79,15 +83,15 @@ solution_label(sol) = begin
 end
 
 get_color(::DirichletSolution{S,A,Sidi}) where
-{S<:Side,A<:Approach} = :magenta
+{S<:DomainSide,A<:Approach} = :magenta
 get_color(::DirichletSolution{S,A,Zeta}) where
-{S<:Side,A<:Approach} = :red
+{S<:DomainSide,A<:Approach} = :red
 get_color(::NeumannSolution) = :blue
 
 get_linestyle(::NumericalSolution{S,Direct}) where
-{S<:Side} = :solid
+{S<:DomainSide} = :solid
 get_linestyle(::NumericalSolution{S,Indirect}) where
-{S<:Side} = :dash
+{S<:DomainSide} = :dash
 
 function solution_style(sol)
 
@@ -223,124 +227,63 @@ function plot_errors(
 end
 
 
-function main()
 
-    ord = 32       # pick desired convergence order of singular quad
+function convergence_study(n_vals=20:20:200, accuracy_order=32)
+
 
     # useful constants
     laplace = Laplace()
     interior = Interior()
     exterior = Exterior()
-    kapur_rokhlin = KapurRokhlin(ord)
-    zeta = Zeta(ord)
+    kapur_rokhlin = KapurRokhlin(accuracy_order)
+    zeta = Zeta(accuracy_order)
     sidi = Sidi()
     direct = Direct()
     indirect = Indirect()
 
-    # set up source geometry (starfish domain)
-    R = 1 # wobble center
-    a = 0.3 # wobble amplitude
-    w = 5 # wobble frequency
-    function ρ(t)
-        z = (R + a * cos.(w * t)) * cis(t) # parametrization of boundary
-        return [real(z), imag(z)] # TODO: play with static arrays
-    end
+    # indicate how to reserve memory
+    allocator = (_m, _n) -> zeros(_m, _n)
 
-    # evenly distributed points in a circumference of radius r
-    function ball(r, n)
-        z = r .* cis.(2pi * (1:n) / n)
-        return hcat(real.(z), imag.(z))
-    end
+    x_test = test_locations()
 
 
-    # fig, ax = visualize(m)
+    x_source, density_source = point_sources()
 
-    # Interior Laplace BVPs
-    # data generated with octave using seed 42
-    # ns = 10;                          	% num of source points
-    # s_ps.x = 1.5*exp(2i*pi*rand(ns,1));	% random source location
-    # s_ps.w = 1;                         % dummy wei
-    # den_source = randn(ns,1);           % random source densities
-    n_source = 10 # 10 source points
-    x_source = [
-        -0.5695003215297076 1.387684900752891
-        1.193361093146339 0.9087845186646686
-        -1.382332571556837 -0.5823715837960004
-        0.2246549945288565 1.483081296973716
-        -1.49901371413742 0.05438643974317964
-        1.411332357339733 -0.5080757592385936
-        -1.03965505692555 1.081257306384161
-        0.7266935884719004 -1.312218132961831
-        1.262260923600564 0.810368657310395
-        -0.6316051289445703 -1.360542157042888
-    ]
+    density_source = BoundaryDensity(density_source)
 
-    density_source = [                       # random source densities
-        0.8286315202713013
-        0.2222102135419846
-        -0.1199957281351089
-        0.5542055368423462
-        1.894909262657166
-        -1.461126089096069
-        1.063002705574036
-        -0.8932550549507141
-        0.1896218359470367
-        -0.4264606237411499
-    ]
+    n_source = size(x_source, 1)
 
-    n_test = 20
-    x_test = ball(0.4, n_test)  # test points in inner domain
 
-    S_manuf = compute_laplace_slp_matrix(x_test, x_source)
+    Γ_source = DiscreteClosedCurve(x_source)
+
+    S_manuf = SingleLayer(laplace, Γ_source, x_test; matrix_factory=allocator)
 
     # matrix = compute_laplace_slp_matrix(x_test, x_source)
     u_exact = S_manuf * density_source # exact solution at test points
+    u_exact_reference = reference_exact_solution()
 
-    u_exact_reference = [ # computed with octave
-        -0.225720785940647
-        -0.1532182381553945
-        -0.07916247368635984
-        -0.009436557766342876
-        0.05058053245007847
-        0.095561651179005
-        0.1207276487177532
-        0.122854434803948
-        0.1008112512034587
-        0.0556379263587953
-        -0.008506676421622505
-        -0.08391068100223156
-        -0.1614855413528088
-        -0.2333796644213197
-        -0.2937316378516174
-        -0.3378806310084885
-        -0.3616183013158484
-        -0.3616603501356365
-        -0.33685823224991
-        -0.2895297179342787
-    ]
-
-    @assert norm(u_exact - u_exact_reference) < 1e-15
+    # @assert norm(u_exact - u_exact_reference) < 1e-15
+    display(u_exact - u_exact_reference)
+    @test u_exact ≈ u_exact_reference atol=1e-15
 
     # scatter!(ax, x_test[:, 1], x_test[:, 2], color=u_exact)
 
-    # wait(display(fig))
 
     # println("Printing max-norm errors")
     # println("Interior")
 
-    n_vals = 2000:20:2020
 
     num_solutions = Vector{NumericalSolution}()
 
     for (i, n) ∈ enumerate(n_vals)
 
-        Γ = DiscreteClosedCurve(n, ρ) # boundary of the domain
+        Γ = DiscreteClosedCurve(n, starfish) # boundary of the domain
 
         fig, ax = visualize(Γ)
         # wait(display(fig))
         # break
 
-
+        # target: domain boundary, source: manufactured solution point sources
         S_source = compute_laplace_slp_matrix(Γ.x, x_source)
         D_star_source = compute_laplace_dlp_adjoint_matrix(Γ.x, x_source, Γ.n)
 
@@ -350,16 +293,15 @@ function main()
 
 
 
-
-        S = SingleLayer(laplace, Γ, ord)
+        S = SingleLayer(laplace, Γ, kapur_rokhlin)
         D = DoubleLayer(laplace, Γ)
         D_star = AdjointDoubleLayer(laplace, Γ)
         H_zeta = Hypersingular(laplace, Γ, zeta)
         H_sidi = Hypersingular(laplace, Γ, sidi)
 
 
-        S_target = SingleLayer(laplace, x_test, Γ,)
-        D_target = DoubleLayer(laplace, x_test, Γ,)
+        S_target = SingleLayer(laplace, Γ, x_test,)
+        D_target = DoubleLayer(laplace, Γ, x_test,)
 
         # Dirichlet Zeta Direct
 
@@ -372,8 +314,7 @@ function main()
                 x,
                 Γ,
                 Sidi(),
-                Indirect(),
-            )
+                Indirect(),)
         end
 
         function s_enzyme(
@@ -469,10 +410,13 @@ function main()
         # )
 
         # Dirichlet Zeta Indirect
-        u, τ = solve(
-            laplace,
-            interior,
-            Dirichlet(σ),
+        u, τ = solve_and_evaluate(
+            BoundaryValueProblem(
+                laplace,
+                Dirichlet(σ),
+                interior,
+                Γ
+            ),
             indirect,
             D,
             H_zeta,
@@ -492,10 +436,13 @@ function main()
 
         # Dirichlet Sidi Direct
         # hypersingular operator using Sidi's staggered grid
-        u, τ = solve(
-            laplace,
-            interior,
-            Dirichlet(σ),
+        u, τ = solve_and_evaluate(
+            BoundaryValueProblem(
+                laplace,
+                Dirichlet(σ),
+                interior,
+                Γ
+            ),
             direct,
             D_star,
             H_sidi,
@@ -515,10 +462,13 @@ function main()
             )
         )
         # Dirichlet Sidi Indirect
-        u, τ = solve(
-            laplace,
-            interior,
-            Dirichlet(σ),
+        u, τ = solve_and_evaluate(
+            BoundaryValueProblem(
+                laplace,
+                Dirichlet(σ),
+                interior,
+                Γ
+            ),
             indirect,
             D,
             H_sidi,
@@ -542,20 +492,24 @@ function main()
         σ_exact = σ
         τ = τ_exact
 
-        u, σ = solve(
-            laplace,
-            interior,
-            Neumann(τ),
+        # Neumann Direct
+        u, σ = solve_and_evaluate(
+            BoundaryValueProblem(
+                laplace,
+                Neumann(τ),
+                interior,
+                Γ
+            ),
             direct,
             S,
             D,
             S_target,
             D_target,
         )
-        # "recover constant" in the original code...
+        # "recover constant" in the original code
         offset = u_exact[1] - u[1]
         u .+= offset
-        σ .+= offset # TODO: put this inside solver maybe and user passes integration constant
+        data(σ) .+= offset # TODO: put this inside solver maybe and user passes integration constant
         push!(
             num_solutions,
             NeumannSolution{Interior,Direct}(
@@ -566,10 +520,14 @@ function main()
                 norm(σ_exact - σ, Inf))
         )
 
-        u, σ = solve(
-            laplace,
-            interior,
-            Neumann(τ),
+        # Neumann indirect
+        u, σ = solve_and_evaluate(
+            BoundaryValueProblem(
+                laplace,
+                Neumann(τ),
+                interior,
+                Γ
+            ),
             indirect,
             S,
             D_star,
@@ -578,7 +536,7 @@ function main()
         # "recover constant" in the original code...
         offset = u_exact[1] - u[1]
         u .+= offset
-        σ .+= offset # TODO: put this inside solver maybe and user passes integration constant
+        data(σ) .+= offset # TODO: put this inside solver maybe and user passes integration constant
         push!(
             num_solutions,
             NeumannSolution{Interior,Indirect}(
@@ -590,7 +548,6 @@ function main()
             )
         )
 
-
     end
 
     return num_solutions
@@ -599,7 +556,8 @@ function main()
 end
 
 
+
 if abspath(PROGRAM_FILE) == @__FILE__
     using GLMakie
-    wait(display(plot_errors(main())))
+    wait(display(plot_errors(convergence_study())))
 end

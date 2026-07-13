@@ -1,10 +1,11 @@
 module BimDiff
 
 
+
 #
 # external packages
 #
-using CairoMakie
+using GLMakie
 using LinearAlgebra
 using StaticArrays
 using LinearSolve
@@ -15,12 +16,16 @@ using FFTW
 #
 abstract type IntegralOperator end
 
+
 # TODO: bvp should already be aware of not only the pde, but also type of bc, side of domain
 # solve stage should allow choice of approach
-abstract type BoundaryValueProblem end
-struct Laplace <: BoundaryValueProblem end
-struct Helmholtz <: BoundaryValueProblem end
-struct Stokes <: BoundaryValueProblem end
+abstract type DifferentialEquation end
+struct Laplace <: DifferentialEquation end
+struct Helmholtz <: DifferentialEquation end
+struct Stokes <: DifferentialEquation end
+
+
+
 
 abstract type HypersingularCorrection end
 struct Sidi <: HypersingularCorrection end
@@ -34,22 +39,13 @@ struct KapurRokhlin <: SingularCorrection
 end
 
 
-abstract type Side end
-struct Interior <: Side end
-struct Exterior <: Side end
+abstract type DomainSide end
+struct Interior <: DomainSide end
+struct Exterior <: DomainSide end
 
 abstract type Approach end
 struct Direct <: Approach end
 struct Indirect <: Approach end
-
-
-abstract type BoundaryCondition end
-struct Dirichlet <: BoundaryCondition
-    σ::AbstractVector
-end
-struct Neumann <: BoundaryCondition
-    τ::AbstractVector
-end
 
 
 #
@@ -57,37 +53,51 @@ end
 #
 include("finite_differences.jl")
 include("kapur_rokhlin_sep_log.jl")
+include("densities.jl")
 include("manifolds.jl")
 include("operators.jl")
 include("kernels.jl")
 include("solvers.jl")
 include("close_evaluation.jl")
 
+include("utils.jl")
 
 #
 # exports
 #
 export DiscreteClosedCurve, visualize
 
-export BoundaryValueProblem, Laplace, Helmholtz, Stokes
+export DifferentialEquation, Laplace, Helmholtz, Stokes
 export HypersingularCorrection, Sidi, Zeta
 export SingularCorrection, KapurRokhlin
-export Side, Interior, Exterior
+export DomainSide, Interior, Exterior
 export IntegralOperator, SingleLayer, DoubleLayer, AdjointDoubleLayer, Hypersingular
 export Approach, Direct, Indirect
 export BoundaryCondition, Dirichlet, Neumann
 export kernel
-export solve, solve_bie
 export cauchy_integral, compute_boundary_limit
 export compute_laplace_slp_matrix, compute_laplace_dlp_adjoint_matrix
+export BoundaryDensity, BoundaryCondition, Dirichlet, Neumann, data
+
+export kernel
+export BoundaryValueProblem, solve, evaluate, solve_and_evaluate
+
+export starfish, ball
+
+
 
 # trick lsp
 @static if false
-    # include("../scripts/*.jl")
     include("../scripts/main.jl")
     include("../scripts/precomputed_coeffs.jl")
-    include("../scripts/test_lap2d_hyper_bie.jl")
+
     include("../scripts/ellipse.jl")
+
+    include("../test/quick_test.jl")
+    include("../test/convergence/laplace_2d.jl")
+    include("../test/test_operators.jl")
+
+
 end
 
 end # module BimDiff
