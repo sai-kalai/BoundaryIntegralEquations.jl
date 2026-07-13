@@ -4,39 +4,58 @@ function matrix(op::IntegralOperator)::AbstractMatrix
     return op.matrix
 end
 
-function Base.:*(op::IntegralOperator, v::AbstractArray)
-    return matrix(op) * v
+# add scalar to the diagonal
+function Base.:+(op::IntegralOperator, s::Number)
+    return matrix(op) + I * s
+end
+function Base.:+(s::Number, op::IntegralOperator)
+    return op + s
+end
+function Base.:-(op::IntegralOperator, s::Number)
+    return op + (-1 * s)
+end
+function Base.:-(s::Number, op::IntegralOperator)
+    return op - s
 end
 
-function Base.:+(op::IntegralOperator, v::AbstractArray)
-    return matrix(op) + v
-end
 
-function Base.:*(v::AbstractArray, op::IntegralOperator)
-    return op * v
-end
+# function Base.:*(op::IntegralOperator, v::AbstractArray)
+#     return matrix(op) * v
+# end
+#
+# function Base.:+(op::IntegralOperator, v::AbstractArray)
+#     return matrix(op) + v
+# end
+#
+#
+# function Base.:*(v::AbstractArray, op::IntegralOperator)
+#     return op * v
+# end
+#
+# function Base.:+(v::AbstractArray, op::IntegralOperator)
+#     return op + v
+# end
 
-function Base.:+(v::AbstractArray, op::IntegralOperator)
-    return op + v
-end
+
 
 # a.k.a S
 struct SingleLayer{
-    P<:BoundaryValueProblem,
+    E<:DifferentialEquation,
     C<:Union{SingularCorrection,Nothing},
     M<:AbstractMatrix{<:Number}, # TODO: change order of members/constructor arguments to match order of generic parameters
     # TODO: include bitpattern of floating point representation as a type param
 } <: IntegralOperator
-    problem::P
+    equation::E
     correction::C
     matrix::M
 end
 
-default_allocator = (_m, _n) -> zeros( _m, _n)
+# TODO: fix undef allocator
+default_allocator = (_m, _n) -> zeros(_m, _n)
 
 # source-target interaction
 function SingleLayer(
-    problem::Laplace,
+    equation::Laplace,
     source::AbstractManifold, # source manifold e.g. domain boundary
     target::AbstractMatrix; # target points to compute operator
     matrix_factory::Function=default_allocator,
@@ -46,12 +65,12 @@ function SingleLayer(
         source.x;
         matrix_factory=matrix_factory
     ) .* source.w'
-    return SingleLayer(problem, nothing, mat)
+    return SingleLayer(equation, nothing, mat)
 end
 
 # self interaction
 function SingleLayer(
-    problem::Laplace,
+    equation::Laplace,
     source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
     correction::SingularCorrection; # order of kapur rokhlin singular correction
     matrix_factory::Function=default_allocator,
@@ -62,21 +81,22 @@ function SingleLayer(
         correction.order;
         matrix_factory
     ) .* source.w'
-    return SingleLayer(problem, correction, mat)
+    return SingleLayer(equation, correction, mat)
+
 end
 
 # a.k.a D a.k.a. ∂S/∂ny
 struct DoubleLayer{
-    P<:BoundaryValueProblem,
+    E<:DifferentialEquation,
     M<:AbstractMatrix{<:Number}
 } <: IntegralOperator
-    problem::P
+    equation::E
     matrix::M
 end
 
 # source-target interaction
 function DoubleLayer(
-    problem::Laplace,
+    equation::Laplace,
     source::AbstractManifold, # source manifold e.g. domain boundary
     target::AbstractMatrix; # target points to compute operator
     matrix_factory::Function=default_allocator,
@@ -88,12 +108,13 @@ function DoubleLayer(
         matrix_factory=matrix_factory,
     ) .* source.w'
 
-    return DoubleLayer(problem, mat)
+    return DoubleLayer(equation, mat)
+
 end
 
 # self interaction
 function DoubleLayer(
-    problem::Laplace,
+    equation::Laplace,
     source::AbstractManifold;
     matrix_factory::Function=default_allocator,
 )
@@ -105,15 +126,15 @@ function DoubleLayer(
         matrix_factory=matrix_factory,
     ) .* source.w'
 
-    return DoubleLayer(problem, mat)
+    return DoubleLayer(equation, mat)
 end
 
 # a.k.a  D* a.k.a. ∂S/∂nx
 struct AdjointDoubleLayer{
-    P<:BoundaryValueProblem,
+    E<:DifferentialEquation,
     M<:AbstractMatrix{<:Number}
 } <: IntegralOperator
-    problem::P
+    equation::E
     matrix::M
 end
 
@@ -121,7 +142,7 @@ end
 
 # self interaction
 function AdjointDoubleLayer(
-    problem::Laplace,
+    equation::Laplace,
     source::AbstractManifold; # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
     matrix_factory::Function=default_allocator,
 )
@@ -132,16 +153,38 @@ function AdjointDoubleLayer(
         source.k;
         matrix_factory=matrix_factory,
     ) .* source.w' # TODO: check if weights do go here
-    return AdjointDoubleLayer(problem, mat)
+    return AdjointDoubleLayer(equation, mat)
+end
+
+# source-target interaction: edge case for manufactured solution
+function AdjointDoubleLayer(
+    equation::Laplace,
+    source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    target::AbstractMatrix,
+    target_normals::AbstractMatrix;
+    matrix_factory::Function=default_allocator,
+)
+
+
+    mat = compute_laplace_dlp_adjoint_matrix(
+        target,
+        source.x,
+        target_normals,
+        ;
+        matrix_factory=matrix_factory)
+
+
+    return AdjointDoubleLayer(equation, mat)
+
 end
 
 # a.k.a  N a.k.a. ∂S²/∂nx∂ny
 struct Hypersingular{
-    P<:BoundaryValueProblem,
+    E<:DifferentialEquation,
     C<:HypersingularCorrection,
     M<:AbstractMatrix{<:Number},
 } <: IntegralOperator
-    problem::P
+    equation::E
     correction::C
     matrix::M
 end
@@ -150,8 +193,9 @@ end
 
 # self interaction using zeta correction
 function Hypersingular(
-    problem::Laplace,
-    source::AbstractManifold, # TODO: abstract manifold is no good, need to ensure that passed object has n, k, ...
+    equation::Laplace,
+    # TODO: change order to equation -> correction -> source to be more similar to other constructor
+    source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
     correction::Zeta;
     matrix_factory::Function=default_allocator,
 )
@@ -164,15 +208,16 @@ function Hypersingular(
         matrix_factory=matrix_factory,
     )
 
-    mat[diagind(mat)] .+= -π / 6 ./ source.w + source.k .^ 2 .* source.w ./ 4π
+    # mat[diagind(mat)] .+= -π / 6 ./ source.w + source.k .^ 2 .* source.w ./ 4π
 
-    return Hypersingular(problem, correction, mat,)
+    return Hypersingular(equation, correction, mat,)
+
 end
 
 
 # self interaction using Sidi correction
 function Hypersingular(
-    problem::Laplace,
+    equation::Laplace,
     source::AbstractManifold,
     correction::Sidi;
     matrix_factory::Function=default_allocator,
@@ -185,9 +230,8 @@ function Hypersingular(
 
     mat[diagind(mat)] .= -pi / 4 ./ source.w
 
-    return Hypersingular(problem, correction, mat)
+    return Hypersingular(equation, correction, mat)
 end
-
 
 
 function make_svector2(matrix, row)
@@ -396,12 +440,10 @@ function compute_laplace_hypersingular_matrix(
     ny::AbstractMatrix;
     matrix_factory::Function=default_allocator,
 )
-
     n, dim_x = size(y)
-
     mat = matrix_factory(n, n)
 
-    @inbounds for i in 1:n
+    for i in 1:n
 
         # TODO: measure: is it faster to do it here or outside the loop?
         # or leave diagonal empty and let quadrature client handle diagonal
@@ -426,6 +468,14 @@ function compute_laplace_hypersingular_matrix(
 
             mat[i, j] = val
             mat[j, i] = val
+
+        end
+
+        # zero-out other entries for supporting undef initializer
+        for j in (2-mod(i, 2)):2:(i-1)
+
+            mat[i, j] = 0
+            mat[j, i] = 0
 
         end
     end
@@ -457,9 +507,9 @@ function compute_laplace_hypersingular_matrix(
     stencil = [stencil[end:-1:2]; stencil] # TODO: make this prettier
 
     # `x` in the paper, i.e. for each point in the manifold, each row in the matrix
-    @inbounds for i in n:-1:1
+    for i in n:-1:1
 
-        # dD_dn[i, i] = -π / 6 / weights[i] + curvatures[i]^2 * weights[i] / 4π
+        mat[i, i] = -π / 6 / weights[i] + curvatures[i]^2 * weights[i] / 4π
 
         # first sum: compute for other points  in the manifold the dlp normal derivative
         for j in 1:(i-1)
@@ -498,7 +548,6 @@ function compute_laplace_hypersingular_matrix(
             # TODO: remove branch
             if i == j
                 B = 0.
-
             end
 
             # g(j) = n(i) ⋅ n(j) |ρ'(j)|/(2π |ρ'(i)|) * (1 - B + B^2)
