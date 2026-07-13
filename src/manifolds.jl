@@ -32,10 +32,54 @@ struct DiscreteClosedCurve{
     k::TK # curvatures # TODO: think 2d vs 3d
     w::TW # weights # TODO: enforce that these be vectors
     cw::CW
+
+    """
+        make_dummy_curve(x)
+
+    makes a dummy boundary containing only locations and unitary weights
+
+    # Arguments
+    - `x`: locations
+    """
+end
+
+
+function make_dummy_curve(x)
+    n, dim_x = size(x)
+
+    one_1d = ones(n)
+    zero_nd = zeros((n, dim_x))
+    zero_1d = zeros(n)
+    zero_cmp=zeros(ComplexF64, n)
+
+
+    return DiscreteClosedCurve(
+        x,
+        zero_nd, #v
+        zero_nd, #a
+        zero_1d, #s
+        zero_nd, #t
+        zero_nd, #n
+        zero_1d, #k
+        one_1d, #w
+        zero_cmp,
+    )
+
 end
 
 
 
+"""
+    DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMatrix)
+
+given positions, velocities, and accelerations of the curve parametrization,
+compute the remaining parameters
+
+# Arguments
+- `x::AbstractMatrix`: location of the points
+- `v::AbstractMatrix`: velocity of the curve at each point
+- `a::AbstractMatrix`: acceleration of the curve at each point
+"""
 function DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMatrix)
 
     # TODO: assert shape
