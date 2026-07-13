@@ -21,6 +21,16 @@ end
 #
 
 #given operators
+"""
+    solve(problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}, ::Direct, D_star::AdjointDoubleLayer, H::Hypersingular)
+
+[TODO:description]
+
+# Arguments
+- `problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}`: [TODO:description]
+- `D_star::AdjointDoubleLayer`: [TODO:description]
+- `H::Hypersingular`: [TODO:description]
+"""
 function solve(
     problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     ::Direct,
