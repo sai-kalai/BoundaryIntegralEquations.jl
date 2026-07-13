@@ -254,7 +254,7 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
     n_source = size(x_source, 1)
 
 
-    Γ_source = DiscreteClosedCurve(x_source)
+    Γ_source = make_dummy_curve(x_source)
 
     S_manuf = SingleLayer(laplace, Γ_source, x_test; matrix_factory=allocator)
 
@@ -281,8 +281,8 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
         # break
 
         # target: domain boundary, source: manufactured solution point sources
-        S_source = compute_laplace_slp_matrix(Γ.x, x_source)
-        D_star_source = compute_laplace_dlp_adjoint_matrix(Γ.x, x_source, Γ.n)
+        S_source = SingleLayer(laplace, Γ_source, Γ.x; matrix_factory=allocator)
+        D_star_source = AdjointDoubleLayer(laplace, Γ_source, Γ.x, Γ.n; matrix_factory=allocator)
 
 
         σ = S_source * density_source # Dirichlet BC

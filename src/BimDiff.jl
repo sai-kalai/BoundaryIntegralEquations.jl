@@ -64,7 +64,7 @@ include("utils.jl")
 #
 # exports
 #
-export DiscreteClosedCurve, visualize
+export DiscreteClosedCurve, visualize, make_dummy_curve
 
 export DifferentialEquation, Laplace, Helmholtz, Stokes
 export HypersingularCorrection, Sidi, Zeta
