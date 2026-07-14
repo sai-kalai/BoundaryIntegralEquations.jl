@@ -29,7 +29,7 @@ function solve(
 )::Neumann
     # TODO: work in place to avoid allocating a new matrix
     A = -0.5 + D_star # TODO: replace \ by LinearSolve
-    τ = A \ (H * problem.bc)
+    τ = solve_linear_system(A, (H * problem.bc))
     return Neumann(τ) # this is actually already the unknown Neumann data
 end
 
@@ -94,26 +94,22 @@ function solve_and_evaluate(
     return u, τ
 end
 
-function solve_bie(
-    ::Laplace,
-    ::Interior,
-    bc::Dirichlet,
-    D::DoubleLayer,
-)
-    pbm = LinearSolve.LinearProblem(-0.5 * I + matrix(D), bc.σ)
-    sln = LinearSolve.solve(pbm)
+function solve_linear_system(A, b; algorithm=nothing)
+    pbm = LinearSolve.LinearProblem(A, b)
+    sln = LinearSolve.solve(pbm, algorithm)
     # return lu(-0.5 * I + matrix(D)) \ bc.σ # auxiliary variable
     return sln.u
-
 end
-#
+
+
 # compute operators
 function solve_and_evaluate(
     problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     approach::Direct,
     correction::HypersingularCorrection,
     target::AbstractMatrix;
-    matrix_factory::Function=default_allocator,)::Tuple{AbstractVector,Neumann}
+    matrix_factory::Function=default_allocator,
+)::Tuple{AbstractVector,Neumann}
     density = solve(problem, approach, correction; matrix_factory=matrix_factory)
     u, τ = evaluate(problem, approach, density, target; matrix_factory=matrix_factory)
     return u, τ
@@ -130,8 +126,7 @@ function solve(
     D::DoubleLayer
 )::BoundaryDensity
 
-    φ = (-0.5 + D) \ problem.bc.σ
-
+    φ = solve_linear_system(-0.5 + D, problem.bc.σ)
     return BoundaryDensity(φ)
 end
 
@@ -226,9 +221,9 @@ function solve(
     D::DoubleLayer,
 )::Dirichlet
 
-    σ = Dirichlet((0.5 + D) \ (S * problem.bc))
+    σ = solve_linear_system((0.5 + D), (S * problem.bc))
 
-    return σ
+    return Dirichlet(σ)
 end
 
 # compute operators
@@ -319,7 +314,7 @@ function solve(
     D_star,
 )::BoundaryDensity
 
-    ψ = (0.5 + D_star) \ problem.bc.τ
+    ψ = solve_linear_system((0.5 + D_star), problem.bc.τ)
 
     return BoundaryDensity(ψ)
 end
