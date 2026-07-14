@@ -263,7 +263,6 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
     u_exact_reference = reference_exact_solution()
 
     # @assert norm(u_exact - u_exact_reference) < 1e-15
-    display(u_exact - u_exact_reference)
     @test u_exact ≈ u_exact_reference atol=1e-15
 
     # scatter!(ax, x_test[:, 1], x_test[:, 2], color=u_exact)
@@ -278,8 +277,9 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
     for (i, n) ∈ enumerate(n_vals)
 
         Γ = DiscreteClosedCurve(n, starfish) # boundary of the domain
+        d_curve = Enzyme.make_zero(Γ)
 
-        fig, ax = visualize(Γ)
+        # fig, ax = visualize(Γ)
         # wait(display(fig))
         # break
 
@@ -307,95 +307,49 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
         s = (x) -> begin
             bc = Dirichlet(σ)
-            solve(
+            pb = BoundaryValueProblem(
                 laplace,
+                bc,
                 interior,
-                bc, # TODO: since one kernel matrix can be applied to several BCs, overload accepting vector of BC
-                x,
-                Γ,
-                Sidi(),
-                Indirect(),)
-        end
-
-        function s_enzyme(
-            x,
-            σ,
-        )
-            bc = Dirichlet(σ)
-            u, _ = solve(
-                laplace,
-                interior,
-                bc, # TODO: since one kernel matrix can be applied to several BCs, overload accepting vector of BC
-                x,
-                Γ,
-                Sidi(),
-                Indirect(),
+                Γ
             )
-            return u
+
+            return solve_and_evaluate(
+                pb,
+                Indirect(),
+                Sidi(),
+                x,
+            )
         end
 
         @time u, τ = s(x_test)
 
 
-        # allocate input shadow memory
-        bx = zero(x_test);
-        by = zero(x_test);
-        bb = zero(σ)
-
-        bx[:, 1] .= 1.;
-        by[:, 2] .= 1.;
+        prob = BoundaryValueProblem(
+            laplace,
+            Dirichlet(σ),
+            interior,
+            Γ
+        )
 
 
         @time begin
-            fwd1 = autodiff(
-                ForwardWithPrimal,
-                Const(s_enzyme),
-                Duplicated(x_test, bx),
-                Duplicated(σ, bb), # seemingly very important to add
-            )
-
-            fwd2 = autodiff(
-                ForwardWithPrimal,
-                Const(s_enzyme),
-                Duplicated(x_test, by),
-                Duplicated(σ, bb), # seemingly very important to add
-            )
+            g2 = spatial_gradient(Forward, prob, x_test, indirect, sidi)
         end
-
-        scatter!(ax, x_test[:, 1], x_test[:, 2]; color=u)
-        # arrows2d!(ax, x_test[:, 1], x_test[:, 2], enz1[1], enz2[1]; normalize=true)
 
         @time begin
-            forward, reverse = autodiff_thunk(
-                ReverseSplitWithPrimal,
-                Const{typeof(s_enzyme)},
-                Duplicated,
-                Duplicated{typeof(x_test)},
-                Duplicated{typeof(σ)},
-            )
-
-            shadow_x_test = zero(x_test)
-            shadow_σ = zero(σ)
-
-            tape, result, shadow_result = forward(
-                Const(s_enzyme),
-                Duplicated(x_test, shadow_x_test),
-                Duplicated(σ, shadow_σ)
-            )
-
-            shadow_result.=1.
-
-            rev = reverse(
-                Const(s_enzyme),
-                Duplicated(x_test, shadow_x_test),
-                Duplicated(σ, shadow_σ),
-                tape,
-            )
-
+            g3 = spatial_gradient(Enzyme.Reverse, prob, x_test, indirect, sidi)
         end
 
+        @test g2 ≈ g3
 
+        # @test shadow_x_test ≈ [fwd1[1];; fwd2[1]]
+        display(g3)
+
+
+        # wait(display(fig))
         break
+
 
         # push!(
         #     num_solutions,
