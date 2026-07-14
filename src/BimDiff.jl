@@ -8,8 +8,9 @@ module BimDiff
 using GLMakie
 using LinearAlgebra
 using StaticArrays
-using LinearSolve
 using FFTW
+using LinearSolve
+
 
 #
 # type definitions
@@ -48,6 +49,9 @@ struct Direct <: Approach end
 struct Indirect <: Approach end
 
 
+
+function spatial_gradient end
+
 #
 # includes
 #
@@ -83,6 +87,8 @@ export kernel
 export BoundaryValueProblem, solve, evaluate, solve_and_evaluate
 
 export starfish, ball
+
+export spatial_gradient
 
 
 
