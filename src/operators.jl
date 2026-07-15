@@ -4,7 +4,7 @@ function matrix(op::IntegralOperator)::AbstractMatrix
     return op.matrix
 end
 
-# add scalar to the diagonal
+# add scalar to the diagonal, returns a matrix
 function Base.:+(op::IntegralOperator, s::Number)
     return matrix(op) + I * s
 end
@@ -505,7 +505,7 @@ function compute_laplace_hypersingular_matrix(
 
     stencil = fdcoeffs(2, k)
 
-    stencil = [stencil[end:-1:2]; stencil] # TODO: make this prettier
+    # stencil = [stencil[end:-1:2]; stencil] # TODO: make this prettier
 
     # `x` in the paper, i.e. for each point in the manifold, each row in the matrix
     for i in n:-1:1
@@ -558,7 +558,7 @@ function compute_laplace_hypersingular_matrix(
 
             g = nx_dot_ny * weights[j] / (weights[i]^2) * (1 - B + B^2)
 
-            mat[i, j] += stencil[dj+k+1] * g / 4π
+            mat[i, j] += stencil[abs(dj)+1] * g / 4π
 
         end
 
