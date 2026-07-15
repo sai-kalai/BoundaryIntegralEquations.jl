@@ -40,7 +40,50 @@ Try to make one branch for each
 
 - [ ] array of structures instead of structure of arrays
 
+- [ ] Solution struct, following SciML guidelines
+
+- [ ] write unit tests for autodiff, verify with ForwardDiff/analytical
 
 
 
+Meeting with Dean
 
+- documentation !!!
+- bonus: use documentation to write thesis
+
+- close field switching policy
+    - error analysis: how to identify when error grows for a better policy
+    - smoother transition in error
+
+
+- exterior points
+
+- map2disc
+- Helmholtz on hold
+- CI CD github action
+
+- journal paper: this is the problem and method
+
+- JOSS maybe publication
+- Andreas Buchheit
+
+
+# TIL
+it's not possible to use different types of activity in two struct fields with
+Enzyme
+
+
+
+# Journal
+
+It is possible to need derivatives of
+
+
+the solution w.r.t.
+- coordinates (i.e. spatial gradient of solution at evaluation points)
+- relevant for evaluation of solved BIE
+
+a functional, e.g. avg. jacobian of map2disc, for optimization w.r.t
+- boundary geometry
+- boundary conditions
+- relevant for optimization loops of solve

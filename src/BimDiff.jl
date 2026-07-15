@@ -5,7 +5,6 @@ module BimDiff
 #
 # external packages
 #
-using GLMakie
 using LinearAlgebra
 using StaticArrays
 using FFTW
