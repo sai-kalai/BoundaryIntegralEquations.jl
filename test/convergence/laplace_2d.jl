@@ -280,6 +280,7 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
 
         # fig, ax = visualize(Γ)
+
         # wait(display(fig))
         # break
 

@@ -91,6 +91,8 @@ export starfish, ball
 export spatial_gradient
 
 
+function visualize() end
+
 
 # trick lsp
 @static if false
