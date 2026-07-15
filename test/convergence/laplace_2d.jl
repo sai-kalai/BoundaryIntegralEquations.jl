@@ -15,6 +15,7 @@
 using Test
 using Revise
 
+using GLMakie
 
 
 using LinearAlgebra
@@ -486,6 +487,5 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    using GLMakie
     wait(display(plot_errors(convergence_study())))
 end

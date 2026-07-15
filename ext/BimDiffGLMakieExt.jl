@@ -1,6 +1,6 @@
 
 
-module BimDiffEnzymeExt
+module BimDiffGLMakieExt
 
 using BimDiff
 using GLMakie
