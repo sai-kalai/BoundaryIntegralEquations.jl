@@ -4,12 +4,14 @@ function fdcoeffs(derivative_order::Int, accuracy_order::Int)::Vector{Float64}
 
 
         stencil = get!(precomputed_coeffs_first, accuracy_order) do
+            error("order $accuracy_order not supported")
             compute_coeffs_first(accuracy_order)
         end
 
 
     elseif derivative_order == 2
         stencil = get!(precomputed_coeffs_second, accuracy_order) do
+            error("order $accuracy_order not supported")
             compute_coeffs_second(accuracy_order)
         end
 
@@ -53,7 +55,7 @@ function compute_coeffs_second(k::Int)
         cd = A \ b
 
         display(k)
-        display(A[end-5:end, end-5:end])
+        display(A[(end-5):end, (end-5):end])
         display(b)
         display(cd)
         return cd
@@ -61,7 +63,7 @@ function compute_coeffs_second(k::Int)
 end
 
 # TODO move this to config file, populate by solving system
-precomputed_coeffs_second = Dict{Int32,Vector{Float64}}(
+const precomputed_coeffs_second = Dict{Int32,Vector{Float64}}(
     0 => [0],
     1 => [-2, 1],
     2 => [-30, 16, -1] / 12,
@@ -327,7 +329,7 @@ precomputed_coeffs_second = Dict{Int32,Vector{Float64}}(
         -3.901475667559581e-13
         8.425603428484139e-15],)
 
-precomputed_coeffs_first = Dict{Int32,Vector{Float64}}(
+const precomputed_coeffs_first = Dict{Int32,Vector{Float64}}(
     0 => [0,],
     1 => [0.5,],
     2 => [8, -1] / 12,
