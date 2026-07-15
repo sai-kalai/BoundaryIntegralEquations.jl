@@ -9,7 +9,7 @@
 [![ColPrac: Contributor's Guide on Collaborative Practices](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
 [![Code Style: Blue](https://img.shields.io/badge/code%20style-blue-4485ed.svg)](https://github.com/invenia/BlueStyle)
 
-> Boundary Integral Methods with Differentiation in Julia.
+> Boundary Integral Methods with Automatic Differentiation in Julia.
 
 `BoundaryIntegralEquations.jl` is a Julia package for solving boundary integral equations with an emphasis on differentiable scientific computing. It provides high-order boundary integral operators, numerical quadrature, finite-difference utilities, and support for automatic differentiation, making it suitable for PDE-constrained optimization, inverse problems, and shape optimization.
 
