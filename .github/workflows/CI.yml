@@ -66,6 +66,6 @@ jobs:
         shell: julia --project=docs --color=yes {0}
         run: |
           using Documenter: DocMeta, doctest
-          using BoundaryIntegralMethods
-          DocMeta.setdocmeta!(BoundaryIntegralMethods, :DocTestSetup, :(using BoundaryIntegralMethods); recursive=true)
-          doctest(BoundaryIntegralMethods)
+          using BoundaryIntegralEquations
+          DocMeta.setdocmeta!(BoundaryIntegralEquations, :DocTestSetup, :(using BoundaryIntegralEquations); recursive=true)
+          doctest(BoundaryIntegralEquations)
