@@ -1,8 +1,6 @@
 
 # Extension package for enzyme automatic differentiation
 #
-#
-
 module BimDiffEnzymeExt
 
 using BimDiff

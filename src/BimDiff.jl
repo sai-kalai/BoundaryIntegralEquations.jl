@@ -5,7 +5,6 @@ module BimDiff
 #
 # external packages
 #
-using GLMakie
 using LinearAlgebra
 using StaticArrays
 using FFTW
@@ -51,6 +50,7 @@ struct Indirect <: Approach end
 
 
 function spatial_gradient end
+function visualize end
 
 #
 # includes
