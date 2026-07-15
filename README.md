@@ -1,19 +1,19 @@
 # BoundaryIntegralEquations
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://sai-kalai.github.io/BoundaryIntegralMethods.jl/stable/)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://sai-kalai.github.io/BoundaryIntegralMethods.jl/dev/)
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://sai-kalai.github.io/BoundaryIntegralMethods.jl/stable/)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://sai-kalai.github.io/BoundaryIntegralMethods.jl/dev/)
-[![Build Status](https://github.com/sai-kalai/BoundaryIntegralMethods.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/sai-kalai/BoundaryIntegralMethods.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Build Status](https://app.travis-ci.com/sai-kalai/BoundaryIntegralMethods.jl.svg?branch=main)](https://app.travis-ci.com/sai-kalai/BoundaryIntegralMethods.jl)
-[![Build Status](https://ci.appveyor.com/api/projects/status/github/sai-kalai/BoundaryIntegralMethods.jl?svg=true)](https://ci.appveyor.com/project/sai-kalai/BoundaryIntegralMethods-jl)
-[![Build Status](https://api.cirrus-ci.com/github/sai-kalai/BoundaryIntegralMethods.jl.svg)](https://cirrus-ci.com/github/sai-kalai/BoundaryIntegralMethods.jl)
-[![Coverage](https://codecov.io/gh/sai-kalai/BoundaryIntegralMethods.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/sai-kalai/BoundaryIntegralMethods.jl)
-[![Coverage](https://coveralls.io/repos/github/sai-kalai/BoundaryIntegralMethods.jl/badge.svg?branch=main)](https://coveralls.io/github/sai-kalai/BoundaryIntegralMethods.jl?branch=main)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://sai-kalai.github.io/BoundaryIntegralEquations.jl/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://sai-kalai.github.io/BoundaryIntegralEquations.jl/dev/)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://sai-kalai.github.io/BoundaryIntegralEquations.jl/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://sai-kalai.github.io/BoundaryIntegralEquations.jl/dev/)
+[![Build Status](https://github.com/sai-kalai/BoundaryIntegralEquations.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/sai-kalai/BoundaryIntegralEquations.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Build Status](https://app.travis-ci.com/sai-kalai/BoundaryIntegralEquations.jl.svg?branch=main)](https://app.travis-ci.com/sai-kalai/BoundaryIntegralEquations.jl)
+[![Build Status](https://ci.appveyor.com/api/projects/status/github/sai-kalai/BoundaryIntegralEquations.jl?svg=true)](https://ci.appveyor.com/project/sai-kalai/BoundaryIntegralEquations-jl)
+[![Build Status](https://api.cirrus-ci.com/github/sai-kalai/BoundaryIntegralEquations.jl.svg)](https://cirrus-ci.com/github/sai-kalai/BoundaryIntegralEquations.jl)
+[![Coverage](https://codecov.io/gh/sai-kalai/BoundaryIntegralEquations.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/sai-kalai/BoundaryIntegralEquations.jl)
+[![Coverage](https://coveralls.io/repos/github/sai-kalai/BoundaryIntegralEquations.jl/badge.svg?branch=main)](https://coveralls.io/github/sai-kalai/BoundaryIntegralEquations.jl?branch=main)
 
 > Boundary Integral Methods with Differentiation in Julia.
 
-`BimDiff.jl` is a Julia package for solving boundary integral equations with an emphasis on differentiable scientific computing. It provides high-order boundary integral operators, numerical quadrature, finite-difference utilities, and support for automatic differentiation, making it suitable for PDE-constrained optimization, inverse problems, and shape optimization.
+`BoundaryIntegralEquations.jl` is a Julia package for solving boundary integral equations with an emphasis on differentiable scientific computing. It provides high-order boundary integral operators, numerical quadrature, finite-difference utilities, and support for automatic differentiation, making it suitable for PDE-constrained optimization, inverse problems, and shape optimization.
 
 The package is designed around modular operators and kernels, allowing researchers to prototype and experiment with boundary integral methods while leveraging Julia's performance and composability.
 
@@ -52,7 +52,7 @@ Pkg.instantiate()
 
 ```
 src/
-├── BimDiff.jl                 # Package entry point
+├── BoundaryIntegralEquations.jl                 # Package entry point
 ├── kernels.jl                 # Boundary integral kernels
 ├── operators.jl               # Integral operators
 ├── densities.jl               # Density representations
@@ -64,7 +64,7 @@ src/
 └── utils.jl                   # Shared utilities
 
 ext/
-└── BimDiffEnzymeExt.jl        # Enzyme automatic differentiation extension
+└── BoundaryIntegralEquationsEnzymeExt.jl        # Enzyme automatic differentiation extension
 
 scripts/
 ├── main.jl
@@ -120,7 +120,7 @@ The package currently includes implementations related to
 
 ## Development Status
 
-`BimDiff.jl` is an active research project under development. APIs may change as new algorithms and numerical methods are incorporated.
+`BoundaryIntegralEquations.jl` is an active research project under development. APIs may change as new algorithms and numerical methods are incorporated.
 
 ## Contributing
 

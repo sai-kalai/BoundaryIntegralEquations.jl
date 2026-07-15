@@ -1,4 +1,4 @@
-name = "BimDiff"
+name = "BoundaryIntegralEquations"
 uuid = "58b2a5b9-46a1-47d2-a141-e25d04a557d9"
 version = "0.1.0"
 authors = ["simon cadavid <simon.cadavid98@gmail.com>"]
@@ -22,7 +22,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 
 [extensions]
-BimDiffGLMakieExt = "GLMakie"
+BoundaryIntegralEquationsGLMakieExt = "GLMakie"
 
 [compat]
 BenchmarkTools = "1.8.0"

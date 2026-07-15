@@ -1,14 +1,14 @@
-using BoundaryIntegralMethods
+using BoundaryIntegralEquations
 using Documenter
 
-DocMeta.setdocmeta!(BoundaryIntegralMethods, :DocTestSetup, :(using BoundaryIntegralMethods); recursive=true)
+DocMeta.setdocmeta!(BoundaryIntegralEquations, :DocTestSetup, :(using BoundaryIntegralEquations); recursive=true)
 
 makedocs(;
-    modules=[BoundaryIntegralMethods],
+    modules=[BoundaryIntegralEquations],
     authors="Simón Cadavid",
-    sitename="BoundaryIntegralMethods.jl",
+    sitename="BoundaryIntegralEquations.jl",
     format=Documenter.HTML(;
-        canonical="https://sai-kalai.github.io/BoundaryIntegralMethods.jl",
+        canonical="https://sai-kalai.github.io/BoundaryIntegralEquations.jl",
         edit_link="main",
         assets=String[],
     ),
@@ -18,6 +18,6 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/sai-kalai/BoundaryIntegralMethods.jl",
+    repo="github.com/sai-kalai/BoundaryIntegralEquations.jl",
     devbranch="main",
 )

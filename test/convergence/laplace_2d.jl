@@ -20,7 +20,7 @@ using GLMakie
 
 using LinearAlgebra
 
-using BimDiff
+using BoundaryIntegralEquations
 
 
 include("../fixtures.jl")

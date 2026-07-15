@@ -1,4 +1,4 @@
-module BimDiff
+module BoundaryIntegralEquations
 
 
 
@@ -92,4 +92,4 @@ export starfish, ball
     include.(filter(contains(r".jl$"), readdir("../test/"; join=true)))
 end
 
-end # module BimDiff
+end # module BoundaryIntegralEquations

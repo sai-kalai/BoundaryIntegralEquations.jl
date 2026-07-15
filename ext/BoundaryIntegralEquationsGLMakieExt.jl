@@ -1,8 +1,8 @@
 
 
-module BimDiffGLMakieExt
+module BoundaryIntegralEquationsGLMakieExt
 
-using BimDiff
+using BoundaryIntegralEquations
 using GLMakie
 
 function visualize(m::DiscreteClosedCurve)

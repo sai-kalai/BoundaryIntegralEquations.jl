@@ -1,14 +1,14 @@
 ```@meta
-CurrentModule = BoundaryIntegralMethods
+CurrentModule = BoundaryIntegralEquations
 ```
 
-# BoundaryIntegralMethods
+# BoundaryIntegralEquations
 
-Documentation for [BoundaryIntegralMethods](https://github.com/sai-kalai/BoundaryIntegralMethods.jl).
+Documentation for [BoundaryIntegralEquations](https://github.com/sai-kalai/BoundaryIntegralEquations.jl).
 
 ```@index
 ```
 
 ```@autodocs
-Modules = [BoundaryIntegralMethods]
+Modules = [BoundaryIntegralEquations]
 ```

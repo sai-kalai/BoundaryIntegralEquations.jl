@@ -1,4 +1,4 @@
-using BimDiff
+using BoundaryIntegralEquations
 using Test
 
 
