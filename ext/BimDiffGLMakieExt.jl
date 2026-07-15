@@ -1,11 +1,11 @@
 
 
-module BimDiffEnzymeExt
+module BimDiffGLMakieExt
 
 using BimDiff
 using GLMakie
 
-function visualize(m::DiscreteClosedCurve)
+function BimDiff.visualize(m::DiscreteClosedCurve)
 
     fig = Figure()
     ax = Axis(fig[1, 1]; aspect=DataAspect())

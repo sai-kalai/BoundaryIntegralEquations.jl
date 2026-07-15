@@ -276,6 +276,7 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
         Γ = DiscreteClosedCurve(n, starfish) # boundary of the domain
 
+
         # fig = visualize(Γ)
         # wait(display(fig))
         # break

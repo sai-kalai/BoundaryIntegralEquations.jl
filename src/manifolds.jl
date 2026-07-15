@@ -33,14 +33,6 @@ struct DiscreteClosedCurve{
     w::TW # weights # TODO: enforce that these be vectors
     cw::CW
 
-    """
-        make_dummy_curve(x)
-
-    makes a dummy boundary containing only locations and unitary weights
-
-    # Arguments
-    - `x`: locations
-    """
 end
 
 
