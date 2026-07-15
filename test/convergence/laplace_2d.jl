@@ -15,11 +15,11 @@
 using Test
 using Revise
 
+using Enzyme
+
 
 
 using LinearAlgebra
-using Enzyme
-using GLMakie
 
 using BimDiff
 
@@ -277,7 +277,7 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
     for (i, n) ∈ enumerate(n_vals)
 
         Γ = DiscreteClosedCurve(n, starfish) # boundary of the domain
-        d_curve = Enzyme.make_zero(Γ)
+
 
         # fig, ax = visualize(Γ)
         # wait(display(fig))
@@ -324,7 +324,6 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
         @time u, τ = s(x_test)
 
-
         prob = BoundaryValueProblem(
             laplace,
             Dirichlet(σ),
@@ -332,24 +331,17 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
             Γ
         )
 
-
         @time begin
-            g2 = spatial_gradient(Forward, prob, x_test, indirect, sidi)
+            g2 = spatial_gradient(Forward, prob, x_test, indirect, zeta)
         end
 
         @time begin
-            g3 = spatial_gradient(Enzyme.Reverse, prob, x_test, indirect, sidi)
+            g3 = spatial_gradient(Enzyme.Reverse, prob, x_test, indirect, zeta)
         end
 
         @test g2 ≈ g3
 
-        # @test shadow_x_test ≈ [fwd1[1];; fwd2[1]]
-        display(g3)
-
-
-        # wait(display(fig))
         break
-
 
         # push!(
         #     num_solutions,
