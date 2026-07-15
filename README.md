@@ -2,14 +2,12 @@
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://sai-kalai.github.io/BoundaryIntegralEquations.jl/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://sai-kalai.github.io/BoundaryIntegralEquations.jl/dev/)
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://sai-kalai.github.io/BoundaryIntegralEquations.jl/stable/)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://sai-kalai.github.io/BoundaryIntegralEquations.jl/dev/)
+
 [![Build Status](https://github.com/sai-kalai/BoundaryIntegralEquations.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/sai-kalai/BoundaryIntegralEquations.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Build Status](https://app.travis-ci.com/sai-kalai/BoundaryIntegralEquations.jl.svg?branch=main)](https://app.travis-ci.com/sai-kalai/BoundaryIntegralEquations.jl)
-[![Build Status](https://ci.appveyor.com/api/projects/status/github/sai-kalai/BoundaryIntegralEquations.jl?svg=true)](https://ci.appveyor.com/project/sai-kalai/BoundaryIntegralEquations-jl)
-[![Build Status](https://api.cirrus-ci.com/github/sai-kalai/BoundaryIntegralEquations.jl.svg)](https://cirrus-ci.com/github/sai-kalai/BoundaryIntegralEquations.jl)
 [![Coverage](https://codecov.io/gh/sai-kalai/BoundaryIntegralEquations.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/sai-kalai/BoundaryIntegralEquations.jl)
-[![Coverage](https://coveralls.io/repos/github/sai-kalai/BoundaryIntegralEquations.jl/badge.svg?branch=main)](https://coveralls.io/github/sai-kalai/BoundaryIntegralEquations.jl?branch=main)
+
+[![ColPrac: Contributor's Guide on Collaborative Practices](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
+[![Code Style: Blue](https://img.shields.io/badge/code%20style-blue-4485ed.svg)](https://github.com/invenia/BlueStyle)
 
 > Boundary Integral Methods with Differentiation in Julia.
 
