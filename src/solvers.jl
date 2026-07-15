@@ -12,6 +12,11 @@ struct BoundaryValueProblem{
     boundary::B
 end
 
+function solve_linear_system(A, b; algorithm=nothing)
+    pbm = LinearSolve.LinearProblem(A, b)
+    sln = LinearSolve.solve(pbm, algorithm)
+    return sln.u
+end
 
 # two variants are given: one where the operators are precomputed, and one that
 # computes the operators.
@@ -94,12 +99,6 @@ function solve_and_evaluate(
     return u, τ
 end
 
-function solve_linear_system(A, b; algorithm=nothing)
-    pbm = LinearSolve.LinearProblem(A, b)
-    sln = LinearSolve.solve(pbm, algorithm)
-    # return lu(-0.5 * I + matrix(D)) \ bc.σ # auxiliary variable
-    return sln.u
-end
 
 
 # compute operators
