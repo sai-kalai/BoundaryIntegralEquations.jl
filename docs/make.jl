@@ -1,3 +1,4 @@
+using Revise
 using BoundaryIntegralEquations
 using Documenter
 

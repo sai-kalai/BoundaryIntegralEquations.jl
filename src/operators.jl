@@ -1,6 +1,13 @@
 
 
-# NOTE: is this the julian way for a getter/public api?
+"""
+    matrix(op::IntegralOperator)
+
+retrieve the matrix representation
+
+# Arguments
+- `op::IntegralOperator`: operator
+"""
 function matrix(op::IntegralOperator)::AbstractMatrix
     return op.matrix
 end
@@ -38,8 +45,29 @@ end
 # end
 
 
+struct M
+    x::Int
+end
 
 # a.k.a S
+@doc raw"""
+    SingleLayer
+
+
+Finite-dimensional approximation of a single-layer potential integral operator
+using the Nyström approach.
+
+This operator maps a density on the boundary of a domain to the potential
+that it produces.
+
+```math
+S: C^1(\Gamma) \to C^1(\bar \Omega)\\
+
+S[u](x) = \int_\Gamma {k(x, y) \varphi(y) dS(y)}, x \in \bar \Omega, y \in \Gamma
+
+```
+
+"""
 struct SingleLayer{
     E<:DifferentialEquation,
     C<:Union{SingularCorrection,Nothing},
@@ -54,6 +82,16 @@ end
 default_allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
 
 # source-target interaction
+"""
+    SingleLayer(equation::Laplace, source::AbstractManifold, # source manifold e.g. domain boundary, target::AbstractMatrix, # target points to compute operator, matrix_factory::Function=default_allocator)
+
+Compute the operator coefficients for source-target interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined, i.e. boundary of the domain
+- `target::AbstractMatrix`: Points where the potential is computed
+"""
 function SingleLayer(
     equation::Laplace,
     source::AbstractManifold, # source manifold e.g. domain boundary
@@ -71,14 +109,25 @@ function SingleLayer(
 end
 
 # self interaction
+@doc raw"""
+    SingleLayer(equation::Laplace, source::AbstractManifold, correction::SingularCorrection, # order of kapur rokhlin singular correction, matrix_factory::Function=default_allocator)
+
+Compute the operator coefficients for source self interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined and where the potential is computed, i.e. boundary of the domain
+- `correction::SingularCorrection`: Approach to deal with the singularity
+"""
 function SingleLayer(
     equation::Laplace,
-    source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
-    correction::SingularCorrection; # order of kapur rokhlin singular correction
+    source::AbstractManifold,
+    correction::SingularCorrection;
     matrix_factory::Function=default_allocator,
 )
 
     n, dim_x = size(source.x)
+
 
     matrix = matrix_factory(n, n)::AbstractMatrix # allocate memory
     op = SingleLayer(equation, correction, matrix)
@@ -88,6 +137,22 @@ function SingleLayer(
 end
 
 # a.k.a D a.k.a. ∂S/∂ny
+@doc raw"""
+    DoubleLayer
+
+Finite-dimensional approximation of a double-layer potential integral operator
+using the Nyström approach.
+
+This operator maps a density on the boundary of a domain to potential
+that it produces.
+
+```math
+D: C^1(\Gamma) \to C^1(\bar \Omega)\\
+D[u](x) = \int_\Gamma {\frac{\partial}{\partial n_y}k(x, y) \varphi(y) dS(y)}, x \in \bar \Omega, y \in \Gamma
+
+```
+
+"""
 struct DoubleLayer{
     E<:DifferentialEquation,
     M<:AbstractMatrix{<:Number}
@@ -97,6 +162,16 @@ struct DoubleLayer{
 end
 
 # source-target interaction
+@doc raw"""
+    DoubleLayer(equation::Laplace, source::AbstractManifold, # source manifold e.g. domain boundary, target::AbstractMatrix, # target points to compute operator, matrix_factory::Function=default_allocator)
+
+Compute the operator coefficients for source-target interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined, i.e. boundary of the domain
+- `target::AbstractMatrix`: Points where the potential is computed
+"""
 function DoubleLayer(
     equation::Laplace,
     source::AbstractManifold, # source manifold e.g. domain boundary
@@ -114,6 +189,15 @@ function DoubleLayer(
 end
 
 # self interaction
+@doc raw"""
+    DoubleLayer(equation::Laplace, source::AbstractManifold, matrix_factory::Function=default_allocator)
+
+Compute the operator coefficients for source self interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined and where the potential is computed, i.e. boundary of the domain
+"""
 function DoubleLayer(
     equation::Laplace,
     source::AbstractManifold;
@@ -129,6 +213,22 @@ function DoubleLayer(
 end
 
 # a.k.a  D* a.k.a. ∂S/∂nx
+@doc raw"""
+    AdjointDoubleLayer
+
+Finite-dimensional approximation of the adjoint operator of a double-layer potential integral operator
+using the Nyström approach.
+
+This operator maps a density on the boundary of a domain to the potential
+that it produces.
+
+```math
+D^*: C^1(\Gamma) \to C^1(\bar \Omega) \\
+D^*[u](x) = \int_\Gamma {\frac{\partial}{\partial n_x}k(x, y) \varphi(y) dS(y)}, x \in \Gamma, y \in \bar \Omega
+
+```
+
+"""
 struct AdjointDoubleLayer{
     E<:DifferentialEquation,
     M<:AbstractMatrix{<:Number}
@@ -138,9 +238,18 @@ struct AdjointDoubleLayer{
 end
 
 # self interaction
+@doc raw"""
+    AdjointDoubleLayer(equation::Laplace, source::AbstractManifold, matrix_factory::Function=default_allocator)
+
+Compute the operator coefficients for source self interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined and where the potential is computed, i.e. boundary of the domain
+"""
 function AdjointDoubleLayer(
     equation::Laplace,
-    source::AbstractManifold; # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    source::AbstractManifold;
     matrix_factory::Function=default_allocator,
 )
 
@@ -153,9 +262,20 @@ function AdjointDoubleLayer(
 end
 
 # source-target interaction: edge case for manufactured solution
+@doc raw"""
+    AdjointDoubleLayer(equation::Laplace, source::AbstractManifold, target::AbstractMatrix, target_normals::AbstractMatrix, matrix_factory::Function=default_allocator)
+
+Compute the operator coefficients for source-target interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined, i.e. points inside the domain
+- `target::AbstractMatrix`: Points where the potential is computed, i.e. points in the boundary of the domain
+- `target_normals::AbstractMatrix`: outward unit normal vectors at the target points
+"""
 function AdjointDoubleLayer(
     equation::Laplace,
-    source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    source::AbstractManifold,
     target::AbstractMatrix,
     target_normals::AbstractMatrix;
     matrix_factory::Function=default_allocator,
@@ -172,6 +292,21 @@ function AdjointDoubleLayer(
 end
 
 # a.k.a  N a.k.a. ∂S²/∂nx∂ny
+@doc raw"""
+    Hypersingular
+
+Finite-dimensional approximation of the hypersingular integral operator
+using the Nyström approach.
+
+This operator maps a density on the boundary of a domain to the potential
+that it produces.
+
+```math
+H: C^1(\Gamma) \to C^1(\Gamma)\\
+H[u](x) = \int_\Gamma{\frac{\partial^2}{\partial n_x \partial n_y}k(x, y) \varphi(y) dS(y)}, x\in \Gamma, y \in \Gamma
+```
+
+"""
 struct Hypersingular{
     E<:DifferentialEquation,
     C<:HypersingularCorrection,
@@ -183,9 +318,19 @@ struct Hypersingular{
 end
 
 # self interaction
+@doc raw"""
+    Hypersingular(equation::Laplace, source::AbstractManifold, correction::HypersingularCorrection, matrix_factory::Function=default_allocator)
+
+Compute the operator coefficients for source self interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined and where the potential is computed, i.e. boundary of the domain
+- `correction::HypersingularCorrection`: Approach to handle the singularity
+"""
 function Hypersingular(
     equation::Laplace,
-    source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    source::AbstractManifold,
     correction::HypersingularCorrection;
     matrix_factory::Function=default_allocator,
 )
@@ -594,6 +739,15 @@ function apply_correction!(
 end
 
 # barrier function
+@doc raw"""
+    populate_matrices!(source::DiscreteClosedCurve{<:Real}, ops::IntegralOperator..., # variadic)
+
+Compute the coefficients of several requested self-interaction integral operators
+
+# Arguments
+- `source::DiscreteClosedCurve{<:Real}`: Manifold where the density is defined
+- `ops::IntegralOperator... : List of operators that are required
+"""
 function populate_matrices!(
     source::DiscreteClosedCurve{<:Real},
     ops::IntegralOperator..., # variadic
@@ -642,6 +796,16 @@ function populate_matrices!(
 
 end
 
+@doc raw"""
+    populate_matrices!(source::DiscreteClosedCurve{<:Real}, ops, # tuple of operators with already allocated matrices)
+
+Compute the coefficients of several requested source-target interaction integral operators
+
+# Arguments
+- `source::DiscreteClosedCurve{<:Real}`: Manifold where the density is defined
+- `ops::IntegralOperator... : List of operators that are required
+- `target_normals`: Outward unitary normal vectors at the target locations, in case the AdjointDoubleLayer operator is requested
+"""
 function populate_matrices!(
     source::DiscreteClosedCurve{T},
     target::AbstractMatrix{T},

@@ -77,6 +77,7 @@ export BoundaryValueProblem, solve, evaluate, solve_and_evaluate
 
 export starfish, ball
 
+function visualize end
 
 
 # trick lsp

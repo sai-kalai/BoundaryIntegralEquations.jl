@@ -21,15 +21,16 @@ end
 #
 
 #given operators
-"""
+@doc raw"""
     solve(problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}, ::Direct, D_star::AdjointDoubleLayer, H::Hypersingular)
 
-[TODO:description]
+solve the boundary integral equation associated to the given boundary value problem using tthe direct approach by internally computing the required integral operators
+ given precomputed integral operators
 
 # Arguments
-- `problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}`: [TODO:description]
-- `D_star::AdjointDoubleLayer`: [TODO:description]
-- `H::Hypersingular`: [TODO:description]
+- `problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}`: Boundary value problem to solve
+- `D_star::AdjointDoubleLayer`: Precomputed $D^*$ operator
+- `H::Hypersingular`: Precomputed $H$ operator
 """
 function solve(
     problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
@@ -44,6 +45,16 @@ function solve(
 end
 
 # compute operators
+@doc raw"""
+    solve(problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}, approach::Direct, correction::HypersingularCorrection, ;, matrix_factory::Function=default_allocator)
+
+solve the boundary integral equation associated to the given boundary value problem using tthe direct approach by internally computing the required integral operators
+
+# Arguments
+- `problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}`: Problem to solve
+- `approach::Direct`: Solution approach
+- `correction::HypersingularCorrection`: Type of correction to use to deal with the singularity when computing the Hypersingular operator.
+"""
 function solve(
     problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     approach::Direct,
@@ -63,6 +74,17 @@ end
 
 
 # given operators
+@doc raw"""
+    evaluate(problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}, ::Direct, τ::Neumann, S_target::SingleLayer, D_target::DoubleLayer)
+
+evaluate the solution of a boundary value problem at requested locations, given the solution to the associated boundary integral equation through the direct approach, and given precomputed operators
+
+# Arguments
+- `problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}`: boundary value problem to solve
+- `τ::Neumann`: solution to the boundary integral equation through the direct approach
+- `S_target::SingleLayer`: source-target interaction integral operator
+- `D_target::DoubleLayer`: source-target interaction integral operator
+"""
 function evaluate(
     problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     ::Direct,
@@ -75,6 +97,17 @@ function evaluate(
 end
 
 # compute operators
+@doc raw"""
+    evaluate(problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}, approach::Direct, τ::Neumann, target::AbstractMatrix, ;, matrix_factory::Function=default_allocator)
+
+evaluate the solution of a boundary value problem at requested locations, given the solution to the associated boundary integral equation through the direct approach, computing the required operators
+
+# Arguments
+- `problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}`: boundary value problem to solve
+- `approach::Direct`: approach to solve the boundary integral equation
+- `τ::Neumann`: solution to the associated boundary integral equation
+- `target::AbstractMatrix`: locations to evaluate the solution to the BVP
+"""
 function evaluate(
     problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     approach::Direct,
