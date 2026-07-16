@@ -5,6 +5,7 @@
 # approach to BIE:
 #      	int Laplace ansatz: u = S*(du/dn) - D*u
 #       int Calder?n projection:     u =  (1/2-D)*u  +         S*(du/dn)
+using LinearAlgebra: exactdiv
 #                                du/dn =       -T*u  + (1/2+D^*)*(du/dn)
 #      	ext Laplace ansatz: u = D*u - S*(du/dn) + omega
 #       ext Calder?n projection:     u =  (1/2+D)*u  -         S*(du/dn)
@@ -279,7 +280,6 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
         Γ = DiscreteClosedCurve(n, starfish) # boundary of the domain
 
-        #
         # fig, ax = visualize(Γ)
 
         # target: domain boundary, source: manufactured solution point sources
@@ -321,7 +321,12 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
             )
         end
 
+
+
         @time u, τ = s(x_test)
+
+
+
 
         prob = BoundaryValueProblem(
             laplace,
@@ -330,20 +335,76 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
             Γ
         )
 
-        @time begin
-            g2 = spatial_gradient(Forward, prob, x_test, indirect, zeta)
-        end
+
+        bie_solution = solve(prob, direct, D_star, H_zeta)
+
+        # primal run of solution evaluation
+        bvp_solution = evaluate(prob, direct, bie_solution, x_test)
+
+
+
+        # diff of only evaluation of solution
 
         @time begin
-            g3 = spatial_gradient(Enzyme.Reverse, prob, x_test, indirect, zeta)
+
+            dx_test_1 = Enzyme.make_zero(x_test)
+            dx_test_2 = Enzyme.make_zero(x_test)
+            dprob = Enzyme.make_zero(prob)
+
+            dbie_solution = Enzyme.make_zero(bie_solution)
+
+            dx_test_1[:, 1] .= 1.;
+            dx_test_2[:, 2] .= 1.;
+
+            f1 = autodiff(
+                ForwardWithPrimal,
+                Const(evaluate),
+                Duplicated(prob, dprob),
+                Const(direct),
+                Duplicated(bie_solution, dbie_solution),
+                Duplicated(x_test, dx_test_1),
+            )
+
+            f2 = autodiff(
+                ForwardWithPrimal,
+                Const(evaluate),
+                Duplicated(prob, dprob),
+                Const(direct),
+                Duplicated(bie_solution, dbie_solution),
+                Duplicated(x_test, dx_test_2),
+            )
+
+            g4 = [collect(f1[1][1]);; collect(f2[1][1])]
+
         end
 
-        @test g2 ≈ g3
+        @show size(Γ)
+        @show size(x_test)
 
-        @show u
+        exact_gradient = solution_derivative(
+            direct,
+            x_test,
+            Γ.x,
+            Γ.n,
+            Γ.w,
+            data(τ),
+            σ,
+        )
+
+        @test g4 ≈ exact_gradient atol=1e-5
+
+        # @time begin
+        #     g2 = spatial_gradient(Forward, prob, x_test, indirect, zeta)
+        # end
+        #
+        # @time begin
+        #     g3 = spatial_gradient(Enzyme.Reverse, prob, x_test, indirect, zeta)
+        # end
+        #
+        # @test g2 ≈ g3
+
         # scatter!(ax, x_test[:, 1], x_test[:, 2]; color=u, markersize=20)
         # arrows2d!(ax, x_test[:, 1], x_test[:, 2], g2[:, 1], g2[:, 2]; lengthscale=0.1)
-
         # wait(display(fig))
 
 
