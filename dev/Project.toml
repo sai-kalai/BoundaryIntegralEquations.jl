@@ -1,0 +1,4 @@
+[deps]
+BimDiff = "58b2a5b9-46a1-47d2-a141-e25d04a557d9"
+ProfileView = "c46f51b8-102a-5cf2-8d2c-8597cb0e0da7"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
