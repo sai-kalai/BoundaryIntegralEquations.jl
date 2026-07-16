@@ -93,6 +93,7 @@ export starfish, ball
 export spatial_gradient
 export visualize
 
+export solution_derivative
 
 
 

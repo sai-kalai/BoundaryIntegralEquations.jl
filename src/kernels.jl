@@ -39,4 +39,68 @@ end
 
 
 
+function kernel_gradient(
+    ::Type{<:SingleLayer{Laplace}},
+    x,
+    y,
+)
+    r = x - y
+
+    return r / dot(r, r) / (-2π)
+
+end
+
+function kernel_gradient(
+    ::Type{<:DoubleLayer{Laplace}},
+    x,
+    y,
+    ny,
+)
+
+    r = x - y
+
+    r_norm_sq = dot(r, r)
+
+    return (I * r_norm_sq - 2 * (r * r')) * ny / r_norm_sq^2 / (2π)
+end
+
+
+function solution_derivative(
+    approach::Direct,
+    x,
+    y,
+    ny,
+    w,
+    τ,
+    σ,
+)
+
+    grad_u = zero(x)
+
+    for i in axes(x, 1)
+        for j in axes(y, 1)
+
+
+            t1 = kernel_gradient(
+                SingleLayer{Laplace},
+                SA[x[i, 1], x[i, 2]],
+                SA[y[j, 1], y[j, 2]],
+            ) * τ[j]
+            t2 = kernel_gradient(
+                DoubleLayer{Laplace},
+                SA[x[i, 1], x[i, 2]],
+                SA[y[j, 1], y[j, 2]],
+                SA[ny[j, 1], ny[j, 2]],) * σ[j]
+
+
+
+            grad_u[i, :] += (t1 - t2) * w[j]
+
+        end
+    end
+
+    return grad_u
+
+end
+
 
