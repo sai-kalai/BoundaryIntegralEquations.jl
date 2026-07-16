@@ -50,7 +50,9 @@ struct Indirect <: Approach end
 
 
 function spatial_gradient end
-function visualize end
+function visualize()
+    error("Import GLMakie before calling")
+end
 
 #
 # includes
