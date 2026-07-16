@@ -166,7 +166,6 @@ function evaluate(
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Neumann}
 
-
     H = Hypersingular(problem.equation, problem.boundary, correction; matrix_factory=matrix_factory)
 
     D_target = DoubleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)

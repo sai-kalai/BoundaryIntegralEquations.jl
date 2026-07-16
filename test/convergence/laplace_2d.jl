@@ -265,8 +265,9 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
     # @assert norm(u_exact - u_exact_reference) < 1e-15
     @test u_exact ≈ u_exact_reference atol=1e-15
 
-    # scatter!(ax, x_test[:, 1], x_test[:, 2], color=u_exact)
+    x_test = [x_test; ball(0.1, 10); ball(0.3, 30); ball(0.6, 60); Matrix(stack((t) -> starfish(t, 0.9), 0:0.1:2pi))']
 
+    # scatter!(ax, x_test[:, 1], x_test[:, 2], color=u_exact)
 
     # println("Printing max-norm errors")
     # println("Interior")
@@ -278,11 +279,8 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
         Γ = DiscreteClosedCurve(n, starfish) # boundary of the domain
 
-
+        #
         # fig, ax = visualize(Γ)
-
-        # wait(display(fig))
-        # break
 
         # target: domain boundary, source: manufactured solution point sources
         S_source = SingleLayer(laplace, Γ_source, Γ.x; matrix_factory=allocator)
@@ -341,6 +339,13 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
         end
 
         @test g2 ≈ g3
+
+        @show u
+        # scatter!(ax, x_test[:, 1], x_test[:, 2]; color=u, markersize=20)
+        # arrows2d!(ax, x_test[:, 1], x_test[:, 2], g2[:, 1], g2[:, 2]; lengthscale=0.1)
+
+        # wait(display(fig))
+
 
         break
 

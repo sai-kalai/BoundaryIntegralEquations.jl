@@ -69,7 +69,7 @@ include("utils.jl")
 #
 # exports
 #
-export DiscreteClosedCurve, visualize, make_dummy_curve
+export DiscreteClosedCurve, make_dummy_curve
 
 export DifferentialEquation, Laplace, Helmholtz, Stokes
 export HypersingularCorrection, Sidi, Zeta
@@ -89,9 +89,9 @@ export BoundaryValueProblem, solve, evaluate, solve_and_evaluate
 export starfish, ball
 
 export spatial_gradient
+export visualize
 
 
-function visualize() end
 
 
 # trick lsp

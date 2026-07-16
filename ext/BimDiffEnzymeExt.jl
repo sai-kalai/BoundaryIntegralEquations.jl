@@ -6,6 +6,7 @@ module BimDiffEnzymeExt
 using BimDiff
 using Enzyme
 
+# NOTE: further derivatives are needed for faster optimization algs
 
 """
     BimDiff.spatial_gradient()
@@ -29,6 +30,7 @@ function BimDiff.spatial_gradient(
 
     dx[:, 1] .= 1.;
     dy[:, 2] .= 1.;
+
 
 
     fwd1 = autodiff(
