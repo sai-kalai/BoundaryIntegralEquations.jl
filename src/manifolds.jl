@@ -1,6 +1,3 @@
-
-
-
 abstract type AbstractManifold end # TODO: move to models
 
 # IDEA:
@@ -15,15 +12,16 @@ end
 
 # TODO: maybe set upper bounds as <: AbstractMatrix{<:Number}} for all
 struct DiscreteClosedCurve{
-    T<:AbstractFloat,
-    TX<:AbstractMatrix{T},
-    TV<:AbstractMatrix{T},
-    TA<:AbstractMatrix{T},
-    TS<:AbstractVector{T}, # scalar
-    TT<:AbstractMatrix{T},
-    TN<:AbstractMatrix{T},
-    TK<:AbstractVector{T}, # scalar
-    TW<:AbstractVector{T}, # scalar
+    T<:Real,
+    TX<:AbstractMatrix{<:T},
+    TV<:AbstractMatrix{<:T},
+    TA<:AbstractMatrix{<:T},
+    TS<:AbstractVector{<:T}, # scalar
+    TT<:AbstractMatrix{<:T},
+    TN<:AbstractMatrix{<:T},
+    TK<:AbstractVector{<:T}, # scalar
+    TW<:AbstractVector{<:T}, # scalar
+    CW<:AbstractVector{<:Complex{T}}, # scalar
 } <: AbstractManifold
     x::TX # locations of points in the manifold
     v::TV # velocities
@@ -33,17 +31,19 @@ struct DiscreteClosedCurve{
     n::TN # unit normal vectors
     k::TK # curvatures # TODO: think 2d vs 3d
     w::TW # weights # TODO: enforce that these be vectors
+    cw::CW
+
 end
 
-# dummy, TODO: consider an explicit type for set of target points
-# Replace by type that explicitly achieves this instead
-function DiscreteClosedCurve(x)
 
+function make_dummy_curve(x)
     n, dim_x = size(x)
 
     one_1d = ones(n)
     zero_nd = zeros((n, dim_x))
     zero_1d = zeros(n)
+    zero_cmp=zeros(ComplexF64, n)
+
 
     return DiscreteClosedCurve(
         x,
@@ -54,17 +54,31 @@ function DiscreteClosedCurve(x)
         zero_nd, #n
         zero_1d, #k
         one_1d, #w
+        zero_cmp,
     )
 
 end
 
-function DiscreteClosedCurve(x, v, a)
 
-    # TODO: assert shapes
 
+"""
+    DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMatrix)
+
+given positions, velocities, and accelerations of the curve parametrization,
+compute the remaining parameters
+
+# Arguments
+- `x::AbstractMatrix`: location of the points
+- `v::AbstractMatrix`: velocity of the curve at each point
+- `a::AbstractMatrix`: acceleration of the curve at each point
+"""
+function DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMatrix)
+
+    # TODO: assert shape
 
     s = vec(sqrt.(sum(abs2, v; dims=2))) # TODO: make this vec() produce a container accordingly to container type of x, v, a
     t = v ./ s
+
 
     # normal is rotated tangential
     n = similar(t)
@@ -76,21 +90,63 @@ function DiscreteClosedCurve(x, v, a)
 
     w = (2π / N) .* s # WARN: discretization in parameter space h is hardcoded here
 
-    return DiscreteClosedCurve(x, v, a, s, t, n, k, w)
+    # complex weights
+    # cw = (2π / N) .* reinterpret(ComplexF64, v')'
+    cw = (2π / N) .* ComplexF64.(v[:, 1], v[:, 2])
+
+    return DiscreteClosedCurve(x, v, a, s, t, n, k, w, cw)
+
+end
+
+"""
+    DiscreteClosedCurve(x::AbstractMatrix)
+
+given positions, compute the velocities and accelerations using periodic spectral differentiation
+
+# Arguments
+- `x::AbstractMatrix`: locations of the points
+"""
+function DiscreteClosedCurve(x::AbstractMatrix)
+    v = periodic_spectral_diff(x)
+    a = periodic_spectral_diff(v)
+    return DiscreteClosedCurve(x, v, a)
+
+end
+
+"""
+    DiscreteClosedCurve(θ::AbstractVector, ρ::Function)
+
+construct curve given a list of parameter values and a parametrization
+
+# Arguments
+- `θ::AbstractVector`: list of nodes in parameter space
+- `ρ::Function`: function that parametrizes the curve
+"""
+function DiscreteClosedCurve(θ::AbstractVector, ρ::Function)
+
+    # range [0, 2pi) to evaluate parametrization
+    x = Matrix(stack(ρ, θ)') # TODO: don't transpose, work with column major
+
+    return DiscreteClosedCurve(x)
 
 end
 
 # construct from number of points and parametrization
-# using standard containers
-function DiscreteClosedCurve(n_points::Int, ρ::Function)
+# using equispaced parameter
+"""
+    DiscreteClosedCurve(n_points::Int, ρ::Function)
 
+construct curve given a number of points and a parametrization using equispaced
+nodes in parameter space
+
+# Arguments
+- `n_points::Int`: number of nodes
+- `ρ::Function`: function that parametrizes the curve
+"""
+function DiscreteClosedCurve(n_points::Int, ρ::Function)
     # range [0, 2pi) to evaluate parametrization
     θ = range(0, 2π; length=n_points + 1)[1:(end-1)]
-    x = Matrix(stack(ρ, θ)') # TODO: don't transpose, work with column major
-    v = periodic_spectral_diff(x)
-    a = periodic_spectral_diff(v)
-
-    return DiscreteClosedCurve(x, v, a)
+    return DiscreteClosedCurve(θ, ρ)
 
 end
 
