@@ -57,6 +57,7 @@ include("operators.jl")
 include("kernels.jl")
 include("solvers.jl")
 include("utils.jl")
+include("close_evaluation.jl")
 
 #
 # exports
@@ -84,6 +85,7 @@ function visualize end
 @static if false
     include("../scripts/main.jl")
     include("../scripts/precomputed_coeffs.jl")
+    include("../scripts/ellipse.jl")
 
     include("../test/quick_test.jl")
     include("../test/convergence/laplace_2d.jl")
