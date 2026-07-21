@@ -8,6 +8,7 @@ module BoundaryIntegralEquations
 using LinearAlgebra
 using StaticArrays
 using FFTW
+using PolygonOps
 
 #
 # type definitions

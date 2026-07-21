@@ -8,7 +8,7 @@ using PolygonOps
 
 GLMakie.activate!()
 
-using BimDiff
+using BoundaryIntegralEquations
 
 
 function main()
