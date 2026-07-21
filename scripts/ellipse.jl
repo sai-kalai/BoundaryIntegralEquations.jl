@@ -104,17 +104,19 @@ function main()
         xi_eta_exact = xi_eta_exact_all[mask, :]
 
         D = DoubleLayer(laplace, Γ)
-        S = SingleLayer(laplace, Γ, ord)
+        S = SingleLayer(laplace, Γ, KapurRokhlin(ord))
         H_zeta = Hypersingular(laplace, Γ, zeta)
         H_sidi = Hypersingular(laplace, Γ, sidi)
 
-        D_target = DoubleLayer(laplace, x_test, Γ,)
-        S_target = SingleLayer(laplace, x_test, Γ,)
+        D_target = DoubleLayer(laplace, Γ, x_test,)
+        S_target = SingleLayer(laplace, Γ, x_test,)
 
         # TODO: work with vector valued functions
         bc_xi = Dirichlet(cos.(θ))
         bc_eta = Dirichlet(sin.(θ))
 
+        pb_xi = BoundaryValueProblem(laplace, bc_xi, interior, Γ)
+        pb_eta = BoundaryValueProblem(laplace, bc_eta, interior, Γ)
 
         # xi, _ = solve(
         #     laplace,
@@ -138,34 +140,35 @@ function main()
 
         # close evaluation
 
-        phi_xi = solve_bie(
-            laplace,
-            interior,
-            bc_xi,
+        ## xi
+        phi_xi = solve(
+            pb_xi,
+            indirect,
             D,
         )
 
-        phi_eta = solve_bie(
-            laplace,
-            interior,
-            bc_eta,
+        phi_eta = solve(
+            pb_eta,
+            indirect,
             D,
         )
 
-        v_lim_xi = compute_boundary_limit(
+        v_lim_xi = holomorphism_boundary_limit(
             interior,
             D,
             phi_xi,
             Γ
         )
+
         v_xi = cauchy_integral(
-            x_test,
             Γ,
+            x_test,
             v_lim_xi
         )
         xi = real.(v_xi)
 
-        v_lim_eta = compute_boundary_limit(
+        ## eta
+        v_lim_eta = holomorphism_boundary_limit(
             interior,
             D,
             phi_eta,
@@ -173,8 +176,8 @@ function main()
         )
 
         v_eta = cauchy_integral(
-            x_test,
             Γ,
+            x_test,
             v_lim_eta
         )
         eta = real.(v_eta)
@@ -221,7 +224,6 @@ function main()
         # Colorbar(fig[1, 2][1, 3], sc2; label="log10 error inf norm")
         #
         # wait(display(fig))
-        break
     end
     #
     # fig3 = Figure()

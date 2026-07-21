@@ -72,6 +72,7 @@ export DomainSide, Interior, Exterior
 export IntegralOperator, SingleLayer, DoubleLayer, AdjointDoubleLayer, Hypersingular
 export Approach, Direct, Indirect
 export BoundaryDensity, BoundaryCondition, Dirichlet, Neumann, data
+export cauchy_integral, holomorphism_boundary_limit
 
 export kernel
 export populate_matrices!

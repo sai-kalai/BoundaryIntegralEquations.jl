@@ -11,9 +11,9 @@ computes the inner value of a holomorphic function given its boundary data
 - `boundary_data`: limit of the function at the curve
 """
 function cauchy_integral(
-    target,
     source::DiscreteClosedCurve,
-    boundary_data
+    target::AbstractMatrix,
+    boundary_data::AbstractVector,
 )
 
     m = size(target, 1)
@@ -55,26 +55,62 @@ function cauchy_integral(
 end
 
 
-"""
-    compute_boundary_limit(::Interior, op::SingleLayer{Laplace}, bc::BoundaryCondition)
+@doc raw"""
+    holomorphism_boundary_limit(::Interior, op::SingleLayer{Laplace}, bc::BoundaryCondition)
 
-computes the interior limit of a holomorphic function
+computes the interior limit $v^-(x), x \in \Gamma$ of the holomorphic function
+$v(x), x \in \mathbb C \setminus \Gamma$, from the boundary density $\varphi$
+which is the solution to the boundary integral equation by the indirect approach.
+
+The The real part of $v$ is the the double-layer potential of the boundary density,
+i.e., it is the solution to the Dirichlet laplace problem.
+
+This means, if $\varphi$ is the solution to
+
+```math
+(D - \frac{1}{2})[\varphi] = \sigma
+
+```
+
+then the solution to the interior Laplace problem with Dirichlet data $\sigma$ is
+
+```math
+u(x) = Re(v) = D[\varphi](x)
+```
+
+and since $v$ is holomorphic, it can be computed by a Cauchy integral, given the
+boundary limit of $v$.
+```math
+v(x) = \frac{1}{2\pi i} \int_{\Gamma}{\frac{v^-(y)}{y - x} dy}
+```
+
+This function  computes the boundary limit $v^-(x)$ from the boundary density
+$\varphi$ as:
+
+```math
+v^-(x) = - \frac{1}{2} \varphi(x) - \frac{1}{2\pi i} \text{p.v.} \int_{\Gamma}{\frac{\varphi(y)}{y-x}dy}
+
+```
+
+
+
 
 # Arguments
-- `op::SingleLayer{Laplace}`: [TODO:description]
-- `bc::BoundaryCondition`: [TODO:description]
+- `op::SingleLayer{Laplace}`: Operator that is applied to the density
+- `density::BoundaryDensity`: Density that is the solution to the boundary integral equation
+- `source::DiscreteClosedCurve`: Boundary $Γ$ of the domain
 """
-function compute_boundary_limit(
+function holomorphism_boundary_limit(
     ::Interior,
     op::DoubleLayer{Laplace},
-    density,
+    density::BoundaryDensity,
     source::DiscreteClosedCurve,
 )
 
     n, dim_y = size(source.x)
 
-    τ = density
-    τ_prime = periodic_spectral_diff(τ)
+    φ = data(density)
+    τ_prime = periodic_spectral_diff(φ)
 
     v_lim = similar(source.x, ComplexF64, n)
 
@@ -86,9 +122,9 @@ function compute_boundary_limit(
         res = zero(ComplexF64)
 
         for j in Iterators.flatten((1:(k-1), (k+1):n))
-            res += (τ[j] - τ[k]) / (y[j] - y[k]) * source.cw[j]
+            res += (φ[j] - φ[k]) / (y[j] - y[k]) * source.cw[j]
         end
-        v_lim[k] = -τ[k] - τ_prime[k]/(im * n) + res * im / 2pi
+        v_lim[k] = -φ[k] - τ_prime[k]/(im * n) + res * im / 2pi
 
     end
     return v_lim
@@ -104,7 +140,7 @@ end
 - `bc::BoundaryCondition`: [TODO:description]
 - `source::DiscreteClosedCurve`: [TODO:description]
 """
-function compute_boundary_limit(
+function holomorphism_boundary_limit(
     ::Exterior,
     op::DoubleLayer{Laplace},
     bc::BoundaryCondition,
@@ -115,7 +151,7 @@ function compute_boundary_limit(
 
 end
 
-function compute_boundary_limit(
+function holomorphism_boundary_limit(
     ::Interior,
     op::SingleLayer{Laplace},
     bc::BoundaryCondition,
@@ -126,7 +162,7 @@ function compute_boundary_limit(
 
 end
 
-function compute_boundary_limit(
+function holomorphism_boundary_limit(
     ::Exterior,
     op::SingleLayer{Laplace},
     bc::BoundaryCondition,
