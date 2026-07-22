@@ -310,7 +310,7 @@ function solve_and_evaluate(
 
     φ = solve(problem, approach, D)
 
-    u, τ = evaluate(problem, approach, φ, H, D_target)
+    u, τ = evaluate(problem, approach, φ, H, D_target, FarEvaluation())
 
     return u, τ
 end
