@@ -6,6 +6,7 @@ authors = ["simon cadavid <simon.cadavid98@gmail.com>"]
 [deps]
 FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
 PolygonOps = "647866c9-e3ac-4575-94e7-e3d426903924"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
@@ -20,6 +21,7 @@ BoundaryIntegralEquationsGLMakieExt = "GLMakie"
 [compat]
 FFTW = "1.10.0"
 LinearAlgebra = "1.12.0"
+NearestNeighbors = "0.4.29"
 PolygonOps = "0.1.2"
 Random = "1.11.0"
 Reexport = "1.2.2"
