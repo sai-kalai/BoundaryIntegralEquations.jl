@@ -5,8 +5,8 @@ abstract type AbstractManifold end # TODO: move to models
 # curve, closed curve, 2d, 3d, surface, closed surface, ...
 
 
-function Base.size(m::AbstractManifold)
-    return size(m.x)
+function Base.size(m::AbstractManifold, dims...)
+    return size(m.x, dims...)
 end
 
 
