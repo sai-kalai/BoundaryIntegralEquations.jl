@@ -332,7 +332,7 @@ function solve_and_evaluate(
     H = Hypersingular(problem.equation, correction, matrix_factory(n, n))
     populate_matrices!(problem.boundary, D, H)
 
-    D_target = DoubleLayer(problem, matrix_factory(m, n))
+    D_target = DoubleLayer(problem.equation, matrix_factory(m, n))
     populate_matrices!(problem.boundary, target, D_target)
 
     return solve_and_evaluate(problem, approach, D, H, D_target)
@@ -400,8 +400,8 @@ function evaluate(
     n = size(problem.boundary, 1)
 
 
-    S_target = SingleLayer(problem, nothing, matrix_factory(m, n))
-    D_target = DoubleLayer(problem, matrix_factory(m, n))
+    S_target = SingleLayer(problem.equation, nothing, matrix_factory(m, n))
+    D_target = DoubleLayer(problem.equation, matrix_factory(m, n))
     populate_matrices!(problem.boundary, target, D_target)
 
     return evaluate(problem, approach, σ, S_target, D_target)
