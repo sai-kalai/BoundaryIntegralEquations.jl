@@ -43,7 +43,7 @@ function main()
         return SA[xi/a, eta/b]
     end
 
-    n_grid = 200
+    n_grid = 30
     θ_grid = range(0, 2π; length=n_grid + 1)[1:(end-1)]
     boundary_grid = Matrix(stack((t) -> rotated_ellipse(t, x0, y0, a, b, γ), θ_grid)')
 
@@ -77,6 +77,7 @@ function main()
     zeta = Zeta(ord)
     sidi = Sidi()
     indirect = Indirect()
+
 
 
     # TODO: combine both scripts
@@ -118,29 +119,6 @@ function main()
         pb_xi = BoundaryValueProblem(laplace, bc_xi, interior, Γ)
         pb_eta = BoundaryValueProblem(laplace, bc_eta, interior, Γ)
 
-        # xi, _ = solve(
-        #     laplace,
-        #     interior,
-        #     bc_xi,
-        #     indirect,
-        #     D,
-        #     H_zeta,
-        #     D_target
-        # )
-        #
-        # eta, _ = solve(
-        #     laplace,
-        #     interior,
-        #     bc_eta,
-        #     indirect,
-        #     D,
-        #     H_zeta,
-        #     D_target
-        # )
-
-        # close evaluation
-
-        ## xi
         phi_xi = solve(
             pb_xi,
             indirect,
@@ -153,53 +131,15 @@ function main()
             D,
         )
 
-        v_lim_xi = holomorphism_boundary_limit(
-            interior,
-            D,
-            phi_xi,
-            Γ
-        )
+        sol_xi = evaluate(pb_xi, indirect, sidi, phi_xi, x_test)
+        sol_eta = evaluate(pb_eta, indirect, sidi, phi_eta, x_test)
 
-        v_xi = cauchy_integral(
-            Γ,
-            x_test,
-            v_lim_xi
-        )
-        xi = real.(v_xi)
-
-        ## eta
-        v_lim_eta = holomorphism_boundary_limit(
-            interior,
-            D,
-            phi_eta,
-            Γ
-        )
-
-        v_eta = cauchy_integral(
-            Γ,
-            x_test,
-            v_lim_eta
-        )
-        eta = real.(v_eta)
+        xi = sol_xi[1]
+        eta = sol_eta[1]
 
         xi_eta_num = hcat(xi, eta)
 
-        # f = Figure()
-        # a = Axis(f[1, 1]; aspect=DataAspect())
-        # scatterlines!(a, real.(v_lim_xi), real.(v_lim_eta); markersize=4)
-        # scatter!(a, xi, eta; markersize=4)
-        # scatter!(a, xi_eta_exact...; markersize=4)
-        # return f
-        # return scatterlines(real.(v_lim_xi), real.(v_lim_eta); markersize=10)
-
-        # Nx2
         e = xi_eta_num .- xi_eta_exact
-        # display(xi)
-        # display(eta)
-        # display(xi_eta_num)
-        # display(e)
-
-        # break
 
         # Nx1, store euclidean norm of error for each point
         e_norm = norm.(eachrow(e), 2) .+ eps(Float64)
@@ -207,25 +147,35 @@ function main()
         # 1x1
         errs[i] = mean(e_norm .^ 2)
 
-        @show i, errs[i]
+        @show n, errs[i]
 
-        # fig, ax = visualize(Γ)
-        #
-        # scatter_kwargs = (; colorscale=log10, color=e_norm, markersize=7, colormap=:viridis)
-        #
-        # sc1 = scatter!(ax, x_test[:, 1], x_test[:, 2]; scatter_kwargs...)
-        #
-        # ax2 = Axis(fig[1, 2]; aspect=DataAspect(), title="n = $n")
-        #
-        # lines!(ax2, xi_eta_exact_boundary[:, 1], xi_eta_exact_boundary[:, 2]; color=:black)
-        #
-        # sc2 = scatter!(ax2, xi_eta_exact[:, 1], xi_eta_exact[:, 2]; scatter_kwargs...)
-        #
-        # Colorbar(fig[1, 2][1, 3], sc2; label="log10 error inf norm")
-        #
-        # wait(display(fig))
+        fig, ax = visualize(Γ)
+
+        scatter_kwargs = (;
+            colorscale=log10,
+            color=e_norm,
+            markersize=15,
+            colormap=:viridis,
+        )
+
+
+        sc1 = scatter!(ax, x_test[:, 1], x_test[:, 2]; scatter_kwargs...)
+
+        arr = arrows2d!(ax, x_test[:, 1], x_test[:, 2], e[:, 1], e[:, 2]; lengthscale=0.1)
+
+        ax2 = Axis(fig[1, 2]; aspect=DataAspect(), title="n = $n")
+
+        lines!(ax2, xi_eta_exact_boundary[:, 1], xi_eta_exact_boundary[:, 2]; color=:black)
+
+
+        sc2 = scatter!(ax2, xi_eta_exact[:, 1], xi_eta_exact[:, 2]; scatter_kwargs...)
+
+        Colorbar(fig[1, 2][1, 3], sc2; label="log10 error inf norm")
+
+        wait(display(fig))
     end
-    #
+
+    # convergence plot
     # fig3 = Figure()
     # ax3 = Axis(fig3[1, 1]; xscale=log10, yscale=log10)
     #
