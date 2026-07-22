@@ -293,6 +293,33 @@ function evaluate(
     return u, τ
 end
 
+@doc raw"""
+    evaluate(problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}, approach::Indirect, correction::HypersingularCorrection, φ::BoundaryDensity, target::AbstractMatrix, relative_cutoff=0.05, matrix_factory::Function=default_allocator)
+
+compute Hypersingular integral operator and call evaluate
+
+"""
+function evaluate(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    correction::HypersingularCorrection,
+    φ::BoundaryDensity,
+    target::AbstractMatrix,
+    relative_cutoff=0.05
+    ;
+    matrix_factory::Function=default_allocator,
+)
+
+    n = size(problem.boundary, 1)
+
+    H = Hypersingular(problem.equation, correction, matrix_factory(n, n))
+    populate_matrices!(problem.boundary, H)
+
+    u, τ = evaluate(problem, approach, H, φ, target, relative_cutoff; matrix_factory=matrix_factory)
+
+    return u, τ
+end
+
 
 # given operators
 function solve_and_evaluate(
