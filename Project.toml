@@ -20,6 +20,7 @@ BoundaryIntegralEquationsGLMakieExt = "GLMakie"
 
 [compat]
 FFTW = "1.10.0"
+GLMakie = "0.13.13"
 LinearAlgebra = "1.12.0"
 NearestNeighbors = "0.4.29"
 PolygonOps = "0.1.2"
