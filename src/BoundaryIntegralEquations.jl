@@ -9,6 +9,7 @@ using LinearAlgebra
 using StaticArrays
 using FFTW
 using PolygonOps
+using NearestNeighbors
 
 #
 # type definitions
