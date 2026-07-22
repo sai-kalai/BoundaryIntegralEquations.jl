@@ -6,27 +6,31 @@ Try to make one branch for each
 - [ ] change access pattern to column-major, record performance before and after
 - [x] package more into one struct such that solve(instance) has all the info
 - [x] fix the modules: use one single module for the whole code instead of per-file, see Inti
-- [ ] write docstrings
-- [x] write unit tests for correctness
+- [inprogress] write docstrings
+- [inprogress] write unit tests for correctness
 - [ ] implement support for vector-valued functions
 
 - [ ] change DiscreteClosedCurve to Boundary{2}, figure out typing
+    i.e. make boundary parametric on rank, and even maybe dimension?
 - [ ] rename hypersingular corrections: both "Sidi" and "Zeta" are of type Zeta
 
 - [ ] implement 2nd derivative approximation for hypersingular kernel using AD
 
 - [x] design better api instead of passing allocator function. maybe, pass already allocated memory
     - [x] adopt api in separate matrices branch, such that testing is homogeneous
-    - [ ] fix undef initializer
+    - [x] fix undef initializer in separate matrices branch
+    - [ ] homogenize interface further so that the only difference is a boolean flag `compute matrices`
+
 - [x] api for solving the  BIE attached to the BVP and reusing the density for computing at arbitary points
     struct containing side, bc type,
     solve()
     evaluate(x points)
     - [ ] consider extending the operators to also store source and target information
+        no: bad idea
 
-- [ ] implement distance policy for close evaluation
+- [x] implement distance policy for close evaluation
 
-- [ ] move close evaluation and autodiff outside of scripts
+- [x] move close evaluation and autodiff outside of scripts
 - [x] enforce consistent order of arguments across the codebase (source, then target)
 - [ ] extend the type system for representing geometry
     use cases:
@@ -36,30 +40,34 @@ Try to make one branch for each
     - target points with unit normals: for adjoint dlp, where normals at x are needed
 
 - [ ] consider using Manifolds.jl
+    probably not, but research how other packages describe geometry, keep an eye out for 3d
 
 - [ ] array of structures instead of structure of arrays
+    implement homogeneous api, and test performance
 
 - [ ] Solution struct, following SciML guidelines
 
-- [ ] write unit tests for autodiff, verify with ForwardDiff/analytical
+- [inprogress] write unit tests for autodiff, verify with ForwardDiff/analytical
+    - analytical gradient done, missing still are unit tests
 
 
 
 Meeting with Dean
 
-- documentation !!!
-- bonus: use documentation to write thesis
+- documentation !!! DONE
+- bonus: use documentation to write thesis DONE
 
-- close field switching policy
+- close field switching policy DONE
     - error analysis: how to identify when error grows for a better policy
     - smoother transition in error
+
 
 
 - exterior points
 
 - map2disc
 - Helmholtz on hold
-- CI CD github action
+- CI CD github action DONE
 
 - journal paper: this is the problem and method
 
