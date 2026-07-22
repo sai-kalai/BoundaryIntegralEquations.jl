@@ -14,20 +14,12 @@ end
 struct DiscreteClosedCurve{
     T<:Real,
     TX<:AbstractMatrix{<:T},
-    TV<:AbstractMatrix{<:T},
-    TA<:AbstractMatrix{<:T},
-    TS<:AbstractVector{<:T}, # scalar
-    TT<:AbstractMatrix{<:T},
     TN<:AbstractMatrix{<:T},
     TK<:AbstractVector{<:T}, # scalar
     TW<:AbstractVector{<:T}, # scalar
     CW<:AbstractVector{<:Complex{T}}, # scalar
 } <: AbstractManifold
     x::TX # locations of points in the manifold
-    v::TV # velocities
-    a::TA # accelerations
-    s::TS # speeds
-    t::TT # unit tangential vectors
     n::TN # unit normal vectors
     k::TK # curvatures # TODO: think 2d vs 3d
     w::TW # weights # TODO: enforce that these be vectors
@@ -52,10 +44,6 @@ function make_dummy_curve(x)
 
     return DiscreteClosedCurve(
         x,
-        zero_nd, #v
-        zero_nd, #a
-        zero_1d, #s
-        zero_nd, #t
         zero_nd, #n
         zero_1d, #k
         one_1d, #w
@@ -63,7 +51,6 @@ function make_dummy_curve(x)
     )
 
 end
-
 
 
 """
@@ -99,7 +86,7 @@ function DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMa
     # cw = (2π / N) .* reinterpret(ComplexF64, v')'
     cw = (2π / N) .* ComplexF64.(v[:, 1], v[:, 2])
 
-    return DiscreteClosedCurve(x, v, a, s, t, n, k, w, cw)
+    return DiscreteClosedCurve(x, n, k, w, cw)
 
 end
 

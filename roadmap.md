@@ -64,10 +64,9 @@ Meeting with Dean
     - smoother transition in error
 
 
-
 - exterior points
 
-- map2disc
+- map2disc DONE
 - Helmholtz on hold
 - CI CD github action DONE
 
@@ -96,3 +95,11 @@ a functional, e.g. avg. jacobian of map2disc, for optimization w.r.t
 - boundary geometry
 - boundary conditions
 - relevant for optimization loops of solve
+
+# Boundary refactor
+
+goals for refactoring the boundary struct:
+
+- provide AoS and SoA with homogeneous interface, test performance
+- switch to row-major, measure performance
+- make parametric with type of array
