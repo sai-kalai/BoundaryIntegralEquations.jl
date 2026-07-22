@@ -240,7 +240,7 @@ associated boundary integral equation by the indirect approach.
 function evaluate(
     problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     approach::Indirect,
-    correction::HypersingularCorrection,
+    H::Hypersingular,
     φ::BoundaryDensity,
     target::AbstractMatrix,
     relative_cutoff=0.05
@@ -250,9 +250,6 @@ function evaluate(
 
     n = size(problem.boundary, 1)
     m = size(target, 1)
-
-    H = Hypersingular(problem.equation, correction, matrix_factory(n, n))
-    populate_matrices!(problem.boundary, H)
 
     # 1. find points in the correct side of the domain
     poly = [[row[1], row[2]] for row in eachrow(problem.boundary.x)]
