@@ -252,7 +252,7 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
     n_source = size(x_source, 1)
 
-    Γ_source = DiscreteClosedCurve(x_source)
+    Γ_source = make_dummy_curve(x_source)
 
     S_manuf = SingleLayer(laplace, Γ_source, x_test; matrix_factory=allocator)
 
@@ -260,7 +260,7 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
     u_exact = S_manuf * density_source # exact solution at test points
     u_exact_reference = reference_exact_solution()
 
-    @assert norm(u_exact - u_exact_reference) < 1e-15
+    @test norm(u_exact - u_exact_reference) < 1e-15
 
     # scatter!(ax, x_test[:, 1], x_test[:, 2], color=u_exact)
 
