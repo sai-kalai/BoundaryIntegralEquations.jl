@@ -112,30 +112,22 @@ function main()
         D_target = DoubleLayer(laplace, Γ, x_test,)
         S_target = SingleLayer(laplace, Γ, x_test,)
 
-        # TODO: work with vector valued functions
-        bc_xi = Dirichlet(cos.(θ))
-        bc_eta = Dirichlet(sin.(θ))
 
-        pb_xi = BoundaryValueProblem(laplace, bc_xi, interior, Γ)
-        pb_eta = BoundaryValueProblem(laplace, bc_eta, interior, Γ)
+        pbs = [
+            BoundaryValueProblem(laplace, Dirichlet(cos.(θ)), interior, Γ),
+            BoundaryValueProblem(laplace, Dirichlet(sin.(θ)), interior, Γ),
+        ]
 
-        phi_xi = solve(
-            pb_xi,
-            indirect,
-            D,
+        phi = solve.(
+            pbs,
+            Ref(indirect),
+            Ref(D),
         )
 
-        phi_eta = solve(
-            pb_eta,
-            indirect,
-            D,
-        )
+        solns = evaluate.(pbs, Ref(indirect), Ref(sidi), phi, Ref(x_test))
 
-        sol_xi = evaluate(pb_xi, indirect, sidi, phi_xi, x_test)
-        sol_eta = evaluate(pb_eta, indirect, sidi, phi_eta, x_test)
-
-        xi = sol_xi[1]
-        eta = sol_eta[1]
+        xi = solns[1][1]
+        eta = solns[2][1]
 
         xi_eta_num = hcat(xi, eta)
 
