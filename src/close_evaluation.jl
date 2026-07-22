@@ -56,7 +56,7 @@ end
 
 
 @doc raw"""
-    holomorphism_boundary_limit(::Interior, op::SingleLayer{Laplace}, bc::BoundaryCondition)
+    holomorphism_boundary_limit(problem<:BoundaryValueProblem{Laplace, Dirichlet, Interior}, density::BoundaryDensity)
 
 computes the interior limit $v^-(x), x \in \Gamma$ of the holomorphic function
 $v(x), x \in \mathbb C \setminus \Gamma$, from the boundary density $\varphi$
@@ -92,37 +92,34 @@ v^-(x) = - \frac{1}{2} \varphi(x) - \frac{1}{2\pi i} \text{p.v.} \int_{\Gamma}{\
 
 ```
 
-
-
-
 # Arguments
-- `op::SingleLayer{Laplace}`: Operator that is applied to the density
-- `density::BoundaryDensity`: Density that is the solution to the boundary integral equation
-- `source::DiscreteClosedCurve`: Boundary $Γ$ of the domain
+- `problem::BoundaryValueProblem{Laplace, Dirichlet, Interior, <:DiscreteClosedCurve}`: Boundary value problem to solve
+- `density::BoundaryDensity`: Density that is the solution to the boundary integral equation associated to `problem`
 """
 function holomorphism_boundary_limit(
-    ::Interior,
-    op::DoubleLayer{Laplace},
+    problem::BoundaryValueProblem{Laplace, Dirichlet, Interior, <:DiscreteClosedCurve},
     density::BoundaryDensity,
-    source::DiscreteClosedCurve,
 )
 
-    n, dim_y = size(source.x)
+    # NOTE: strange: All the information needed to compute φ is actually present
+    # here, but it's expected as a separate argument...
+
+    n, dim_y = size(problem.boundary.x)
 
     φ = data(density)
     τ_prime = periodic_spectral_diff(φ)
 
-    v_lim = similar(source.x, ComplexF64, n)
+    v_lim = similar(problem.boundary.x, ComplexF64, n)
 
     # y = reinterpret(ComplexF64, source.x')
-    y = ComplexF64.(source.x[:, 1], source.x[:, 2])
+    y = ComplexF64.(problem.boundary.x[:, 1], problem.boundary.x[:, 2])
 
     for k in 1:n
 
         res = zero(ComplexF64)
 
         for j in Iterators.flatten((1:(k-1), (k+1):n))
-            res += (φ[j] - φ[k]) / (y[j] - y[k]) * source.cw[j]
+            res += (φ[j] - φ[k]) / (y[j] - y[k]) * problem.boundary.cw[j]
         end
         v_lim[k] = -φ[k] - τ_prime[k]/(im * n) + res * im / 2pi
 
