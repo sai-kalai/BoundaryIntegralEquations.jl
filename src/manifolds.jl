@@ -35,6 +35,11 @@ struct DiscreteClosedCurve{
 
 end
 
+function length_scale(c::DiscreteClosedCurve)
+    xmin, xmax = extrema(@view c.x[:, 1])
+    ymin, ymax = extrema(@view c.x[:, 2])
+    hypot(xmax - xmin, ymax - ymin)
+end
 
 function make_dummy_curve(x)
     n, dim_x = size(x)
