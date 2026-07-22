@@ -8,7 +8,7 @@ Try to make one branch for each
 - [x] fix the modules: use one single module for the whole code instead of per-file, see Inti
 - [inprogress] write docstrings
 - [inprogress] write unit tests for correctness
-- [ ] implement support for vector-valued functions
+- [x] implement support for vector-valued functions
 
 - [ ] change DiscreteClosedCurve to Boundary{2}, figure out typing
     i.e. make boundary parametric on rank, and even maybe dimension?
@@ -49,6 +49,8 @@ Try to make one branch for each
 
 - [inprogress] write unit tests for autodiff, verify with ForwardDiff/analytical
     - analytical gradient done, missing still are unit tests
+- [ ] assemble function returns the correct BIE linear system
+- [ ] implement SciML style solution for BIE and BVP
 
 
 
