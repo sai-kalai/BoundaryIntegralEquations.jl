@@ -12,6 +12,10 @@ struct BoundaryValueProblem{
     boundary::B
 end
 
+abstract type EvaluationDistance end
+struct NearEvaluation end
+struct FarEvaluation end
+
 
 # two variants are given: one where the operators are precomputed, and one that
 # computes the operators.
@@ -191,6 +195,7 @@ function evaluate(
     φ::BoundaryDensity,
     H::Hypersingular,
     D_target::DoubleLayer,
+    ::FarEvaluation,
 )::Tuple{AbstractVector,Neumann}
     τ = H * φ
     u = D_target * φ
@@ -198,27 +203,94 @@ function evaluate(
 end
 
 
+function evaluate(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    φ::BoundaryDensity,
+    target::AbstractMatrix,
+    ::NearEvaluation
+)
+
+    v_lim = holomorphism_boundary_limit(
+        problem,
+        φ,
+    )
+
+    v = cauchy_integral(problem.boundary, target, v_lim)
+
+    return real.(v)
+
+end
+
 # compute operators
+@doc raw"""
+    evaluate(problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}, approach::Indirect, correction::HypersingularCorrection, φ::BoundaryDensity, target::AbstractMatrix, relative_cutoff=0.05, matrix_factory::Function=default_allocator)
+
+Evaluate the solution to a boundary value problem by using the solution to the
+associated boundary integral equation by the indirect approach.
+
+# Arguments
+- `problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}`: problem whose solution is to be evaluated
+- `approach::Indirect`: the indirect approach
+- `correction::HypersingularCorrection`: type of correction to handle singular integral
+- `φ::BoundaryDensity`: the solution to the associated boundary integral equation
+- `target::AbstractMatrix`: points where the solution of the BVP needs evaluation
+- `relative_cutoff`: proportion of the characteristic length of the domain to switch between near-boundary evaluation using the Cauchy integral and conventional evaluation. Defaults to 5%.
+"""
 function evaluate(
     problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     approach::Indirect,
     correction::HypersingularCorrection,
     φ::BoundaryDensity,
     target::AbstractMatrix,
+    relative_cutoff=0.05
     ;
     matrix_factory::Function=default_allocator,
-)::Tuple{AbstractVector,Neumann}
+)
 
-    m = size(target, 1)
     n = size(problem.boundary, 1)
+    m = size(target, 1)
 
-    H = Hypersingular(problem, correction, matrix_factory(n, n))
+    H = Hypersingular(problem.equation, correction, matrix_factory(n, n))
     populate_matrices!(problem.boundary, H)
 
-    D_target = DoubleLayer(problem, matrix_factory(m, n))
-    populate_matrices!(problem.boundary, target, D_target)
+    # 1. find points in the correct side of the domain
+    poly = [[row[1], row[2]] for row in eachrow(problem.boundary.x)]
+    push!(poly, problem.boundary.x[1, :])
+    correct_side_mask = [
+        inpolygon((target[i, 1], target[i, 2]), poly) == 1
+        for i in axes(target, 1)
+    ]
 
-    return evaluate(problem, approach, φ, H, D_target)
+    # 2. find points within cutoff distance
+
+    cutoff = length_scale(problem.boundary) * relative_cutoff
+
+    # TODO: cache tree inside boundary
+    tree = KDTree(problem.boundary.x')
+    inside_cutoff_idxs = inrange(tree, target', cutoff)
+    inside_cutoff_mask = .!isempty.(inside_cutoff_idxs)
+
+
+    far_mask = .!inside_cutoff_mask .& correct_side_mask
+    near_mask = inside_cutoff_mask .& correct_side_mask
+
+    # 3. evaluate accordingly
+    D_target = DoubleLayer(problem.equation, matrix_factory(sum(far_mask), n))
+    populate_matrices!(problem.boundary, target[far_mask, :], D_target)
+
+    u_far, τ = evaluate(problem, approach, φ, H, D_target, FarEvaluation())
+
+    u_near = evaluate(problem, approach, φ, target[near_mask, :], NearEvaluation())
+
+    u = similar(target, m)
+    u[far_mask, :] = u_far
+    u[near_mask, :] = u_near
+    u[.!correct_side_mask, :] .= NaN # TODO: make nan generic
+
+    # TODO: test cases where all/no points are far, near, outside
+
+    return u, τ
 end
 
 
@@ -230,6 +302,11 @@ function solve_and_evaluate(
     H::Hypersingular,
     D_target::DoubleLayer
 )::Tuple{AbstractVector,Neumann}
+
+    # WARN:
+    # since operators are precomputed, client is responsible for ensuring that
+    # the target points are found in the correct side of the domain.
+    # Actually, it might be better to disallow precomputed operators entirely.
 
     φ = solve(problem, approach, D)
 
