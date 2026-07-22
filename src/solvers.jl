@@ -321,6 +321,7 @@ function solve_and_evaluate(
     approach::Indirect,
     correction::HypersingularCorrection,
     target::AbstractMatrix,
+    relative_cutoff=0.05
     ;
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Neumann}
@@ -332,12 +333,12 @@ function solve_and_evaluate(
     H = Hypersingular(problem.equation, correction, matrix_factory(n, n))
     populate_matrices!(problem.boundary, D, H)
 
-    D_target = DoubleLayer(problem.equation, matrix_factory(m, n))
-    populate_matrices!(problem.boundary, target, D_target)
+    φ = solve(problem, approach, D)
 
-    return solve_and_evaluate(problem, approach, D, H, D_target)
+    u, τ = evaluate(problem, approach, H, φ, target, relative_cutoff; matrix_factory=matrix_factory)
+
+    return u, τ
 end
-
 
 #
 # Laplace - Interior - Neumann - Direct
