@@ -179,3 +179,8 @@ function main()
     # wait(display(fig3))
 
 end
+
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end
