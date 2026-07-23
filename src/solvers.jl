@@ -371,6 +371,7 @@ function solve(
     D::DoubleLayer,
 )::Dirichlet
 
+    @show cond(D.matrix), cond(S.matrix)
     σ = Dirichlet((0.5 + D) \ (S * problem.bc))
 
     return σ

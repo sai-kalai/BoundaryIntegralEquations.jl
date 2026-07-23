@@ -25,6 +25,38 @@ struct DiscreteClosedCurve{
     w::TW # weights # TODO: enforce that these be vectors
     cw::CW
 
+    function DiscreteClosedCurve(
+        x::TX,
+        n::TN,
+        k::TK,
+        w::TW,
+        cw::CW,
+    ) where {
+        T<:Real,
+        TX<:AbstractMatrix{<:T},
+        TN<:AbstractMatrix{<:T},
+        TK<:AbstractVector{<:T},
+        TW<:AbstractVector{<:T},
+        CW<:AbstractVector{<:Complex{T}},
+    }
+
+        d, N = size(x)
+
+        @assert size(n) == (d, N) "normal vectors must have same shape as x"
+        @assert length(k) == N "curvature vector must have one entry per point"
+        @assert length(w) == N "weight vector must have one entry per point"
+        @assert length(cw) == N "complex weight vector must have one entry per point"
+
+        @assert all(isfinite, x) "x contains non-finite values"
+        @assert all(isfinite, n) "n contains non-finite values"
+        @assert all(isfinite, k) "k contains non-finite values"
+        @assert all(isfinite, w) "w contains non-finite values"
+
+        # Optional: enforce unit normals
+        # @assert all(abs(norm(n[:, i]) - one(T)) ≤ sqrt(eps(T)) for i in 1:N) "normals must be unit length"
+
+        new{T,TX,TN,TK,TW,CW}(x, n, k, w, cw)
+    end
 end
 
 function length_scale(c::DiscreteClosedCurve)
@@ -34,10 +66,11 @@ function length_scale(c::DiscreteClosedCurve)
 end
 
 function make_dummy_curve(x)
-    n, dim_x = size(x)
+
+    dim_x, n = size(x)
 
     one_1d = ones(n)
-    zero_nd = zeros((n, dim_x))
+    zero_nd = zeros((dim_x, n))
     zero_1d = zeros(n)
     zero_cmp=zeros(ComplexF64, n)
 
@@ -69,16 +102,17 @@ function DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMa
     # TODO: assert shape
 
     s = vec(sqrt.(sum(abs2, v; dims=1))) # TODO: make this vec() produce a container accordingly to container type of x, v, a
-    t = v ./ s
+
+    t = v ./ s' # NOTE: i don't like these transposes that are coming from switching to column-major for enabling bradcasting ...
 
 
     # normal is rotated tangential
     n = similar(t)
-    n[1, :], n[2, :] = t[2, :], -t[1, :]
+    n[1, :], n[2, :] = -t[2, :], t[1, :]
 
-    k = vec(-sum(a .* n, dims=1) ./ s .^ 2)
+    k = vec(-sum(a .* n, dims=1) ./ s' .^ 2)
 
-    N = size(x, 1)
+    N = size(x, 2)
 
     w = (2π / N) .* s # WARN: discretization in parameter space h is hardcoded here
 
@@ -155,7 +189,6 @@ periodic spectral derivative
 """
 function periodic_spectral_diff(f)
 
-
     n = size(f, 2)
 
     f_hat = fft(f, 2)
@@ -167,7 +200,9 @@ function periodic_spectral_diff(f)
         k = [0; 1im * (1:((n-1)÷2)); 1im * ((-(n-1)÷2):-1)]
     end
 
-    f_prime_hat = f_hat .* k
+
+
+    f_prime_hat = f_hat .* k'
 
     f_prime = real(ifft(f_prime_hat, 2))
 

@@ -423,6 +423,7 @@ function compute_entry!(
     x = make_svector2(t, i)
     y = make_svector2(s.x, j)
 
+
     op.matrix[i, j] = kernel(
         op,
         get_r_norm_sq!(c, x, y)
@@ -726,7 +727,7 @@ function apply_correction!(
         # TODO: is it possible to use cached data, i.e. call correction inside the first loop?
 
         # g(j) = n(i) ⋅ n(j) |ρ'(j)|/(2π |ρ'(i)|) * (1 - B + B^2)
-        nx_dot_ny = _a_dot_b(s.n[i, 1], s.n[i, 2], s.n[j, 1], s.n[j, 2])
+        nx_dot_ny = dot(make_svector2(s.n, i), make_svector2(s.n, j))
 
         g = nx_dot_ny * s.w[j] / (s.w[i]^2) * (1 - B + B^2)
 
