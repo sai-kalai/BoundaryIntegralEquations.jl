@@ -30,5 +30,5 @@ evenly distributed points in a circumference centered at the origin of radius r
 """
 function ball(r, n)
     z = r .* cis.(2pi * (1:n) / n)
-    return hcat(real.(z), imag.(z))
+    return vcat(real.(z), imag.(z))
 end

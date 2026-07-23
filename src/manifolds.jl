@@ -28,8 +28,8 @@ struct DiscreteClosedCurve{
 end
 
 function length_scale(c::DiscreteClosedCurve)
-    xmin, xmax = extrema(@view c.x[:, 1])
-    ymin, ymax = extrema(@view c.x[:, 2])
+    xmin, xmax = extrema(@view c.x[1, :])
+    ymin, ymax = extrema(@view c.x[2, :])
     hypot(xmax - xmin, ymax - ymin)
 end
 
@@ -68,23 +68,22 @@ function DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMa
 
     # TODO: assert shape
 
-    s = vec(sqrt.(sum(abs2, v; dims=2))) # TODO: make this vec() produce a container accordingly to container type of x, v, a
+    s = vec(sqrt.(sum(abs2, v; dims=1))) # TODO: make this vec() produce a container accordingly to container type of x, v, a
     t = v ./ s
 
 
     # normal is rotated tangential
     n = similar(t)
-    n[:, 1], n[:, 2] = t[:, 2], -t[:, 1]
+    n[1, :], n[2, :] = t[2, :], -t[1, :]
 
-    k = vec(-sum(a .* n, dims=2) ./ s .^ 2)
+    k = vec(-sum(a .* n, dims=1) ./ s .^ 2)
 
     N = size(x, 1)
 
     w = (2π / N) .* s # WARN: discretization in parameter space h is hardcoded here
 
     # complex weights
-    # cw = (2π / N) .* reinterpret(ComplexF64, v')'
-    cw = (2π / N) .* ComplexF64.(v[:, 1], v[:, 2])
+    cw = (2π / N) .* ComplexF64.(v[1, :], v[2, :])
 
     return DiscreteClosedCurve(x, n, k, w, cw)
 
@@ -117,7 +116,7 @@ construct curve given a list of parameter values and a parametrization
 function DiscreteClosedCurve(θ::AbstractVector, ρ::Function)
 
     # range [0, 2pi) to evaluate parametrization
-    x = Matrix(stack(ρ, θ)') # TODO: don't transpose, work with column major
+    x = Matrix(stack(ρ, θ)) # TODO: don't transpose, work with column major
 
     return DiscreteClosedCurve(x)
 
@@ -157,9 +156,9 @@ periodic spectral derivative
 function periodic_spectral_diff(f)
 
 
-    n = size(f, 1)
+    n = size(f, 2)
 
-    f_hat = fft(f, 1)
+    f_hat = fft(f, 2)
 
     # TODO: replace by fftfreq, fftshift
     if iseven(n)
@@ -170,7 +169,7 @@ function periodic_spectral_diff(f)
 
     f_prime_hat = f_hat .* k
 
-    f_prime = real(ifft(f_prime_hat, 1))
+    f_prime = real(ifft(f_prime_hat, 2))
 
     return f_prime
 end

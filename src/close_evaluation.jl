@@ -16,16 +16,13 @@ function cauchy_integral(
     boundary_data::AbstractVector,
 )
 
-    m = size(target, 1)
-    n = size(source.x, 1)
+    m = size(target, 2)
+    n = size(source.x, 2)
 
     v = similar(target, ComplexF64, m)
 
-    # x = reinterpret(ComplexF64, target')
-    # y = reinterpret(ComplexF64, source.x')
-
-    x = ComplexF64.(target[:, 1], target[:, 2])
-    y = ComplexF64.(source.x[:, 1], source.x[:, 2])
+    x = ComplexF64.(target[1, :], target[2, :])
+    y = ComplexF64.(source.x[1, :], source.x[2, :])
 
 
     for k in 1:m
@@ -97,21 +94,21 @@ v^-(x) = - \frac{1}{2} \varphi(x) - \frac{1}{2\pi i} \text{p.v.} \int_{\Gamma}{\
 - `density::BoundaryDensity`: Density that is the solution to the boundary integral equation associated to `problem`
 """
 function holomorphism_boundary_limit(
-    problem::BoundaryValueProblem{Laplace, Dirichlet, Interior, <:DiscreteClosedCurve},
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     density::BoundaryDensity,
 )
 
     # NOTE: strange: All the information needed to compute φ is actually present
     # here, but it's expected as a separate argument...
 
-    n, dim_y = size(problem.boundary.x)
+    n = size(problem.boundary, 2)
 
     φ = data(density)
     τ_prime = periodic_spectral_diff(φ)
 
     v_lim = similar(problem.boundary.x, ComplexF64, n)
 
-    # y = reinterpret(ComplexF64, source.x')
+    # TODO: make parametric on fp representation
     y = ComplexF64.(problem.boundary.x[:, 1], problem.boundary.x[:, 2])
 
     for k in 1:n

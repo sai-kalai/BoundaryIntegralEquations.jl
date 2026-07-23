@@ -1,5 +1,3 @@
-
-
 struct BoundaryValueProblem{
     E<:DifferentialEquation,
     C<:BoundaryCondition,
@@ -67,7 +65,7 @@ function solve(
     matrix_factory::Function=default_allocator,
 )::Neumann
 
-    n = size(problem.boundary, 1)
+    n = size(problem.boundary, 2)
 
     D_star = AdjointDoubleLayer(problem.equation, matrix_factory(n, n))
     H = Hypersingular(problem.equation, correction, matrix_factory(n, n))
@@ -120,8 +118,8 @@ function evaluate(
     ;
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Neumann}
-    m = size(target, 1)
-    n = size(problem.boundary, 1)
+    m = size(target, 2)
+    n = size(problem.boundary, 2)
 
     S_target = SingleLayer(problem.equation, nothing, matrix_factory(m, n))
     D_target = DoubleLayer(problem.equation, matrix_factory(m, n))
@@ -181,7 +179,7 @@ function solve(
     matrix_factory::Function=default_allocator,
 )::BoundaryDensity
 
-    n = size(problem.boundary, 1)
+    n = size(problem.boundary, 2)
     D = DoubleLayer(problem.equation, matrix_factory(n, n))
     populate_matrices!(problem.boundary, D)
 
@@ -210,12 +208,10 @@ function evaluate(
     target::AbstractMatrix,
     ::NearEvaluation
 )
-
     v_lim = holomorphism_boundary_limit(
         problem,
         φ,
     )
-
     v = cauchy_integral(problem.boundary, target, v_lim)
 
     return real.(v)
@@ -248,15 +244,15 @@ function evaluate(
     matrix_factory::Function=default_allocator,
 )
 
-    n = size(problem.boundary, 1)
-    m = size(target, 1)
+    n = size(problem.boundary, 2)
+    m = size(target, 2)
 
     # 1. find points in the correct side of the domain
-    poly = [[row[1], row[2]] for row in eachrow(problem.boundary.x)]
-    push!(poly, problem.boundary.x[1, :])
+    poly = [[col[1], col[2]] for col in eachcol(problem.boundary.x)]
+    push!(poly, problem.boundary.x[:, 1]) # close loop
     correct_side_mask = [
-        inpolygon((target[i, 1], target[i, 2]), poly) == 1
-        for i in axes(target, 1)
+        inpolygon((target[1, row], target[2, row]), poly) == 1
+        for row in axes(target, 2)
     ]
 
     # 2. find points within cutoff distance
@@ -264,8 +260,8 @@ function evaluate(
     cutoff = length_scale(problem.boundary) * relative_cutoff
 
     # TODO: cache tree inside boundary
-    tree = KDTree(problem.boundary.x')
-    inside_cutoff_idxs = inrange(tree, target', cutoff)
+    tree = KDTree(problem.boundary.x)
+    inside_cutoff_idxs = inrange(tree, target, cutoff)
     inside_cutoff_mask = .!isempty.(inside_cutoff_idxs)
 
 
@@ -274,16 +270,16 @@ function evaluate(
 
     # 3. evaluate accordingly
     D_target = DoubleLayer(problem.equation, matrix_factory(sum(far_mask), n))
-    populate_matrices!(problem.boundary, target[far_mask, :], D_target)
+    populate_matrices!(problem.boundary, target[:, far_mask], D_target)
 
     u_far, τ = evaluate(problem, approach, φ, H, D_target, FarEvaluation())
 
-    u_near = evaluate(problem, approach, φ, target[near_mask, :], NearEvaluation())
+    u_near = evaluate(problem, approach, φ, target[:, near_mask], NearEvaluation())
 
     u = similar(target, m)
-    u[far_mask, :] = u_far
-    u[near_mask, :] = u_near
-    u[.!correct_side_mask, :] .= NaN # TODO: make nan generic
+    u[:, far_mask] = u_far
+    u[:, near_mask] = u_near
+    u[:, .!correct_side_mask] .= NaN # TODO: make nan generic
 
     # TODO: test cases where all/no points are far, near, outside
 
@@ -307,7 +303,7 @@ function evaluate(
     matrix_factory::Function=default_allocator,
 )
 
-    n = size(problem.boundary, 1)
+    n = size(problem.boundary, 2)
 
     H = Hypersingular(problem.equation, correction, matrix_factory(n, n))
     populate_matrices!(problem.boundary, H)
@@ -350,8 +346,7 @@ function solve_and_evaluate(
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Neumann}
 
-    m = size(target, 1)
-    n = size(problem.boundary, 1)
+    n = size(problem.boundary, 2)
 
     D = DoubleLayer(problem.equation, matrix_factory(n, n))
     H = Hypersingular(problem.equation, correction, matrix_factory(n, n))
@@ -390,7 +385,7 @@ function solve(
     matrix_factory::Function=default_allocator,
 )::Dirichlet
 
-    n = size(problem.boundary, 1)
+    n = size(problem.boundary, 2)
     S = SingleLayer(problem.equation, correction, matrix_factory(n, n))
     D = DoubleLayer(problem.equation, matrix_factory(n, n))
     populate_matrices!(problem.boundary, S, D)
@@ -421,9 +416,8 @@ function evaluate(
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Dirichlet}
 
-    m = size(target, 1)
-    n = size(problem.boundary, 1)
-
+    m = size(target, 2)
+    n = size(problem.boundary, 2)
 
     S_target = SingleLayer(problem.equation, nothing, matrix_factory(m, n))
     D_target = DoubleLayer(problem.equation, matrix_factory(m, n))
@@ -489,7 +483,7 @@ function solve(
     matrix_factory::Function=default_allocator,
 )::Dirichlet
 
-    n = size(problem.boundary, 1)
+    n = size(problem.boundary, 2)
     D_star = AdjointDoubleLayer(problem.equation, matrix_factory(n, n))
     populate_matrices!(problem.boundary, D_star)
 
@@ -522,8 +516,8 @@ function evaluate(
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Dirichlet}
 
-    m = size(target, 1)
-    n = size(problem.boundary, 1)
+    m = size(target, 2)
+    n = size(problem.boundary, 2)
 
     S = SingleLayer(problem.equation, correction, matrix_factory(n, n))
     populate_matrices!(problem.boundary, S)
@@ -557,8 +551,8 @@ function solve_and_evaluate(
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Dirichlet}
 
-    m = size(target, 1)
-    n = size(problem.boundary, 1)
+    m = size(target, 2)
+    n = size(problem.boundary, 2)
 
     S = SingleLayer(problem.equation, correction, matrix_factory(n, n))
     D_star = AdjointDoubleLayer(problem.equation, matrix_factory(n, n))
