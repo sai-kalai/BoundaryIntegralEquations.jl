@@ -43,19 +43,28 @@ include("fixtures.jl")
         H_sidi = Hypersingular(laplace, sidi, allocator(n, n)) # ok
         populate_matrices!(Γ, S, D, D_star, H_sidi, H_zeta)
 
-        @test S.matrix ≈ reference_operator_matrix(typeof(S)) atol=1e-2
-        @test D.matrix ≈ reference_operator_matrix(typeof(D), Val(:self)) atol=1e-2
+        @test S.matrix ≈ reference_operator_matrix(typeof(S)) atol=1e-4
+        @test D.matrix ≈ reference_operator_matrix(typeof(D), Val(:self)) atol=1e-4
 
-        @test D_star.matrix ≈ reference_operator_matrix(typeof(D_star)) atol=1e-2
-        @test H_zeta.matrix ≈ reference_operator_matrix(typeof(H_zeta)) atol=1e-2
-        @test H_sidi.matrix ≈ reference_operator_matrix(typeof(H_sidi)) atol=1e-2
+        @test D_star.matrix ≈ reference_operator_matrix(typeof(D_star)) atol=1e-4
+        @test H_zeta.matrix ≈ reference_operator_matrix(typeof(H_zeta)) atol=1e-4
+
+
+        @show (
+            extrema(log.(abs.(
+            H_zeta.matrix - reference_operator_matrix(typeof(H_zeta)))
+        )))
+
+
+
+        @test H_sidi.matrix ≈ reference_operator_matrix(typeof(H_sidi)) atol=1e-4
 
         S_target = SingleLayer(laplace, nothing, allocator(n_test, n)) # ok
         D_target = DoubleLayer(laplace, allocator(n_test, n)) # ok
         populate_matrices!(Γ, x_test, S_target, D_target)
 
-        @test S_target.matrix ≈ reference_operator_matrix(typeof(S_target)) atol=1e-2
-        @test D_target.matrix ≈ reference_operator_matrix(typeof(D_target), Val(:target)) atol=1e-2
+        @test S_target.matrix ≈ reference_operator_matrix(typeof(S_target)) atol=1e-4
+        @test D_target.matrix ≈ reference_operator_matrix(typeof(D_target), Val(:target)) atol=1e-4
 
 
     end

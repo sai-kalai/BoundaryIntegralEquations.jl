@@ -371,9 +371,10 @@ function solve(
     D::DoubleLayer,
 )::Dirichlet
 
-    @show cond(D.matrix), cond(S.matrix)
-    σ = Dirichlet((0.5 + D) \ (S * problem.bc))
+    @show rank(0.5+D)
+    @show minimum(svdvals(0.5+D))
 
+    σ = Dirichlet((0.5 + D) \ (S * problem.bc))
     return σ
 end
 
