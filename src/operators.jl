@@ -45,10 +45,8 @@ end
 # end
 
 
-struct M
-    x::Int
-end
 
+# TODO: make parametric on fp representation
 # a.k.a S
 @doc raw"""
     SingleLayer
@@ -94,12 +92,13 @@ Compute the operator coefficients for source-target interaction
 """
 function SingleLayer(
     equation::Laplace,
-    source::AbstractManifold, # source manifold e.g. domain boundary
-    target::AbstractMatrix; # target points to compute operator
+    source::AbstractManifold,
+    target::AbstractMatrix,
+    ;
     matrix_factory::Function=default_allocator,
 )
-    m, dim_t = size(target)
-    n, dim_x = size(source.x)
+    m = size(target, 2)
+    n = size(source, 2)
 
     matrix = matrix_factory(m, n)::AbstractMatrix
     op = SingleLayer(equation, nothing, matrix)
@@ -126,7 +125,7 @@ function SingleLayer(
     matrix_factory::Function=default_allocator,
 )
 
-    n, dim_x = size(source.x)
+    n = size(source, 2)
 
 
     matrix = matrix_factory(n, n)::AbstractMatrix # allocate memory
@@ -178,8 +177,8 @@ function DoubleLayer(
     target::AbstractMatrix; # target points to compute operator
     matrix_factory::Function=default_allocator,
 )
-    m, dim_t = size(target)
-    n, dim_x = size(source.x)
+    m = size(target, 2)
+    n = size(source, 2)
 
     matrix = matrix_factory(m, n)::AbstractMatrix
     op = DoubleLayer(equation, matrix)
@@ -204,7 +203,7 @@ function DoubleLayer(
     matrix_factory::Function=default_allocator,
 )
 
-    n, dim_x = size(source.x)
+    n = size(source, 2)
     matrix = matrix_factory(n, n)::AbstractMatrix
     op = DoubleLayer(equation, matrix)
 
@@ -252,8 +251,7 @@ function AdjointDoubleLayer(
     source::AbstractManifold;
     matrix_factory::Function=default_allocator,
 )
-
-    n, dim_x = size(source.x)
+    n = size(source, 2)
     matrix = matrix_factory(n, n)::AbstractMatrix
     op = AdjointDoubleLayer(equation, matrix)
 
@@ -281,8 +279,8 @@ function AdjointDoubleLayer(
     matrix_factory::Function=default_allocator,
 )
 
-    m, dim_x = size(target)
-    n, dim_x = size(source.x)
+    m = size(target, 2)
+    n = size(source, 2)
 
     matrix = matrix_factory(m, n)::AbstractMatrix
     op = AdjointDoubleLayer(equation, matrix)
@@ -335,7 +333,7 @@ function Hypersingular(
     matrix_factory::Function=default_allocator,
 )
 
-    n, dim_x = size(source.x)
+    n = size(source, 2)
 
     matrix = matrix_factory(n, n)::AbstractMatrix
     op = Hypersingular(equation, correction, matrix)
@@ -407,8 +405,8 @@ function get_nx_dot_ny!(d::PairwiseCache, nx::SVector, ny::SVector)
 end
 
 
-function make_svector2(matrix, row)
-    return SVector{2}(matrix[row, 1], matrix[row, 2])
+function make_svector2(matrix, col)
+    return SVector{2}(matrix[1, col], matrix[2, col])
 end
 
 # not self interaction
@@ -424,6 +422,7 @@ function compute_entry!(
 
     x = make_svector2(t, i)
     y = make_svector2(s.x, j)
+
 
     op.matrix[i, j] = kernel(
         op,
@@ -679,16 +678,16 @@ function apply_correction!(
     s::DiscreteClosedCurve
 )
     ord = op.correction.order
-    m = size(s.x, 1)
+    m = size(s, 2) # NOTE: unsure about this
     k = clamp((ord - 1) ÷ 2, 0, (m - 1) ÷ 2)
 
     stencil = get_kr!(c, k)
 
     for dj in (-k):k
         j = mod1(i + dj, m)
+        # TODO: replace by abs
         val = stencil[dj+k+1] * 0.5 / pi
         op.matrix[i, j] += val * s.w[j]
-
     end
 
 end
@@ -699,7 +698,7 @@ function apply_correction!(
     i::Int,
     s::DiscreteClosedCurve
 )
-    m = size(s.x, 1)
+    m = size(s, 2)
     ord = op.correction.order
     k = (ord - 2) ÷ 2
 
@@ -728,7 +727,7 @@ function apply_correction!(
         # TODO: is it possible to use cached data, i.e. call correction inside the first loop?
 
         # g(j) = n(i) ⋅ n(j) |ρ'(j)|/(2π |ρ'(i)|) * (1 - B + B^2)
-        nx_dot_ny = _a_dot_b(s.n[i, 1], s.n[i, 2], s.n[j, 1], s.n[j, 2])
+        nx_dot_ny = dot(make_svector2(s.n, i), make_svector2(s.n, j))
 
         g = nx_dot_ny * s.w[j] / (s.w[i]^2) * (1 - B + B^2)
 
@@ -746,7 +745,7 @@ Compute the coefficients of several requested self-interaction integral operator
 
 # Arguments
 - `source::DiscreteClosedCurve{<:Real}`: Manifold where the density is defined
-- `ops::IntegralOperator... : List of operators that are required
+- `ops::IntegralOperator... : List of operators that are required.
 """
 function populate_matrices!(
     source::DiscreteClosedCurve{<:Real},
@@ -761,13 +760,11 @@ function populate_matrices!(
     source::DiscreteClosedCurve{<:Real},
     ops, # tuple of operators with already allocated matrices
 )
-    n = size(source.x, 1)
+    n = size(source, 2)
 
     # client provides initialized matrices contained in ops
 
     # compute required stencils: {KR, FD2}
-    #
-    #
 
     stencil_cache = StencilCache{Int32,Vector{Float64}}(Dict(), Dict())
 
@@ -831,8 +828,8 @@ function populate_matrices!(
     end
 
 
-    n = size(source.x, 1)
-    m = size(target, 1)
+    n = size(source, 2)
+    m = size(target, 2)
 
     pairwise_cache = PairwiseCache{Float64}()
     # loop over i

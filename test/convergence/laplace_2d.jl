@@ -250,7 +250,7 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
     density_source = BoundaryDensity(density_source)
 
-    n_source = size(x_source, 1)
+    n_source = size(x_source, 2)
 
     Γ_source = make_dummy_curve(x_source)
 
@@ -274,6 +274,8 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
     for (i, n) ∈ enumerate(n_vals)
 
         Γ = DiscreteClosedCurve(n, starfish) # boundary of the domain
+
+
 
         # fig = visualize(Γ)
         # wait(display(fig))

@@ -14,48 +14,70 @@ end
 struct DiscreteClosedCurve{
     T<:Real,
     TX<:AbstractMatrix{<:T},
-    TV<:AbstractMatrix{<:T},
-    TA<:AbstractMatrix{<:T},
-    TS<:AbstractVector{<:T}, # scalar
-    TT<:AbstractMatrix{<:T},
     TN<:AbstractMatrix{<:T},
     TK<:AbstractVector{<:T}, # scalar
     TW<:AbstractVector{<:T}, # scalar
     CW<:AbstractVector{<:Complex{T}}, # scalar
 } <: AbstractManifold
     x::TX # locations of points in the manifold
-    v::TV # velocities
-    a::TA # accelerations
-    s::TS # speeds
-    t::TT # unit tangential vectors
     n::TN # unit normal vectors
     k::TK # curvatures # TODO: think 2d vs 3d
     w::TW # weights # TODO: enforce that these be vectors
     cw::CW
 
+    function DiscreteClosedCurve(
+        x::TX,
+        n::TN,
+        k::TK,
+        w::TW,
+        cw::CW,
+    ) where {
+        T<:Real,
+        TX<:AbstractMatrix{<:T},
+        TN<:AbstractMatrix{<:T},
+        TK<:AbstractVector{<:T},
+        TW<:AbstractVector{<:T},
+        CW<:AbstractVector{<:Complex{T}},
+    }
+
+        d, N = size(x)
+
+        @assert size(n) == (d, N) "normal vectors must have same shape as x"
+        @assert length(k) == N "curvature vector must have one entry per point"
+        @assert length(w) == N "weight vector must have one entry per point"
+        @assert length(cw) == N "complex weight vector must have one entry per point"
+
+        @assert all(isfinite, x) "x contains non-finite values"
+        @assert all(isfinite, n) "n contains non-finite values"
+        @assert all(isfinite, k) "k contains non-finite values"
+        @assert all(isfinite, w) "w contains non-finite values"
+
+        # Optional: enforce unit normals
+        # @assert all(abs(norm(n[:, i]) - one(T)) ≤ sqrt(eps(T)) for i in 1:N) "normals must be unit length"
+
+
+        new{T,TX,TN,TK,TW,CW}(x, n, k, w, cw)
+    end
 end
 
 function length_scale(c::DiscreteClosedCurve)
-    xmin, xmax = extrema(@view c.x[:, 1])
-    ymin, ymax = extrema(@view c.x[:, 2])
+    xmin, xmax = extrema(@view c.x[1, :])
+    ymin, ymax = extrema(@view c.x[2, :])
     hypot(xmax - xmin, ymax - ymin)
 end
 
 function make_dummy_curve(x)
-    n, dim_x = size(x)
+
+    dim_x, n = size(x)
 
     one_1d = ones(n)
-    zero_nd = zeros((n, dim_x))
+    zero_nd = zeros((dim_x, n))
     zero_1d = zeros(n)
     zero_cmp=zeros(ComplexF64, n)
 
 
     return DiscreteClosedCurve(
         x,
-        zero_nd, #v
-        zero_nd, #a
-        zero_1d, #s
-        zero_nd, #t
         zero_nd, #n
         zero_1d, #k
         one_1d, #w
@@ -63,7 +85,6 @@ function make_dummy_curve(x)
     )
 
 end
-
 
 
 """
@@ -81,25 +102,25 @@ function DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMa
 
     # TODO: assert shape
 
-    s = vec(sqrt.(sum(abs2, v; dims=2))) # TODO: make this vec() produce a container accordingly to container type of x, v, a
-    t = v ./ s
+    s = vec(sqrt.(sum(abs2, v; dims=1))) # TODO: make this vec() produce a container accordingly to container type of x, v, a
+
+    t = v ./ s' # NOTE: i don't like these transposes that are coming from switching to column-major for enabling bradcasting ...
 
 
     # normal is rotated tangential
     n = similar(t)
-    n[:, 1], n[:, 2] = t[:, 2], -t[:, 1]
+    n[1, :], n[2, :] = -t[2, :], t[1, :]
 
-    k = vec(-sum(a .* n, dims=2) ./ s .^ 2)
+    k = vec(-sum(a .* n, dims=1) ./ s' .^ 2)
 
-    N = size(x, 1)
+    N = size(x, 2)
 
     w = (2π / N) .* s # WARN: discretization in parameter space h is hardcoded here
 
     # complex weights
-    # cw = (2π / N) .* reinterpret(ComplexF64, v')'
-    cw = (2π / N) .* ComplexF64.(v[:, 1], v[:, 2])
+    cw = (2π / N) .* ComplexF64.(v[1, :], v[2, :])
 
-    return DiscreteClosedCurve(x, v, a, s, t, n, k, w, cw)
+    return DiscreteClosedCurve(x, n, k, w, cw)
 
 end
 
@@ -130,7 +151,7 @@ construct curve given a list of parameter values and a parametrization
 function DiscreteClosedCurve(θ::AbstractVector, ρ::Function)
 
     # range [0, 2pi) to evaluate parametrization
-    x = Matrix(stack(ρ, θ)') # TODO: don't transpose, work with column major
+    x = Matrix(stack(ρ, θ)) # TODO: don't transpose, work with column major
 
     return DiscreteClosedCurve(x)
 
@@ -159,6 +180,7 @@ end
 
 
 
+# TODO: this doesn't belong to manifolds
 """
     periodic_spectral_diff(d)
 
@@ -169,10 +191,11 @@ periodic spectral derivative
 """
 function periodic_spectral_diff(f)
 
+    dim = ndims(f)
 
-    n = size(f, 1)
+    n = size(f, dim)
 
-    f_hat = fft(f, 1)
+    f_hat = fft(f, dim)
 
     # TODO: replace by fftfreq, fftshift
     if iseven(n)
@@ -181,9 +204,23 @@ function periodic_spectral_diff(f)
         k = [0; 1im * (1:((n-1)÷2)); 1im * ((-(n-1)÷2):-1)]
     end
 
-    f_prime_hat = f_hat .* k
+    # HACK:
+    # fix later
+    # make k broadcast correctly along the differentiation dimension
+    if dim == 1
+        f_prime_hat = f_hat .* k
+    elseif dim == 2
+        f_prime_hat = f_hat .* k'
+    else
+        error("dimension $dim not supported")
+    end
 
-    f_prime = real(ifft(f_prime_hat, 1))
+
+    f_prime = real(ifft(f_prime_hat, dim))
+
+    @show size(k), typeof(k)
+    @show size(f), size(f_hat), size(f_prime_hat), size(f_prime)
+    @show typeof(f), typeof(f_hat), typeof(f_prime_hat), typeof(f_prime)
 
     return f_prime
 end
