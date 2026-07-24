@@ -104,7 +104,6 @@ function holomorphism_boundary_limit(
     n = size(problem.boundary, 2)
 
     φ = data(density)
-    @show " calling perispecdiff inside holomorphism bdry"
     φ_prime = periodic_spectral_diff(φ)
 
     # TODO: make fp parametric

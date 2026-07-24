@@ -109,7 +109,7 @@ function DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMa
 
     # normal is rotated tangential
     n = similar(t)
-    n[1, :], n[2, :] = -t[2, :], t[1, :]
+    n[1, :], n[2, :] = t[2, :], -t[1, :]
 
     k = vec(-sum(a .* n, dims=1) ./ s' .^ 2)
 
@@ -118,6 +118,7 @@ function DiscreteClosedCurve(x::AbstractMatrix, v::AbstractMatrix, a::AbstractMa
     w = (2π / N) .* s # WARN: discretization in parameter space h is hardcoded here
 
     # complex weights
+    # orientation of surface was flipped?
     cw = (2π / N) .* ComplexF64.(v[1, :], v[2, :])
 
     return DiscreteClosedCurve(x, n, k, w, cw)
@@ -171,7 +172,7 @@ nodes in parameter space
 """
 function DiscreteClosedCurve(n_points::Int, ρ::Function)
     # range [0, 2pi) to evaluate parametrization
-    θ = range(0, 2π; length=n_points + 1)[1:(end-1)]
+   θ = range(0, 2π; length=n_points + 1)[1:(end-1)]
     return DiscreteClosedCurve(θ, ρ)
 
 end
@@ -210,7 +211,7 @@ function periodic_spectral_diff(f)
     if dim == 1
         f_prime_hat = f_hat .* k
     elseif dim == 2
-        f_prime_hat = f_hat .* k'
+        f_prime_hat = -f_hat .* k' # NOTE: this mysterious minus appeared after changing to col-major
     else
         error("dimension $dim not supported")
     end
@@ -218,9 +219,6 @@ function periodic_spectral_diff(f)
 
     f_prime = real(ifft(f_prime_hat, dim))
 
-    @show size(k), typeof(k)
-    @show size(f), size(f_hat), size(f_prime_hat), size(f_prime)
-    @show typeof(f), typeof(f_hat), typeof(f_prime_hat), typeof(f_prime)
 
     return f_prime
 end
