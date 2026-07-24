@@ -55,6 +55,7 @@ struct DiscreteClosedCurve{
         # Optional: enforce unit normals
         # @assert all(abs(norm(n[:, i]) - one(T)) ≤ sqrt(eps(T)) for i in 1:N) "normals must be unit length"
 
+
         new{T,TX,TN,TK,TW,CW}(x, n, k, w, cw)
     end
 end
@@ -179,6 +180,7 @@ end
 
 
 
+# TODO: this doesn't belong to manifolds
 """
     periodic_spectral_diff(d)
 
@@ -189,9 +191,11 @@ periodic spectral derivative
 """
 function periodic_spectral_diff(f)
 
-    n = size(f, 2)
+    dim = ndims(f)
 
-    f_hat = fft(f, 2)
+    n = size(f, dim)
+
+    f_hat = fft(f, dim)
 
     # TODO: replace by fftfreq, fftshift
     if iseven(n)
@@ -199,8 +203,6 @@ function periodic_spectral_diff(f)
     else
         k = [0; 1im * (1:((n-1)÷2)); 1im * ((-(n-1)÷2):-1)]
     end
-
-
 
     f_prime_hat = f_hat .* k'
 

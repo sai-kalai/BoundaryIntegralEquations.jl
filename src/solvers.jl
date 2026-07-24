@@ -277,9 +277,9 @@ function evaluate(
     u_near = evaluate(problem, approach, φ, target[:, near_mask], NearEvaluation())
 
     u = similar(target, m)
-    u[:, far_mask] = u_far
-    u[:, near_mask] = u_near
-    u[:, .!correct_side_mask] .= NaN # TODO: make nan generic
+    u[far_mask] .= u_far
+    u[near_mask] .= u_near
+    u[.!correct_side_mask] .= NaN # TODO: make nan generic
 
     # TODO: test cases where all/no points are far, near, outside
 
@@ -371,8 +371,6 @@ function solve(
     D::DoubleLayer,
 )::Dirichlet
 
-    @show rank(0.5+D)
-    @show minimum(svdvals(0.5+D))
     # NOTE: ????????????????????????????????????????
 
     σ = Dirichlet(pinv(0.5 + D) * (S * problem.bc))

@@ -104,12 +104,15 @@ function holomorphism_boundary_limit(
     n = size(problem.boundary, 2)
 
     φ = data(density)
-    τ_prime = periodic_spectral_diff(φ)
+    φ_prime = periodic_spectral_diff(φ)
 
+    # TODO: make fp parametric
     v_lim = similar(problem.boundary.x, ComplexF64, n)
 
+
     # TODO: make parametric on fp representation
-    y = ComplexF64.(problem.boundary.x[:, 1], problem.boundary.x[:, 2])
+    # TODO: now we can actually use reinterprete since col major
+    y = ComplexF64.(problem.boundary.x[1, :], problem.boundary.x[2, :])
 
     for k in 1:n
 
@@ -118,7 +121,7 @@ function holomorphism_boundary_limit(
         for j in Iterators.flatten((1:(k-1), (k+1):n))
             res += (φ[j] - φ[k]) / (y[j] - y[k]) * problem.boundary.cw[j]
         end
-        v_lim[k] = -φ[k] - τ_prime[k]/(im * n) + res * im / 2pi
+        v_lim[k] = -φ[k] - φ_prime[k]/(im * n) + res * im / 2pi
 
     end
     return v_lim

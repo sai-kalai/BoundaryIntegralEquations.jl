@@ -49,8 +49,8 @@ function main()
 
     boundary_grid = stack((t) -> rotated_ellipse(t, x0, y0, a, b, γ), θ_grid; dims=2)
 
-    xmin, ymin = minimum(boundary_grid, dims=1) |> vec
-    xmax, ymax = maximum(boundary_grid, dims=1) |> vec
+    xmin, ymin = minimum(boundary_grid, dims=2) |> vec
+    xmax, ymax = maximum(boundary_grid, dims=2) |> vec
 
     xs = range(xmin, xmax, length=n_grid)
     ys = range(ymin, ymax, length=n_grid)
@@ -63,7 +63,6 @@ function main()
         dims=2
     )
 
-    @show size(xi_eta_exact_all)
 
     xi_eta_exact_boundary = stack(
         (t) -> exact_solution(t, x0, y0, a, b, γ),
@@ -71,7 +70,6 @@ function main()
         dims=2
     )
 
-    @show size(xi_eta_exact_boundary)
 
     n_vals = 20:80:400
     errs = zeros(Float64, size(n_vals, 1))
@@ -128,7 +126,7 @@ function main()
         xi = solns[1][1]
         eta = solns[2][1]
 
-        xi_eta_num = hcat(xi, eta)
+        xi_eta_num = permutedims(hcat(xi, eta))
 
         e = xi_eta_num .- xi_eta_exact
 

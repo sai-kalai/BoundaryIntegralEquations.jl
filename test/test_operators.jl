@@ -45,18 +45,8 @@ include("fixtures.jl")
 
         @test S.matrix ≈ reference_operator_matrix(typeof(S)) atol=1e-4
         @test D.matrix ≈ reference_operator_matrix(typeof(D), Val(:self)) atol=1e-4
-
         @test D_star.matrix ≈ reference_operator_matrix(typeof(D_star)) atol=1e-4
         @test H_zeta.matrix ≈ reference_operator_matrix(typeof(H_zeta)) atol=1e-4
-
-
-        @show (
-            extrema(log.(abs.(
-            H_zeta.matrix - reference_operator_matrix(typeof(H_zeta)))
-        )))
-
-
-
         @test H_sidi.matrix ≈ reference_operator_matrix(typeof(H_sidi)) atol=1e-4
 
         S_target = SingleLayer(laplace, nothing, allocator(n_test, n)) # ok
