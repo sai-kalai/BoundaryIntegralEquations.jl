@@ -1,4 +1,6 @@
 using SafeTestsets
 
 
-@safetestset "Integral operators" include("test_operators.jl")
+@safetestset "Integral Operators" include("operators.jl")
+
+@safetestset "Close Evaluation" include("close_evaluation.jl")

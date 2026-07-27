@@ -93,7 +93,8 @@ function visualize end
 
     include("../test/quick_test.jl")
     include("../test/convergence/laplace_2d.jl")
-    include("../test/test_operators.jl")
+    include("../test/operators.jl")
+    include("../test/close_evaluation.jl")
 
     # does not work
     include.(filter(contains(r".jl$"), readdir("../test/"; join=true)))

@@ -613,7 +613,7 @@ function compute_entry!(
 
     elseif j > i
         # skipped symmetric
-        return
+        # return
 
     else
         # off-diagonal sweep
@@ -831,6 +831,8 @@ function populate_matrices!(
     n = size(source, 2)
     m = size(target, 2)
 
+    # TODO: find out about SIMD and threading options in this version
+    # investigate autodiff on kernels directly
     pairwise_cache = PairwiseCache{Float64}()
     # loop over i
     #

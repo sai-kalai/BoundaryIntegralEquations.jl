@@ -3,15 +3,21 @@ next steps:
 Try to make one branch for each
 
 
-- [ ] change access pattern to column-major, record performance before and after
+- [x] change access pattern to column-major, record performance before and after
 - [x] package more into one struct such that solve(instance) has all the info
 - [x] fix the modules: use one single module for the whole code instead of per-file, see Inti
 - [inprogress] write docstrings
 - [inprogress] write unit tests for correctness
+    - [x] put convergence scripts in test
+    - [ ] manifolds
+    - [x] operators
+    - [ ] solvers
+    - [ ] holomorphism boundary limit
+    - [x] cauchy ingegral
+    - [x] autodiff vs analytical gradient
+
 - [x] implement support for vector-valued functions
 
-- [ ] change DiscreteClosedCurve to Boundary{2}, figure out typing
-    i.e. make boundary parametric on rank, and even maybe dimension?
 - [ ] rename hypersingular corrections: both "Sidi" and "Zeta" are of type Zeta
 
 - [ ] implement 2nd derivative approximation for hypersingular kernel using AD
@@ -21,36 +27,47 @@ Try to make one branch for each
     - [x] fix undef initializer in separate matrices branch
     - [ ] homogenize interface further so that the only difference is a boolean flag `compute matrices`
 
-- [x] api for solving the  BIE attached to the BVP and reusing the density for computing at arbitary points
+- [x] api for solving the BIE attached to the BVP and reusing the density for computing at arbitrary points
     struct containing side, bc type,
     solve()
     evaluate(x points)
-    - [ ] consider extending the operators to also store source and target information
-        no: bad idea
 
 - [x] implement distance policy for close evaluation
 
 - [x] move close evaluation and autodiff outside of scripts
 - [x] enforce consistent order of arguments across the codebase (source, then target)
+
+
+- [ ] implement SciML style solution for BIE and BVP
+
+- [x] implement GPU kernel assembly and linear solve
+- [ ] extend GPU module, match on type of array, support several backends
+- [ ] integrate GPU and AD into main branch
+
+- extend functionality
+    - [ ] exterior problem
+    - [ ] Helmholtz problem
+
+applications
+- [ ] inverse point lookup
+- [ ] jacobian determinant boundary shape optim.
+
+
+Backlog/ideas
+- [ ] change DiscreteClosedCurve to Boundary{2}, figure out typing
+    i.e. make boundary parametric on rank, and even maybe dimension?
+- [ ] assemble function returns the correct BIE linear problem
 - [ ] extend the type system for representing geometry
     use cases:
     - boundary: smooth manifold, all information, incl. parametrization
     - target points: only locations
     - dummy boundary: unit weights, for producing manufactured solution results
     - target points with unit normals: for adjoint dlp, where normals at x are needed
-
-- [ ] consider using Manifolds.jl
-    probably not, but research how other packages describe geometry, keep an eye out for 3d
-
+    - may be better to use an external package for managing geometry
 - [ ] array of structures instead of structure of arrays
     implement homogeneous api, and test performance
 
-- [ ] Solution struct, following SciML guidelines
 
-- [inprogress] write unit tests for autodiff, verify with ForwardDiff/analytical
-    - analytical gradient done, missing still are unit tests
-- [ ] assemble function returns the correct BIE linear system
-- [ ] implement SciML style solution for BIE and BVP
 
 
 

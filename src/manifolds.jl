@@ -152,7 +152,7 @@ construct curve given a list of parameter values and a parametrization
 function DiscreteClosedCurve(θ::AbstractVector, ρ::Function)
 
     # range [0, 2pi) to evaluate parametrization
-    x = Matrix(stack(ρ, θ)) # TODO: don't transpose, work with column major
+    x = Matrix(stack(ρ, θ))
 
     return DiscreteClosedCurve(x)
 
@@ -195,6 +195,7 @@ function periodic_spectral_diff(f)
     dim = ndims(f)
 
     n = size(f, dim)
+    eachslice
 
     f_hat = fft(f, dim)
 
@@ -215,6 +216,10 @@ function periodic_spectral_diff(f)
     else
         error("dimension $dim not supported")
     end
+
+    # TODO:: try writing loop
+    # work out why the normal is flipped
+    # loop over dimensions performing 1D fft on each instead of passing matrix
 
 
     f_prime = real(ifft(f_prime_hat, dim))

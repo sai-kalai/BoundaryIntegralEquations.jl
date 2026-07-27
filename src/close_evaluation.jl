@@ -15,6 +15,9 @@ function cauchy_integral(
     target::AbstractMatrix,
     boundary_data::AbstractVector,
 )
+    @show size(source.x)
+    @show size(target), typeof(target)
+    @show size(boundary_data), typeof(boundary_data)
 
     m = size(target, 2)
     n = size(source.x, 2)
@@ -48,7 +51,7 @@ function cauchy_integral(
             v[k] = num / den
         end
     end
-    return v
+    return conj(v) # NOTE: found out 25/07
 end
 
 

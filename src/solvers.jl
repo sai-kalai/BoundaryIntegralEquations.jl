@@ -274,12 +274,16 @@ function evaluate(
 
     u_far, τ = evaluate(problem, approach, φ, H, D_target, FarEvaluation())
 
+    # TODO: look into allocations for slices, look into eachrow
+    # branch inside loop
     u_near = evaluate(problem, approach, φ, target[:, near_mask], NearEvaluation())
 
     u = similar(target, m)
     u[far_mask] .= u_far
     u[near_mask] .= u_near
+
     u[.!correct_side_mask] .= NaN # TODO: make nan generic
+
 
     # TODO: test cases where all/no points are far, near, outside
 
