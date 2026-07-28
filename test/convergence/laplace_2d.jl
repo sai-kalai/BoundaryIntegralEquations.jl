@@ -254,7 +254,7 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
     Γ_source = make_dummy_curve(x_source)
 
-    S_manuf = SingleLayer(laplace, Γ_source, x_test; matrix_factory=allocator)
+    S_manuf = SingleLayer(laplace, Γ_source, x_test; matrix_factory=allocator, populate_matrix=true)
 
     # matrix = compute_laplace_slp_matrix(x_test, x_source)
     u_exact = S_manuf * density_source # exact solution at test points
@@ -282,8 +282,8 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
         # break
 
         # target: domain boundary, source: manufactured solution point sources
-        S_source = SingleLayer(laplace, nothing, allocator(n, n_source)) # ok
-        D_star_source = AdjointDoubleLayer(laplace, allocator(n, n_source)) # ok
+        S_source = SingleLayer(laplace, Γ_source, Γ.x) # ok
+        D_star_source = AdjointDoubleLayer(laplace, Γ_source, Γ.x) # ok
         populate_matrices!(Γ_source, Γ.x, S_source, D_star_source; target_normals=Γ.n)
 
 
@@ -294,21 +294,15 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
         τ_exact = D_star_source * density_source # Neumann BC exact solution
 
 
-        S = SingleLayer(laplace, kapur_rokhlin, allocator(n, n)) # ok
-        D = DoubleLayer(laplace, allocator(n, n)) # ok
-        D_star = AdjointDoubleLayer(laplace, allocator(n, n))  # ok
-        H_zeta = Hypersingular(laplace, zeta, allocator(n, n)) # ok
-        H_sidi = Hypersingular(laplace, sidi, allocator(n, n)) # ok
+        S = SingleLayer(laplace, Γ, kapur_rokhlin,) # ok
+        D = DoubleLayer(laplace, Γ,) # ok
+        D_star = AdjointDoubleLayer(laplace, Γ,)  # ok
+        H_zeta = Hypersingular(laplace, Γ, zeta,) # ok
+        H_sidi = Hypersingular(laplace, Γ, sidi,) # ok
         populate_matrices!(Γ, S, D, D_star, H_sidi, H_zeta)
 
-        # display(S.matrix)
-        # display(D.matrix)
-        # display(D_star.matrix)
-        # display(H_zeta.matrix)
-        # display(H_sidi.matrix)
-
-        S_target = SingleLayer(laplace, nothing, allocator(n_test, n)) # ok
-        D_target = DoubleLayer(laplace, allocator(n_test, n)) # ok
+        S_target = SingleLayer(laplace, Γ, x_test) # ok
+        D_target = DoubleLayer(laplace, Γ, x_test) # ok
         populate_matrices!(Γ, x_test, S_target, D_target)
 
         # display(S_target.matrix)
