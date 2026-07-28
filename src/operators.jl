@@ -1,5 +1,4 @@
 
-# NOTE: is this the julian way for a getter/public api?
 function matrix(op::IntegralOperator)::AbstractMatrix
     return op.matrix
 end
@@ -38,7 +37,26 @@ end
 
 
 
+# TODO: make parametric on fp representation
 # a.k.a S
+@doc raw"""
+    SingleLayer
+
+
+Finite-dimensional approximation of a single-layer potential integral operator
+using the Nyström approach.
+
+This operator maps a density on the boundary of a domain to the potential
+that it produces.
+
+```math
+S: C^1(\Gamma) \to C^1(\bar \Omega)\\
+
+S[u](x) = \int_\Gamma {k(x, y) \varphi(y) dS(y)}, x \in \bar \Omega, y \in \Gamma
+
+```
+
+"""
 struct SingleLayer{
     E<:DifferentialEquation,
     C<:Union{SingularCorrection,Nothing},
@@ -54,12 +72,25 @@ end
 default_allocator = (_m, _n) -> zeros(_m, _n)
 
 # source-target interaction
+"""
+    SingleLayer(equation::Laplace, source::AbstractManifold, # source manifold e.g. domain boundary, target::AbstractMatrix, # target points to compute operator, matrix_factory::Function=default_allocator)
+
+Compute the operator coefficients for source-target interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined, i.e. boundary of the domain
+- `target::AbstractMatrix`: Points where the potential is computed
+"""
 function SingleLayer(
     equation::Laplace,
-    source::AbstractManifold, # source manifold e.g. domain boundary
-    target::AbstractMatrix; # target points to compute operator
+    source::AbstractManifold,
+    target::AbstractMatrix,
+    ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=true,
 )
+
     mat = compute_laplace_slp_matrix(
         target,
         source.x;
@@ -69,12 +100,26 @@ function SingleLayer(
 end
 
 # self interaction
+@doc raw"""
+    SingleLayer(equation::Laplace, source::AbstractManifold, correction::SingularCorrection, # order of kapur rokhlin singular correction, matrix_factory::Function=default_allocator)
+
+Compute the operator coefficients for source self interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined and where the potential is computed, i.e. boundary of the domain
+- `correction::SingularCorrection`: Approach to deal with the singularity
+"""
 function SingleLayer(
     equation::Laplace,
-    source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
-    correction::SingularCorrection; # order of kapur rokhlin singular correction
+    source::AbstractManifold,
+    correction::SingularCorrection,
+    ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=true,
 )
+
+
     mat = compute_laplace_slp_matrix(
         source.x,
         source.w,
@@ -82,10 +127,25 @@ function SingleLayer(
         matrix_factory
     ) .* source.w'
     return SingleLayer(equation, correction, mat)
-
 end
 
 # a.k.a D a.k.a. ∂S/∂ny
+@doc raw"""
+    DoubleLayer
+
+Finite-dimensional approximation of a double-layer potential integral operator
+using the Nyström approach.
+
+This operator maps a density on the boundary of a domain to potential
+that it produces.
+
+```math
+D: C^1(\Gamma) \to C^1(\bar \Omega)\\
+D[u](x) = \int_\Gamma {\frac{\partial}{\partial n_y}k(x, y) \varphi(y) dS(y)}, x \in \bar \Omega, y \in \Gamma
+
+```
+
+"""
 struct DoubleLayer{
     E<:DifferentialEquation,
     M<:AbstractMatrix{<:Number}
@@ -95,11 +155,23 @@ struct DoubleLayer{
 end
 
 # source-target interaction
+@doc raw"""
+    DoubleLayer(equation::Laplace, source::AbstractManifold, # source manifold e.g. domain boundary, target::AbstractMatrix, # target points to compute operator, matrix_factory::Function=default_allocator)
+
+Compute the operator coefficients for source-target interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined, i.e. boundary of the domain
+- `target::AbstractMatrix`: Points where the potential is computed
+"""
 function DoubleLayer(
     equation::Laplace,
     source::AbstractManifold, # source manifold e.g. domain boundary
-    target::AbstractMatrix; # target points to compute operator
+    target::AbstractMatrix,
+    ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=true,
 )
     mat = compute_laplace_dlp_matrix(
         target,
@@ -108,15 +180,26 @@ function DoubleLayer(
         matrix_factory=matrix_factory,
     ) .* source.w'
 
-    return DoubleLayer(equation, mat)
 
+    return DoubleLayer(equation, mat)
 end
 
 # self interaction
+@doc raw"""
+    DoubleLayer(equation::Laplace, source::AbstractManifold, matrix_factory::Function=default_allocator)
+
+Compute the operator coefficients for source self interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined and where the potential is computed, i.e. boundary of the domain
+"""
 function DoubleLayer(
     equation::Laplace,
-    source::AbstractManifold;
+    source::AbstractManifold,
+    ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=false,
 )
 
     mat = compute_laplace_dlp_matrix(
@@ -130,6 +213,22 @@ function DoubleLayer(
 end
 
 # a.k.a  D* a.k.a. ∂S/∂nx
+@doc raw"""
+    AdjointDoubleLayer
+
+Finite-dimensional approximation of the adjoint operator of a double-layer potential integral operator
+using the Nyström approach.
+
+This operator maps a density on the boundary of a domain to the potential
+that it produces.
+
+```math
+D^*: C^1(\Gamma) \to C^1(\bar \Omega) \\
+D^*[u](x) = \int_\Gamma {\frac{\partial}{\partial n_x}k(x, y) \varphi(y) dS(y)}, x \in \Gamma, y \in \bar \Omega
+
+```
+
+"""
 struct AdjointDoubleLayer{
     E<:DifferentialEquation,
     M<:AbstractMatrix{<:Number}
@@ -139,12 +238,22 @@ struct AdjointDoubleLayer{
 end
 
 
-
 # self interaction
+@doc raw"""
+    AdjointDoubleLayer(equation::Laplace, source::AbstractManifold, matrix_factory::Function=default_allocator)
+
+Compute the operator coefficients for source self interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined and where the potential is computed, i.e. boundary of the domain
+"""
 function AdjointDoubleLayer(
     equation::Laplace,
-    source::AbstractManifold; # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    source::AbstractManifold,
+    ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=true,
 )
 
     mat = compute_laplace_dlp_adjoint_matrix(
@@ -157,14 +266,26 @@ function AdjointDoubleLayer(
 end
 
 # source-target interaction: edge case for manufactured solution
+@doc raw"""
+    AdjointDoubleLayer(equation::Laplace, source::AbstractManifold, target::AbstractMatrix, target_normals::AbstractMatrix, matrix_factory::Function=default_allocator)
+
+Compute the operator coefficients for source-target interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined, i.e. points inside the domain
+- `target::AbstractMatrix`: Points where the potential is computed, i.e. points in the boundary of the domain
+- `target_normals::AbstractMatrix`: outward unit normal vectors at the target points
+"""
 function AdjointDoubleLayer(
     equation::Laplace,
-    source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
+    source::AbstractManifold,
     target::AbstractMatrix,
-    target_normals::AbstractMatrix;
+    target_normals::Union{AbstractMatrix,Nothing}=nothing,
+    ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=false,
 )
-
 
     mat = compute_laplace_dlp_adjoint_matrix(
         target,
@@ -175,10 +296,24 @@ function AdjointDoubleLayer(
 
 
     return AdjointDoubleLayer(equation, mat)
-
 end
 
 # a.k.a  N a.k.a. ∂S²/∂nx∂ny
+@doc raw"""
+    Hypersingular
+
+Finite-dimensional approximation of the hypersingular integral operator
+using the Nyström approach.
+
+This operator maps a density on the boundary of a domain to the potential
+that it produces.
+
+```math
+H: C^1(\Gamma) \to C^1(\Gamma)\\
+H[u](x) = \int_\Gamma{\frac{\partial^2}{\partial n_x \partial n_y}k(x, y) \varphi(y) dS(y)}, x\in \Gamma, y \in \Gamma
+```
+
+"""
 struct Hypersingular{
     E<:DifferentialEquation,
     C<:HypersingularCorrection,
@@ -190,14 +325,24 @@ struct Hypersingular{
 end
 
 
+# self interaction
+@doc raw"""
+    Hypersingular(equation::Laplace, source::AbstractManifold, correction::HypersingularCorrection, matrix_factory::Function=default_allocator)
 
-# self interaction using zeta correction
+Compute the operator coefficients for source self interaction
+
+# Arguments
+- `equation::Laplace`: Partial Differential Equation corresponding to this operator
+- `source::AbstractManifold`: Manifold where the density is defined and where the potential is computed, i.e. boundary of the domain
+- `correction::HypersingularCorrection`: Approach to handle the singularity
+"""
 function Hypersingular(
     equation::Laplace,
-    # TODO: change order to equation -> correction -> source to be more similar to other constructor
-    source::AbstractManifold, # differentiate 2d vs 3d here by dispatching on DiscreteClosedCurve vs DiscreteClosedSurface
-    correction::Zeta;
+    source::AbstractManifold,
+    correction::HypersingularCorrection,
+    ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=true,
 )
     mat = compute_laplace_hypersingular_matrix(
         source.x,
@@ -208,9 +353,11 @@ function Hypersingular(
         matrix_factory=matrix_factory,
     )
 
+
     # mat[diagind(mat)] .+= -π / 6 ./ source.w + source.k .^ 2 .* source.w ./ 4π
 
     return Hypersingular(equation, correction, mat,)
+
 
 end
 
@@ -219,7 +366,8 @@ end
 function Hypersingular(
     equation::Laplace,
     source::AbstractManifold,
-    correction::Sidi;
+    correction::Sidi,
+    ;
     matrix_factory::Function=default_allocator,
 )
     mat = compute_laplace_hypersingular_matrix(
@@ -234,8 +382,8 @@ function Hypersingular(
 end
 
 
-function make_svector2(matrix, row)
-    return SVector{2}(matrix[row, 1], matrix[row, 2])
+function make_svector2(matrix, col)
+    return SVector{2}(matrix[1, col], matrix[2, col])
 end
 
 
@@ -249,8 +397,9 @@ function compute_laplace_slp_matrix(
     # shape of kernel matters though, e.g. apply operator to function acting on source/target points? in this case, function acts on the boundary (source points)
     # but to compute solution at arbitrary points, we are talking about m "target" points
     # so kernel is nxm and is applied to m x ...
-    m, dim_x = size(x)
-    n, dim_y = size(y)
+
+    m = size(x, 2)
+    n = size(y, 2)
 
     mat = matrix_factory(m, n)
 
@@ -271,7 +420,7 @@ function compute_laplace_slp_matrix(
     matrix_factory::Function=default_allocator,
 )
 
-    n, dim_x = size(y)
+    n = size(y, 2)
 
     mat = matrix_factory(n, n)
 
@@ -317,8 +466,8 @@ function compute_laplace_dlp_matrix(
     ny::AbstractMatrix; # unitary normals at source
     matrix_factory::Function=default_allocator,
 )
-    m, dim_x = size(x)
-    n, dim_y = size(y)
+    m = size(x, 2)
+    n = size(y, 2)
 
 
     mat = matrix_factory(m, n)
@@ -345,7 +494,7 @@ function compute_laplace_dlp_matrix(
     matrix_factory::Function=default_allocator,
 )
 
-    n, dim_x = size(y)
+    n = size(y, 2)
 
     mat = matrix_factory(n, n)
 
@@ -379,8 +528,8 @@ function compute_laplace_dlp_adjoint_matrix(
     nx;
     matrix_factory::Function=default_allocator,
 )
-    m, dim_x = size(x)
-    n, dim_y = size(y)
+    m = size(x, 2)
+    n = size(y, 2)
     mat = matrix_factory(m, n)
 
     for i in 1:m, j in 1:n
@@ -404,10 +553,9 @@ function compute_laplace_dlp_adjoint_matrix(
     y::AbstractMatrix, # points of interest
     ny::AbstractMatrix, # unitary normal vectors at the y points
     curvatures::AbstractVector; # curvature at x
-    matrix_factory::Function=default_allocator,
-)
+    matrix_factory::Function=default_allocator,)
 
-    n, dim_x = size(y)
+    n = size(y, 2)
 
     mat = matrix_factory(n, n)
 
@@ -440,7 +588,7 @@ function compute_laplace_hypersingular_matrix(
     ny::AbstractMatrix;
     matrix_factory::Function=default_allocator,
 )
-    n, dim_x = size(y)
+    n = size(y, 2)
     mat = matrix_factory(n, n)
 
     for i in 1:n
@@ -448,6 +596,7 @@ function compute_laplace_hypersingular_matrix(
         # TODO: measure: is it faster to do it here or outside the loop?
         # or leave diagonal empty and let quadrature client handle diagonal
         # dD_dn[i, i] = -pi/4 # NOTE: weights and dirichlet need to be multiplied to diagonal for computing the quadrature
+
 
         for j in (mod(i, 2)+1):2:(i-1)
 
@@ -495,7 +644,7 @@ function compute_laplace_hypersingular_matrix(
     matrix_factory::Function=default_allocator,
 )
 
-    n, dim_x = size(y)
+    n = size(y, 2)
 
     mat = matrix_factory(n, n)
 
@@ -539,7 +688,11 @@ function compute_laplace_hypersingular_matrix(
 
             j = mod1(i + dj, n)
 
-            r_norm_sq = norm(y[i, :] - y[j, :])^2
+            yi = make_svector2(y, i)
+            yj = make_svector2(y, j)
+            r = yi-yj
+
+            r_norm_sq = dot(r, r)
             r_prime_0_x = weights[i] * dj
 
             # B(j) = (r(j) ^ 2 - |ρ'(i) * j| ^ 2) / |ρ'(i) * j| ^ 2
@@ -566,8 +719,8 @@ function compute_laplace_hypersingular_matrix(
     end
 
 
-    return mat
 
+    return mat
 end
 
 

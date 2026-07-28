@@ -1,6 +1,7 @@
 
 
-using BimDiff
+using BoundaryIntegralEquations
+
 using Test
 
 # include("TestFixtures.jl")

@@ -15,13 +15,12 @@
 using Test
 using Revise
 
+using GLMakie
 
 
 using LinearAlgebra
-using BimDiff
-using LinearAlgebra
 
-using BimDiff
+using BoundaryIntegralEquations
 
 
 
@@ -251,18 +250,18 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
     density_source = BoundaryDensity(density_source)
 
-    n_source = size(x_source, 1)
+    n_source = size(x_source, 2)
 
 
     Γ_source = make_dummy_curve(x_source)
 
-    S_manuf = SingleLayer(laplace, Γ_source, x_test; matrix_factory=allocator)
+    S_manuf = SingleLayer(laplace, Γ_source, x_test; matrix_factory=allocator, populate_matrix=true)
 
     # matrix = compute_laplace_slp_matrix(x_test, x_source)
     u_exact = S_manuf * density_source # exact solution at test points
     u_exact_reference = reference_exact_solution()
 
-    @assert norm(u_exact - u_exact_reference) < 1e-15
+    @test norm(u_exact - u_exact_reference) < 1e-15
 
     # scatter!(ax, x_test[:, 1], x_test[:, 2], color=u_exact)
 
@@ -277,6 +276,7 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
         Γ = DiscreteClosedCurve(n, starfish) # boundary of the domain
 
 
+
         # fig = visualize(Γ)
         # wait(display(fig))
         # break
@@ -285,10 +285,8 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
         S_source = SingleLayer(laplace, Γ_source, Γ.x; matrix_factory=allocator)
         D_star_source = AdjointDoubleLayer(laplace, Γ_source, Γ.x, Γ.n; matrix_factory=allocator)
 
-
         σ = S_source * density_source # Dirichlet BC
         τ_exact = D_star_source * density_source # Neumann BC exact solution
-
 
 
         S = SingleLayer(laplace, Γ, kapur_rokhlin)
@@ -296,7 +294,6 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
         D_star = AdjointDoubleLayer(laplace, Γ)
         H_zeta = Hypersingular(laplace, Γ, zeta)
         H_sidi = Hypersingular(laplace, Γ, sidi)
-
 
         S_target = SingleLayer(laplace, Γ, x_test,)
         D_target = DoubleLayer(laplace, Γ, x_test,)
@@ -477,6 +474,5 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    using GLMakie
     wait(display(plot_errors(convergence_study())))
 end

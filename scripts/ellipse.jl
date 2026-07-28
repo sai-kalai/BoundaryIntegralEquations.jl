@@ -9,15 +9,9 @@ using PolygonOps
 GLMakie.activate!()
 
 
-using BimDiff
+using BoundaryIntegralEquations
 
 
-"""
-    main()
-
-[TODO:description]
-
-"""
 function main()
 
     γ = deg2rad(30.)
@@ -25,6 +19,7 @@ function main()
     y0 = 3.
     a = 5.
     b = 2.
+
 
     function rotated_ellipse(θ, x0, y0, a, b, γ)
 
@@ -50,31 +45,37 @@ function main()
         return SA[xi/a, eta/b]
     end
 
-    n_grid = 200
-    θ_grid = range(0, 2π; length=n_grid + 1)[1:(end-1)]
-    boundary_grid = Matrix(stack((t) -> rotated_ellipse(t, x0, y0, a, b, γ), θ_grid)')
 
-    xmin, ymin = minimum(boundary_grid, dims=1) |> vec
-    xmax, ymax = maximum(boundary_grid, dims=1) |> vec
+    n_grid = 30
+    θ_grid = range(0, 2π; length=n_grid + 1)[1:(end-1)]
+
+    boundary_grid = stack((t) -> rotated_ellipse(t, x0, y0, a, b, γ), θ_grid; dims=2)
+
+    xmin, ymin = minimum(boundary_grid, dims=2) |> vec
+    xmax, ymax = maximum(boundary_grid, dims=2) |> vec
 
     xs = range(xmin, xmax, length=n_grid)
     ys = range(ymin, ymax, length=n_grid)
 
-    x_test_all = reduce(vcat, [[x y] for y in ys, x in xs])
+
+    x_test_all = stack(((x, y),) -> SA[x, y], Iterators.product(xs, ys); dims=2)
+
     xi_eta_exact_all = stack(
         (t) -> exact_solution(t, x0, y0, a, b, γ),
-        eachrow(x_test_all);
-        dims=1
+        eachcol(x_test_all);
+        dims=2
     )
 
 
     xi_eta_exact_boundary = stack(
         (t) -> exact_solution(t, x0, y0, a, b, γ),
-        eachrow(boundary_grid);
-        dims=1
+
+        eachcol(boundary_grid);
+        dims=2
     )
 
-    n_vals = 20:80:200
+
+    n_vals = 20:80:400
     errs = zeros(Float64, size(n_vals, 1))
 
     ord = 32
@@ -86,11 +87,6 @@ function main()
     indirect = Indirect()
 
 
-    # TODO: combine both scripts
-
-    # regular mesh for evaluating exact solution
-
-
     for (i, n) in enumerate(n_vals)
 
         # Define boundary
@@ -99,137 +95,91 @@ function main()
 
 
         # check which points are inside
-        poly = [[row[1], row[2]] for row in eachrow(Γ.x)]
-        push!(poly, Γ.x[1, :])
+
+        poly = [[col[1], col[2]] for col in eachcol(Γ.x)]
+        push!(poly, Γ.x[:, 1])
 
         mask = [
-            inpolygon((x_test_all[i, 1], x_test_all[i, 2]), poly) == 1
-            for i in axes(x_test_all, 1)
+            inpolygon((x_test_all[1, col], x_test_all[2, col]), poly) == 1
+            for col in axes(x_test_all, 2)
         ]
 
-        x_test = x_test_all[mask, :]
-        xi_eta_exact = xi_eta_exact_all[mask, :]
+        x_test = x_test_all[:, mask]
+        xi_eta_exact = xi_eta_exact_all[:, mask]
 
         D = DoubleLayer(laplace, Γ)
-        S = SingleLayer(laplace, Γ, ord)
+        S = SingleLayer(laplace, Γ, KapurRokhlin(ord))
         H_zeta = Hypersingular(laplace, Γ, zeta)
         H_sidi = Hypersingular(laplace, Γ, sidi)
 
-        D_target = DoubleLayer(laplace, x_test, Γ,)
-        S_target = SingleLayer(laplace, x_test, Γ,)
-
-        # TODO: work with vector valued functions
-        bc_xi = Dirichlet(cos.(θ))
-        bc_eta = Dirichlet(sin.(θ))
+        D_target = DoubleLayer(laplace, Γ, x_test,)
+        S_target = SingleLayer(laplace, Γ, x_test,)
 
 
-        # xi, _ = solve(
-        #     laplace,
-        #     interior,
-        #     bc_xi,
-        #     indirect,
-        #     D,
-        #     H_zeta,
-        #     D_target
-        # )
-        #
-        # eta, _ = solve(
-        #     laplace,
-        #     interior,
-        #     bc_eta,
-        #     indirect,
-        #     D,
-        #     H_zeta,
-        #     D_target
-        # )
+        pbs = [
+            BoundaryValueProblem(laplace, Dirichlet(cos.(θ)), interior, Γ),
+            BoundaryValueProblem(laplace, Dirichlet(sin.(θ)), interior, Γ),
+        ]
 
-        # close evaluation
-
-        phi_xi = solve_bie(
-            laplace,
-            interior,
-            bc_xi,
-            D,
+        phis = solve.(
+            pbs,
+            Ref(indirect),
+            Ref(D),
         )
 
-        phi_eta = solve_bie(
-            laplace,
-            interior,
-            bc_eta,
-            D,
+
+        solns = evaluate.(
+            pbs,
+            Ref(indirect),
+            Ref(sidi),
+            phis,
+            Ref(x_test),
+            Ref(0.05)
         )
 
-        v_lim_xi = compute_boundary_limit(
-            interior,
-            D,
-            phi_xi,
-            Γ
-        )
-        v_xi = cauchy_integral(
-            x_test,
-            Γ,
-            v_lim_xi
-        )
-        xi = real.(v_xi)
+        xi = solns[1][1]
+        eta = solns[2][1]
 
-        v_lim_eta = compute_boundary_limit(
-            interior,
-            D,
-            phi_eta,
-            Γ
-        )
+        xi_eta_num = permutedims(hcat(xi, eta))
 
-        v_eta = cauchy_integral(
-            x_test,
-            Γ,
-            v_lim_eta
-        )
-        eta = real.(v_eta)
-
-        xi_eta_num = hcat(xi, eta)
-
-        # f = Figure()
-        # a = Axis(f[1, 1]; aspect=DataAspect())
-        # scatterlines!(a, real.(v_lim_xi), real.(v_lim_eta); markersize=4)
-        # scatter!(a, xi, eta; markersize=4)
-        # scatter!(a, xi_eta_exact...; markersize=4)
-        # return f
-        # return scatterlines(real.(v_lim_xi), real.(v_lim_eta); markersize=10)
-
-        # Nx2
         e = xi_eta_num .- xi_eta_exact
-        # display(xi)
-        # display(eta)
-        # display(xi_eta_num)
-        # display(e)
-
-        # break
 
         # Nx1, store euclidean norm of error for each point
-        e_norm = norm.(eachrow(e), 2) .+ eps(Float64)
+        e_norm = norm.(eachcol(e), 2) .+ eps(Float64)
 
         # 1x1
         errs[i] = mean(e_norm .^ 2)
 
-        @show i, errs[i]
 
-        # fig, ax = visualize(Γ)
-        #
-        # scatter_kwargs = (; colorscale=log10, color=e_norm, markersize=7, colormap=:viridis)
-        #
-        # sc1 = scatter!(ax, x_test[:, 1], x_test[:, 2]; scatter_kwargs...)
-        #
-        # ax2 = Axis(fig[1, 2]; aspect=DataAspect(), title="n = $n")
-        #
-        # lines!(ax2, xi_eta_exact_boundary[:, 1], xi_eta_exact_boundary[:, 2]; color=:black)
-        #
-        # sc2 = scatter!(ax2, xi_eta_exact[:, 1], xi_eta_exact[:, 2]; scatter_kwargs...)
-        #
-        # Colorbar(fig[1, 2][1, 3], sc2; label="log10 error inf norm")
-        #
-        # wait(display(fig))
+        @show n, errs[i]
+
+        fig, ax = visualize(Γ)
+
+        scatter_kwargs = (;
+            colorscale=log10,
+            color=e_norm,
+            markersize=15,
+            colormap=:viridis,
+        )
+
+
+        sc1 = scatter!(ax, x_test[1, :], x_test[2, :]; scatter_kwargs...)
+
+        arr = arrows2d!(ax, x_test[1, :], x_test[2, :], e[1, :], e[2, :]; lengthscale=0.1)
+
+        ax2 = Axis(fig[1, 2]; aspect=DataAspect(), title="n = $n")
+
+        lines!(ax2, xi_eta_exact_boundary[1, :], xi_eta_exact_boundary[2, :]; color=:black)
+
+
+        sc2 = scatter!(ax2, xi_eta_exact[1, :], xi_eta_exact[2, :]; scatter_kwargs...)
+
+        Colorbar(fig[1, 2][1, 3], sc2; label="log10 error inf norm")
+
+        wait(display(fig))
     end
-    #
+
+    # convergence plot
     # fig3 = Figure()
     # ax3 = Axis(fig3[1, 1]; xscale=log10, yscale=log10)
     #
@@ -242,7 +192,8 @@ function main()
 
 end
 
+
+
 if abspath(PROGRAM_FILE) == @__FILE__
     main()
 end
-

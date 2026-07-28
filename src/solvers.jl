@@ -1,5 +1,3 @@
-
-
 struct BoundaryValueProblem{
     E<:DifferentialEquation,
     C<:BoundaryCondition,
@@ -12,6 +10,10 @@ struct BoundaryValueProblem{
     boundary::B
 end
 
+abstract type EvaluationDistance end
+struct NearEvaluation end
+struct FarEvaluation end
+
 
 # two variants are given: one where the operators are precomputed, and one that
 # computes the operators.
@@ -21,6 +23,17 @@ end
 #
 
 #given operators
+@doc raw"""
+    solve(problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}, ::Direct, D_star::AdjointDoubleLayer, H::Hypersingular)
+
+solve the boundary integral equation associated to the given boundary value problem using tthe direct approach by internally computing the required integral operators
+ given precomputed integral operators
+
+# Arguments
+- `problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}`: Boundary value problem to solve
+- `D_star::AdjointDoubleLayer`: Precomputed $D^*$ operator
+- `H::Hypersingular`: Precomputed $H$ operator
+"""
 function solve(
     problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     ::Direct,
@@ -34,6 +47,16 @@ function solve(
 end
 
 # compute operators
+@doc raw"""
+    solve(problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}, approach::Direct, correction::HypersingularCorrection, ;, matrix_factory::Function=default_allocator)
+
+solve the boundary integral equation associated to the given boundary value problem using tthe direct approach by internally computing the required integral operators
+
+# Arguments
+- `problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}`: Problem to solve
+- `approach::Direct`: Solution approach
+- `correction::HypersingularCorrection`: Type of correction to use to deal with the singularity when computing the Hypersingular operator.
+"""
 function solve(
     problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     approach::Direct,
@@ -54,6 +77,17 @@ function solve(
 end
 
 # given operators
+@doc raw"""
+    evaluate(problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}, ::Direct, τ::Neumann, S_target::SingleLayer, D_target::DoubleLayer)
+
+evaluate the solution of a boundary value problem at requested locations, given the solution to the associated boundary integral equation through the direct approach, and given precomputed operators
+
+# Arguments
+- `problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}`: boundary value problem to solve
+- `τ::Neumann`: solution to the boundary integral equation through the direct approach
+- `S_target::SingleLayer`: source-target interaction integral operator
+- `D_target::DoubleLayer`: source-target interaction integral operator
+"""
 function evaluate(
     problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     ::Direct,
@@ -66,6 +100,17 @@ function evaluate(
 end
 
 # compute operators
+@doc raw"""
+    evaluate(problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}, approach::Direct, τ::Neumann, target::AbstractMatrix, ;, matrix_factory::Function=default_allocator)
+
+evaluate the solution of a boundary value problem at requested locations, given the solution to the associated boundary integral equation through the direct approach, computing the required operators
+
+# Arguments
+- `problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}`: boundary value problem to solve
+- `approach::Direct`: approach to solve the boundary integral equation
+- `τ::Neumann`: solution to the associated boundary integral equation
+- `target::AbstractMatrix`: locations to evaluate the solution to the BVP
+"""
 function evaluate(
     problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     approach::Direct,
@@ -142,6 +187,7 @@ function evaluate(
     # TODO: constrain operators to coincide with PDE of problem
     H::Hypersingular,
     D_target::DoubleLayer,
+    ::FarEvaluation,
 )::Tuple{AbstractVector,Neumann}
     τ = H * φ
     u = D_target * φ
@@ -149,23 +195,114 @@ function evaluate(
 end
 
 
+function evaluate(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    φ::BoundaryDensity,
+    target::AbstractMatrix,
+    ::NearEvaluation
+)
+    v_lim = holomorphism_boundary_limit(
+        problem,
+        φ,
+    )
+    v = cauchy_integral(problem.boundary, target, v_lim)
+
+    return real.(v)
+
+end
+
 # compute operators
+@doc raw"""
+    evaluate(problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}, approach::Indirect, correction::HypersingularCorrection, φ::BoundaryDensity, target::AbstractMatrix, relative_cutoff=0.05, matrix_factory::Function=default_allocator)
+
+Evaluate the solution to a boundary value problem by using the solution to the
+associated boundary integral equation by the indirect approach.
+
+# Arguments
+- `problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}`: problem whose solution is to be evaluated
+- `approach::Indirect`: the indirect approach
+- `correction::HypersingularCorrection`: type of correction to handle singular integral
+- `φ::BoundaryDensity`: the solution to the associated boundary integral equation
+- `target::AbstractMatrix`: points where the solution of the BVP needs evaluation
+- `relative_cutoff`: proportion of the characteristic length of the domain to switch between near-boundary evaluation using the Cauchy integral and conventional evaluation. Defaults to 5%.
+"""
+function evaluate(
+    problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    H::Hypersingular,
+    φ::BoundaryDensity,
+    target::AbstractMatrix,
+    relative_cutoff=0.05
+    ;
+    matrix_factory::Function=default_allocator,
+)
+
+    n = size(problem.boundary, 2)
+    m = size(target, 2)
+
+    # 1. find points in the correct side of the domain
+    poly = [[col[1], col[2]] for col in eachcol(problem.boundary.x)]
+    push!(poly, problem.boundary.x[:, 1]) # close loop
+    correct_side_mask = [
+        inpolygon((target[1, row], target[2, row]), poly) == 1
+        for row in axes(target, 2)
+    ]
+
+    # 2. find points within cutoff distance
+
+    cutoff = length_scale(problem.boundary) * relative_cutoff
+
+    # TODO: cache tree inside boundary
+    tree = KDTree(problem.boundary.x)
+    inside_cutoff_idxs = inrange(tree, target, cutoff)
+    inside_cutoff_mask = .!isempty.(inside_cutoff_idxs)
+
+
+    far_mask = .!inside_cutoff_mask .& correct_side_mask
+    near_mask = inside_cutoff_mask .& correct_side_mask
+
+    # 3. evaluate accordingly
+    D_target = DoubleLayer(problem.equation, problem.boundary, target[:, far_mask])
+
+    u_far, τ = evaluate(problem, approach, φ, H, D_target, FarEvaluation())
+
+    # TODO: look into allocations for slices, look into eachrow
+    # branch inside loop
+    u_near = evaluate(problem, approach, φ, target[:, near_mask], NearEvaluation())
+
+    u = similar(target, m)
+    u[far_mask] .= u_far
+    u[near_mask] .= u_near
+
+    u[.!correct_side_mask] .= NaN # TODO: make nan generic
+
+
+    # TODO: test cases where all/no points are far, near, outside
+
+    return u, τ
+end
+
+@doc raw"""
+    evaluate(problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve}, approach::Indirect, correction::HypersingularCorrection, φ::BoundaryDensity, target::AbstractMatrix, relative_cutoff=0.05, matrix_factory::Function=default_allocator)
+
+compute Hypersingular integral operator and call evaluate
+
+"""
 function evaluate(
     problem::BoundaryValueProblem{Laplace,Dirichlet,Interior,<:DiscreteClosedCurve},
     approach::Indirect,
     correction::HypersingularCorrection,
     φ::BoundaryDensity,
     target::AbstractMatrix,
+    relative_cutoff=0.05
     ;
     matrix_factory::Function=default_allocator,
-)::Tuple{AbstractVector,Neumann}
-
-
+)
     H = Hypersingular(problem.equation, problem.boundary, correction; matrix_factory=matrix_factory)
+    u, τ = evaluate(problem, approach, H, φ, target, relative_cutoff; matrix_factory=matrix_factory)
 
-    D_target = DoubleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
-
-    return evaluate(problem, approach, φ, H, D_target)
+    return u, τ
 end
 
 
@@ -177,9 +314,14 @@ function solve_and_evaluate(problem::BoundaryValueProblem{Laplace,Dirichlet,Inte
     D_target::DoubleLayer
 )::Tuple{AbstractVector,Neumann}
 
+    # WARN:
+    # since operators are precomputed, client is responsible for ensuring that
+    # the target points are found in the correct side of the domain.
+    # Actually, it might be better to disallow precomputed operators entirely.
+
     φ = solve(problem, approach, D)
 
-    u, τ = evaluate(problem, approach, φ, H, D_target)
+    u, τ = evaluate(problem, approach, φ, H, D_target, FarEvaluation())
 
     return u, τ
 end
@@ -190,17 +332,18 @@ function solve_and_evaluate(
     approach::Indirect,
     correction::HypersingularCorrection,
     target::AbstractMatrix,
+    relative_cutoff=0.05
     ;
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Neumann}
 
-    φ = solve(problem, approach; matrix_factory=matrix_factory)
 
-    u, τ = evaluate(problem, approach, correction, φ, target; matrix_factory=matrix_factory)
+    φ = solve(problem, approach, D)
+
+    u, τ = evaluate(problem, approach, correction, φ, target, relative_cutoff; matrix_factory=matrix_factory)
 
     return u, τ
 end
-
 
 #
 # Laplace - Interior - Neumann - Direct
@@ -214,8 +357,9 @@ function solve(
     D::DoubleLayer,
 )::Dirichlet
 
-    σ = Dirichlet((0.5 + D) \ (S * problem.bc))
+    # NOTE: ????????????????????????????????????????
 
+    σ = Dirichlet(pinv(0.5 + D) * (S * problem.bc))
     return σ
 end
 
@@ -255,6 +399,7 @@ function evaluate(
     ;
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Dirichlet}
+
 
     S_target = SingleLayer(problem, problem.boundary, target; matrix_factory=matrix_factory)
     D_target = DoubleLayer(problem, problem.boundary, target; matrix_factory=matrix_factory)
@@ -321,7 +466,6 @@ function solve(
 )::Dirichlet
 
     D_star = AdjointDoubleLayer(problem.equation, problem.boundary; matrix_factory=matrix_factory)
-
     return solve(problem, approach, D_star)
 end
 
@@ -350,7 +494,6 @@ function evaluate(
     ;
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Dirichlet}
-
 
     S = SingleLayer(problem.equation, problem.boundary, correction, matrix_factory=matrix_factory)
 
