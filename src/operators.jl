@@ -96,6 +96,7 @@ function SingleLayer(
     target::AbstractMatrix,
     ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=false,
 )
     m = size(target, 2)
     n = size(source, 2)
@@ -103,7 +104,9 @@ function SingleLayer(
     matrix = matrix_factory(m, n)::AbstractMatrix
     op = SingleLayer(equation, nothing, matrix)
 
-    populate_matrices!(source, target, op)
+    if populate_matrix
+        populate_matrices!(source, target, op)
+    end
     return op
 end
 
@@ -121,8 +124,10 @@ Compute the operator coefficients for source self interaction
 function SingleLayer(
     equation::Laplace,
     source::AbstractManifold,
-    correction::SingularCorrection;
+    correction::SingularCorrection,
+    ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=false,
 )
 
     n = size(source, 2)
@@ -131,7 +136,9 @@ function SingleLayer(
     matrix = matrix_factory(n, n)::AbstractMatrix # allocate memory
     op = SingleLayer(equation, correction, matrix)
 
-    populate_matrices!(source, op)
+    if populate_matrix
+        populate_matrices!(source, op)
+    end
     return op
 end
 
@@ -174,8 +181,10 @@ Compute the operator coefficients for source-target interaction
 function DoubleLayer(
     equation::Laplace,
     source::AbstractManifold, # source manifold e.g. domain boundary
-    target::AbstractMatrix; # target points to compute operator
+    target::AbstractMatrix,
+    ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=false,
 )
     m = size(target, 2)
     n = size(source, 2)
@@ -183,7 +192,9 @@ function DoubleLayer(
     matrix = matrix_factory(m, n)::AbstractMatrix
     op = DoubleLayer(equation, matrix)
 
-    populate_matrices!(source, target, op)
+    if populate_matrix
+        populate_matrices!(source, target, op)
+    end
     return op
 end
 
@@ -199,15 +210,19 @@ Compute the operator coefficients for source self interaction
 """
 function DoubleLayer(
     equation::Laplace,
-    source::AbstractManifold;
+    source::AbstractManifold,
+    ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=false,
 )
 
     n = size(source, 2)
     matrix = matrix_factory(n, n)::AbstractMatrix
     op = DoubleLayer(equation, matrix)
 
-    populate_matrices!(source, op)
+    if populate_matrix
+        populate_matrices!(source, op)
+    end
     return op
 end
 
@@ -248,14 +263,18 @@ Compute the operator coefficients for source self interaction
 """
 function AdjointDoubleLayer(
     equation::Laplace,
-    source::AbstractManifold;
+    source::AbstractManifold,
+    ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=false,
 )
     n = size(source, 2)
     matrix = matrix_factory(n, n)::AbstractMatrix
     op = AdjointDoubleLayer(equation, matrix)
 
-    populate_matrices!(source, op)
+    if populate_matrix
+        populate_matrices!(source, op)
+    end
     return op
 end
 
@@ -275,8 +294,10 @@ function AdjointDoubleLayer(
     equation::Laplace,
     source::AbstractManifold,
     target::AbstractMatrix,
-    target_normals::AbstractMatrix;
+    target_normals::Union{AbstractMatrix,Nothing}=nothing,
+    ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=false,
 )
 
     m = size(target, 2)
@@ -285,7 +306,9 @@ function AdjointDoubleLayer(
     matrix = matrix_factory(m, n)::AbstractMatrix
     op = AdjointDoubleLayer(equation, matrix)
 
-    populate_matrices!(source, target, op; target_normals=target_normals)
+    if populate_matrix
+        populate_matrices!(source, target, op; target_normals=target_normals)
+    end
     return op
 end
 
@@ -329,15 +352,19 @@ Compute the operator coefficients for source self interaction
 function Hypersingular(
     equation::Laplace,
     source::AbstractManifold,
-    correction::HypersingularCorrection;
+    correction::HypersingularCorrection,
+    ;
     matrix_factory::Function=default_allocator,
+    populate_matrix::Bool=false,
 )
 
     n = size(source, 2)
 
     matrix = matrix_factory(n, n)::AbstractMatrix
     op = Hypersingular(equation, correction, matrix)
-    populate_matrices!(source, op)
+    if populate_matrix
+        populate_matrices!(source, op)
+    end
     return op
 end
 
