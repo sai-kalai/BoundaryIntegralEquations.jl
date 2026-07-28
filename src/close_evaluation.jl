@@ -36,6 +36,7 @@ function cauchy_integral(
 
         for j in 1:n
 
+            # TODO: replace with NN
             if y[j] == x[k]
                 v[k] = boundary_data[j]
                 exact_match = true
@@ -51,7 +52,7 @@ function cauchy_integral(
             v[k] = num / den
         end
     end
-    return conj(v) # NOTE: found out 25/07
+    return conj(v) # NOTE: found out 25/07 that imag part has sign flipped
 end
 
 
