@@ -30,7 +30,7 @@ BVPs using the BIM
 ### Scope
 
 - 2D
-- Laplace, [Helmholtz]
+- Laplace, [Helmholtz], [Poisson]
 - Zeta quadrature for hypersingular op through Richardson/FD/[AD]
 - Internal, [External]
 - Neumann, Dirichlet
@@ -49,11 +49,15 @@ future work:
 - boundary value problems basics
 - functional analysis basics
 - complex analysis basics: holomorphisms, cauchy integral
+- riemann zeta func.
+- quad. methods from Wu paper
 - potential Theory, solutions to BVP
 - singular ingegral operators/equations
 - zeta quadrature, Kapu-Rokhlin
 - discrete approximations, Nyström's method
 - autodiff
+
+ NOTE: work backwards, end up putting theory where it's needed
 
 ## Literature Review
 Related approaches
