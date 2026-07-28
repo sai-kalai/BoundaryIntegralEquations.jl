@@ -105,9 +105,11 @@ function main()
         S = SingleLayer(laplace, Γ, KapurRokhlin(ord))
         H_zeta = Hypersingular(laplace, Γ, zeta)
         H_sidi = Hypersingular(laplace, Γ, sidi)
+        populate_matrices!(Γ, D, S, H_zeta, H_sidi)
 
         D_target = DoubleLayer(laplace, Γ, x_test,)
         S_target = SingleLayer(laplace, Γ, x_test,)
+        populate_matrices!(Γ, x_test, D_target, S_target)
 
 
         pbs = [
