@@ -212,7 +212,9 @@ function periodic_spectral_diff(f)
     if dim == 1
         f_prime_hat = f_hat .* k
     elseif dim == 2
-        f_prime_hat = -f_hat .* k' # NOTE: this mysterious minus appeared after changing to col-major
+        f_prime_hat = f_hat .* transpose(k) # NOTE: this mysterious minus appeared after changing to col-major
+        # NOTE: the culprit was the ' operator which gives the adjoing in the case of
+        # complex valued vectors... transpose solves this
     else
         error("dimension $dim not supported")
     end
