@@ -57,25 +57,23 @@ using Test
                 return z^2/(z^2+2z+2)
             end
 
-            fig, ax = visualize(boundary)
-
-            scatter!(ax, real.(x_test), imag.(x_test))
-
-            wait(display(fig))
 
             boundary_data = f.(vec(reinterpret(ComplexF64, boundary.x)))
-
             inside_evaluations = f.(x_test)
-
             ci = cauchy_integral(boundary, reinterpret(Float64, x_test'), boundary_data)
-
             display(inside_evaluations - ci)
+            @test ci ≈ inside_evaluations atol=1e-7
 
-            @test ci ≈ inside_evaluations atol=1e-4
 
-            fig2, ax2 = lines(imag.(ci))
-            lines!(ax2, imag.(inside_evaluations))
-            wait(display(fig2))
+            if abspath(PROGRAM_FILE) == @__FILE__
+                using GLMakie
+                fig, ax = visualize(boundary)
+                scatter!(ax, real.(x_test), imag.(x_test))
+                wait(display(fig))
+                fig2, ax2 = lines(imag.(ci))
+                lines!(ax2, imag.(inside_evaluations))
+                wait(display(fig2))
+            end
 
         end
 
