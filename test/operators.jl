@@ -22,25 +22,26 @@ include("fixtures.jl")
 
     @testset "Separate computation" begin
         # S = SingleLayer(laplace, Γ, kapur_rokhlin)
-        # D = DoubleLayer(laplace, allocator(n, n)) # ok
-        # D_star = AdjointDoubleLayer(laplace, allocator(n, n))  # ok
-        # H_zeta = Hypersingular(laplace, zeta, allocator(n, n)) # ok
-        # H_sidi = Hypersingular(laplace, sidi, allocator(n, n)) # ok
+        # D = DoubleLayer(laplace, ) # ok
+        # D_star = AdjointDoubleLayer(laplace, )  # ok
+        # H_zeta = Hypersingular(laplace, zeta, ) # ok
+        # H_sidi = Hypersingular(laplace, sidi, ) # ok
         # populate_matrices!(Γ, S, D, D_star, H_sidi, H_zeta)
         #
-        # S_target = SingleLayer(laplace, nothing, allocator(n_test, n)) # ok
-        # D_target = DoubleLayer(laplace, allocator(n_test, n)) # ok
+        # S_target = SingleLayer(laplace, nothing, ) # ok
+        # D_target = DoubleLayer(laplace, ) # ok
         # populate_matrices!(Γ, x_test, S_target, D_target)
 
     end
 
     @testset "Simultaneous computation" begin
 
-        S = SingleLayer(laplace, kapur_rokhlin, allocator(n, n)) # ok
-        D = DoubleLayer(laplace, allocator(n, n)) # ok
-        D_star = AdjointDoubleLayer(laplace, allocator(n, n))  # ok
-        H_zeta = Hypersingular(laplace, zeta, allocator(n, n)) # ok
-        H_sidi = Hypersingular(laplace, sidi, allocator(n, n)) # ok
+
+        S = SingleLayer(laplace, Γ, kapur_rokhlin,) # ok
+        D = DoubleLayer(laplace, Γ) # ok
+        D_star = AdjointDoubleLayer(laplace, Γ)  # ok
+        H_zeta = Hypersingular(laplace, Γ, zeta,) # ok
+        H_sidi = Hypersingular(laplace, Γ, sidi,) # ok
         populate_matrices!(Γ, S, D, D_star, H_sidi, H_zeta)
 
         @test S.matrix ≈ reference_operator_matrix(typeof(S)) atol=1e-4
@@ -49,8 +50,8 @@ include("fixtures.jl")
         @test H_zeta.matrix ≈ reference_operator_matrix(typeof(H_zeta)) atol=1e-4
         @test H_sidi.matrix ≈ reference_operator_matrix(typeof(H_sidi)) atol=1e-4
 
-        S_target = SingleLayer(laplace, nothing, allocator(n_test, n)) # ok
-        D_target = DoubleLayer(laplace, allocator(n_test, n)) # ok
+        S_target = SingleLayer(laplace, Γ, x_test) # ok
+        D_target = DoubleLayer(laplace, Γ, x_test) # ok
         populate_matrices!(Γ, x_test, S_target, D_target)
 
         @test S_target.matrix ≈ reference_operator_matrix(typeof(S_target)) atol=1e-4
