@@ -83,10 +83,8 @@ function solve(
     matrix_factory::Function=default_allocator,
 )::Neumann
 
-    n = size(problem.boundary, 2)
-
-    D_star = AdjointDoubleLayer(problem.equation, matrix_factory(n, n))
-    H = Hypersingular(problem.equation, correction, matrix_factory(n, n))
+    D_star = AdjointDoubleLayer(problem.equation, problem.boundary; matrix_factory=matrix_factory)
+    H = Hypersingular(problem.equation, problem.boundary, correction; matrix_factory=matrix_factory)
     populate_matrices!(problem.boundary, D_star, H)
 
     return solve(problem, approach, D_star, H)
@@ -136,11 +134,9 @@ function evaluate(
     ;
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Neumann}
-    m = size(target, 2)
-    n = size(problem.boundary, 2)
 
-    S_target = SingleLayer(problem.equation, nothing, matrix_factory(m, n))
-    D_target = DoubleLayer(problem.equation, matrix_factory(m, n))
+    S_target = SingleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
+    D_target = DoubleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
     populate_matrices!(problem.boundary, target, S_target, D_target)
     return evaluate(problem, approach, τ, S_target, D_target)
 end
@@ -197,9 +193,7 @@ function solve(
     matrix_factory::Function=default_allocator,
 )::BoundaryDensity
 
-    n = size(problem.boundary, 2)
-    D = DoubleLayer(problem.equation, matrix_factory(n, n))
-    populate_matrices!(problem.boundary, D)
+    D = DoubleLayer(problem.equation, problem.boundary; matrix_factory=matrix_factory, populate_matrix=true)
 
     solve(problem, approach, D)
 end
@@ -264,10 +258,10 @@ function evaluate(
     matrix_factory::Function=default_allocator,
 )
 
-    n = size(problem.boundary, 2)
     m = size(target, 2)
 
     # 1. find points in the correct side of the domain
+    # TODO: encapsulate polygon and NN operations
     poly = [[col[1], col[2]] for col in eachcol(problem.boundary.x)]
     push!(poly, problem.boundary.x[:, 1]) # close loop
     correct_side_mask = [
@@ -289,9 +283,7 @@ function evaluate(
     near_mask = inside_cutoff_mask .& correct_side_mask
 
     # 3. evaluate accordingly
-    D_target = DoubleLayer(problem.equation, matrix_factory(sum(far_mask), n))
-    populate_matrices!(problem.boundary, target[:, far_mask], D_target)
-
+    D_target = DoubleLayer(problem.equation, problem.boundary, target[:, far_mask]; matrix_factory=matrix_factory, populate_matrix=true)
     u_far, τ = evaluate(problem, approach, φ, H, D_target, FarEvaluation())
 
     # TODO: look into allocations for slices, look into eachrow
@@ -327,10 +319,7 @@ function evaluate(
     matrix_factory::Function=default_allocator,
 )
 
-    n = size(problem.boundary, 2)
-
-    H = Hypersingular(problem.equation, correction, matrix_factory(n, n))
-    populate_matrices!(problem.boundary, H)
+    H = Hypersingular(problem.equation, problem.boundary, correction; matrix_factory=matrix_factory, populate_matrix=true)
 
     u, τ = evaluate(problem, approach, H, φ, target, relative_cutoff; matrix_factory=matrix_factory)
 
@@ -381,10 +370,9 @@ function solve_and_evaluate(
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Neumann}
 
-    n = size(problem.boundary, 2)
 
-    D = DoubleLayer(problem.equation, matrix_factory(n, n))
-    H = Hypersingular(problem.equation, correction, matrix_factory(n, n))
+    D = DoubleLayer(problem.equation, problem.boundary; matrix_factory=matrix_factory)
+    H = Hypersingular(problem.equation, problem.boundary, correction; matrix_factory=matrix_factory)
     populate_matrices!(problem.boundary, D, H)
 
     φ = solve(problem, approach, D)
@@ -492,14 +480,9 @@ function evaluate(
     ;
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Dirichlet}
-
-    m = size(target, 2)
-    n = size(problem.boundary, 2)
-
-    S_target = SingleLayer(problem.equation, nothing, matrix_factory(m, n))
-    D_target = DoubleLayer(problem.equation, matrix_factory(m, n))
+    S_target = SingleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
+    D_target = DoubleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
     populate_matrices!(problem.boundary, target, D_target)
-
     return evaluate(problem, approach, σ, S_target, D_target)
 end
 
@@ -560,9 +543,7 @@ function solve(
     matrix_factory::Function=default_allocator,
 )::Dirichlet
 
-    n = size(problem.boundary, 2)
-    D_star = AdjointDoubleLayer(problem.equation, matrix_factory(n, n))
-    populate_matrices!(problem.boundary, D_star)
+    D_star = AdjointDoubleLayer(problem.equation, problem.boundary; matrix_factory=matrix_factory, populate_matrix=true)
 
     return solve(problem, approach, D_star)
 end
@@ -593,14 +574,10 @@ function evaluate(
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Dirichlet}
 
-    m = size(target, 2)
-    n = size(problem.boundary, 2)
 
-    S = SingleLayer(problem.equation, correction, matrix_factory(n, n))
-    populate_matrices!(problem.boundary, S)
+    S = SingleLayer(problem.equation, problem.boundary, correction; matrix_factory=matrix_factory, populate_matrix=true)
 
-    S_target = SingleLayer(problem.equation, nothing, matrix_factory(m, n))
-    populate_matrices!(problem.boundary, target, S_target)
+    S_target = SingleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory, populate_matrix=true)
 
     return evaluate(problem, approach, ψ, S, S_target)
 end
@@ -628,15 +605,11 @@ function solve_and_evaluate(
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Dirichlet}
 
-    m = size(target, 2)
-    n = size(problem.boundary, 2)
-
-    S = SingleLayer(problem.equation, correction, matrix_factory(n, n))
-    D_star = AdjointDoubleLayer(problem.equation, matrix_factory(n, n))
+    S = SingleLayer(problem.equation, problem.boundary, correction; matrix_factory=matrix_factory)
+    D_star = AdjointDoubleLayer(problem.equation, problem.boundary; matrix_factory=matrix_factory)
     populate_matrices!(problem.boundary, S)
 
-    S_target = SingleLayer(problem.equation, nothing, matrix_factory(m, n))
-    populate_matrices!(problem.boundary, target, S_target)
+    S_target = SingleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory, populate_matrix=true)
 
     u, σ = solve_and_evaluate(problem, approach, S, D_star, S_target)
 
