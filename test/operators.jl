@@ -1,5 +1,6 @@
+
+using BoundaryIntegralEquations
 using Test
-using BimDiff
 
 include("fixtures.jl")
 
@@ -11,6 +12,7 @@ include("fixtures.jl")
     Γ = DiscreteClosedCurve(n, starfish)
 
     x_test = test_locations()
+    @show size(x_test)
 
     laplace = Laplace()
     kapur_rokhlin = KapurRokhlin(ord)
@@ -34,8 +36,10 @@ include("fixtures.jl")
         @test H_zeta.matrix ≈ reference_operator_matrix(typeof(H_zeta)) atol=1e-4
         @test H_sidi.matrix ≈ reference_operator_matrix(typeof(H_sidi)) atol=1e-4
 
+
         S_target = SingleLayer(laplace, Γ, x_test; matrix_factory=allocator) # ok
         D_target = DoubleLayer(laplace, Γ, x_test; matrix_factory=allocator) # ok
+
 
         @test S_target.matrix ≈ reference_operator_matrix(typeof(S_target)) atol=1e-4
         @test D_target.matrix ≈ reference_operator_matrix(typeof(D_target), Val(:target)) atol=1e-4

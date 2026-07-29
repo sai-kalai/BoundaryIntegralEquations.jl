@@ -18,11 +18,12 @@ using Revise
 
 using Enzyme
 
+using GLMakie
 
 
 using LinearAlgebra
 
-using BimDiff
+using BoundaryIntegralEquations
 
 
 
@@ -252,12 +253,12 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
     density_source = BoundaryDensity(density_source)
 
-    n_source = size(x_source, 1)
+    n_source = size(x_source, 2)
 
 
     Γ_source = make_dummy_curve(x_source)
 
-    S_manuf = SingleLayer(laplace, Γ_source, x_test; matrix_factory=allocator)
+    S_manuf = SingleLayer(laplace, Γ_source, x_test; matrix_factory=allocator, populate_matrix=true)
 
     # matrix = compute_laplace_slp_matrix(x_test, x_source)
     u_exact = S_manuf * density_source # exact solution at test points
@@ -266,7 +267,8 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
     # @assert norm(u_exact - u_exact_reference) < 1e-15
     @test u_exact ≈ u_exact_reference atol=1e-15
 
-    x_test = [x_test; ball(0.1, 10); ball(0.3, 30); ball(0.6, 60); Matrix(stack((t) -> starfish(t, 0.9), 0:0.1:2pi))']
+    x_test = [x_test;; ball(0.1, 10);; ball(0.3, 30);; ball(0.6, 60);; stack((t) -> starfish(t, 0.9), 0:0.1:2pi)]
+
 
     # scatter!(ax, x_test[:, 1], x_test[:, 2], color=u_exact)
 
@@ -280,16 +282,13 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
         Γ = DiscreteClosedCurve(n, starfish) # boundary of the domain
 
-        # fig, ax = visualize(Γ)
 
         # target: domain boundary, source: manufactured solution point sources
         S_source = SingleLayer(laplace, Γ_source, Γ.x; matrix_factory=allocator)
         D_star_source = AdjointDoubleLayer(laplace, Γ_source, Γ.x, Γ.n; matrix_factory=allocator)
 
-
         σ = S_source * density_source # Dirichlet BC
         τ_exact = D_star_source * density_source # Neumann BC exact solution
-
 
 
         S = SingleLayer(laplace, Γ, kapur_rokhlin)
@@ -297,7 +296,6 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
         D_star = AdjointDoubleLayer(laplace, Γ)
         H_zeta = Hypersingular(laplace, Γ, zeta)
         H_sidi = Hypersingular(laplace, Γ, sidi)
-
 
         S_target = SingleLayer(laplace, Γ, x_test,)
         D_target = DoubleLayer(laplace, Γ, x_test,)
@@ -325,9 +323,6 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
         @time u, τ = s(x_test)
 
-
-
-
         prob = BoundaryValueProblem(
             laplace,
             Dirichlet(σ),
@@ -353,8 +348,8 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
 
             dbie_solution = Enzyme.make_zero(bie_solution)
 
-            dx_test_1[:, 1] .= 1.;
-            dx_test_2[:, 2] .= 1.;
+            dx_test_1[1, :] .= 1.;
+            dx_test_2[2, :] .= 1.;
 
             f1 = autodiff(
                 ForwardWithPrimal,
@@ -374,12 +369,10 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
                 Duplicated(x_test, dx_test_2),
             )
 
-            g4 = [collect(f1[1][1]);; collect(f2[1][1])]
+            g4 = [collect(f1[1][1])'; collect(f2[1][1])']
+
 
         end
-
-        @show size(Γ)
-        @show size(x_test)
 
         exact_gradient = solution_derivative(
             direct,
@@ -403,11 +396,10 @@ function convergence_study(n_vals=20:20:200, accuracy_order=32)
         #
         # @test g2 ≈ g3
 
-        # scatter!(ax, x_test[:, 1], x_test[:, 2]; color=u, markersize=20)
-        # arrows2d!(ax, x_test[:, 1], x_test[:, 2], g2[:, 1], g2[:, 2]; lengthscale=0.1)
-        # wait(display(fig))
-
-
+        fig, ax = visualize(Γ)
+        scatter!(ax, x_test[1, :], x_test[2, :]; color=u, markersize=20)
+        arrows2d!(ax, x_test[1, :], x_test[2, :], g4[1, :], g4[2, :]; lengthscale=0.1)
+        wait(display(fig))
         break
 
         # push!(
@@ -571,6 +563,5 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    using GLMakie
     wait(display(plot_errors(convergence_study())))
 end

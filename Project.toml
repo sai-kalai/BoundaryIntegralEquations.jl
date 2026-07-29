@@ -1,23 +1,16 @@
-name = "BimDiff"
+name = "BoundaryIntegralEquations"
 uuid = "58b2a5b9-46a1-47d2-a141-e25d04a557d9"
 version = "0.1.0"
 authors = ["simon cadavid <simon.cadavid98@gmail.com>"]
 
 [deps]
-BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-Cthulhu = "f68482b8-f384-11e8-15f7-abe071a5a75f"
-Debugger = "31a5f54b-26ea-5ae9-a837-f05ce5417438"
 FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
-GPUCompiler = "61eb1bfa-7361-4325-ad38-22787b887f55"
-InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
-Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-Profile = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
-ProfileView = "c46f51b8-102a-5cf2-8d2c-8597cb0e0da7"
+NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
+PolygonOps = "647866c9-e3ac-4575-94e7-e3d426903924"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [weakdeps]
@@ -25,28 +18,19 @@ Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 
 [extensions]
-BimDiffEnzymeExt = "Enzyme"
-BimDiffGLMakieExt = "GLMakie"
+BoundaryIntegralEquationsEnzymeExt = "Enzyme"
+BoundaryIntegralEquationsGLMakieExt = "GLMakie"
 
 [compat]
-BenchmarkTools = "1.8.0"
-Cthulhu = "3.0.2"
-Debugger = "0.7.16"
+
 FFTW = "1.10.0"
-GLMakie = "0.13.9"
-GPUCompiler = "1.23.0"
-InteractiveUtils = "1.11.0"
 LinearAlgebra = "1.12.0"
 LinearSolve = "3.86.1"
-Pkg = "1.12.0"
-Profile = "1.11.0"
-ProfileView = "1.10.3"
+NearestNeighbors = "0.4.29"
+PolygonOps = "0.1.2"
 Random = "1.11.0"
 Reexport = "1.2.2"
-Revise = "3.14.2"
-SafeTestsets = "0.1.0"
 StaticArrays = "1.9.18"
-Test = "1.11.0"
 
 [extras]
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"

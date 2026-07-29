@@ -1,6 +1,7 @@
 
 
 
+
 # NOTE: consider passing a "quadrature point" containing access to all the geometric
 # data, and cache, instead of separate scalars
 
@@ -19,6 +20,7 @@ end
 # Laplace double layer potential (DLP) kernel
 # k_DLP(x, y) = 1/2pi  (x - y) ⋅ n_y / |x - y|^2
 @inline function kernel(::Type{<:DoubleLayer{Laplace}}, r_norm_sq, r_dot_ny)
+
     return 1 / 2pi * r_dot_ny / r_norm_sq
 
 end
@@ -30,6 +32,7 @@ end
 @inline function kernel(
     ::Type{<:Hypersingular{Laplace}},
     r_norm_sq, r_dot_nx, r_dot_ny, nx_dot_ny)
+
     return 1 / 2pi * (
         -2 * r_dot_nx * r_dot_ny / (r_norm_sq * r_norm_sq)
         +
@@ -45,9 +48,7 @@ function kernel_gradient(
     y,
 )
     r = x - y
-
     return r / dot(r, r) / (-2π)
-
 end
 
 function kernel_gradient(
@@ -56,11 +57,8 @@ function kernel_gradient(
     y,
     ny,
 )
-
     r = x - y
-
     r_norm_sq = dot(r, r)
-
     return (I * r_norm_sq - 2 * (r * r')) * ny / r_norm_sq^2 / (2π)
 end
 
@@ -77,24 +75,26 @@ function solution_derivative(
 
     grad_u = zero(x)
 
-    for i in axes(x, 1)
-        for j in axes(y, 1)
 
+    for i in axes(x, 2)
+        for j in axes(y, 2)
+            xi = make_svector2(x, i)
+            yj = make_svector2(y, j)
+            nyj = make_svector2(ny, j)
 
             t1 = kernel_gradient(
                 SingleLayer{Laplace},
-                SA[x[i, 1], x[i, 2]],
-                SA[y[j, 1], y[j, 2]],
+                xi,
+                yj
             ) * τ[j]
             t2 = kernel_gradient(
                 DoubleLayer{Laplace},
-                SA[x[i, 1], x[i, 2]],
-                SA[y[j, 1], y[j, 2]],
-                SA[ny[j, 1], ny[j, 2]],) * σ[j]
+                xi,
+                yj,
+                nyj) * σ[j]
 
 
-
-            grad_u[i, :] += (t1 - t2) * w[j]
+            grad_u[:, i] += (t1 - t2) * w[j]
 
         end
     end
