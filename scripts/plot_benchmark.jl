@@ -8,8 +8,7 @@ using JLD2
 
 include("plot_utils.jl")
 
-
-const FILE = "benchmark-scp"
+const FILE = "benchmark-scp2"
 const DATAFILE = joinpath("data", FILE * ".jld2")
 
 
@@ -17,7 +16,7 @@ res = load_object(DATAFILE)
 # ncols = 5
 # nrows = 2
 fig = Figure(
-    # size=(ncols * 300, nrows * 300)
+# size=(ncols * 300, nrows * 300)
 )
 nticks = 5
 ax_time = Axis(
@@ -54,8 +53,8 @@ ax_slowdown = Axis(
     ytickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
 )
 
-order_filter(x) = x in [32, 16]
-cutoff_filter(x) = x in [0.0, 0.05, 0.1]
+order_filter(x) = x in [32, 16] || true
+cutoff_filter(x) = x in [0.0, 0.05, 0.1] || true
 filter!(order_filter, res.kr_acc_vals)
 filter!(order_filter, res.fd_acc_vals)
 filter!(cutoff_filter, res.cutoff_vals)
@@ -93,8 +92,8 @@ reference_run = nothing
 reference_times = nothing
 
 
-metric = gctimes
-estimator = mean
+metric = times
+estimator = median
 
 # filter groups and select reference run
 for (key, group) in res.solutions

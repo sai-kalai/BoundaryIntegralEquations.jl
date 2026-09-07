@@ -39,21 +39,26 @@ solve_and_evaluate(
     0.0,
 )
 
-for c in cutoff_vals
-    # @profview begin
-    u, cauchy_data = solve_and_evaluate(
-        bvp,
-        Indirect(),
-        correction,
-        x_dense,
-        c
-    )
 
-    # val = (u - u_exact) .|> abs .|> log10
-    #
-    # fig, ax, im = image(reshape(val, n, n); colormap=:viridis)
-    # Colorbar(fig[1, 2], im)
-    #
-    # fig |> display |> wait
-    # end
+for c in cutoff_vals
+    t = @benchmark begin
+        # @profview begin
+        u, cauchy_data = solve_and_evaluate(
+            $bvp,
+            Indirect(),
+            $correction,
+            $x_dense,
+            $c
+        )
+
+        # val = (u - u_exact) .|> abs .|> log10
+        #
+        # fig, ax, im = image(reshape(val, n, n); colormap=:viridis)
+        # Colorbar(fig[1, 2], im)
+        #
+        # fig |> display |> wait
+        # end
+
+    end
+    display(t)
 end
