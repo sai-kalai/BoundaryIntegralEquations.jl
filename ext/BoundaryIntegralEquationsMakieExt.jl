@@ -36,11 +36,11 @@ function BoundaryIntegralEquations.visualize!(
     )
 
     if arrows
-        norm = arrows2d!(ax, x, y, b.n[1, :], b.n[2, :],
+        norm = arrows2d!(ax, b.x, b.n[1, :], b.n[2, :],
             color="red",
             lengthscale=0.1,
         )
-        tang = arrows2d!(ax, x, y, real.(b.cw), imag.(b.cw),
+        tang = arrows2d!(ax, b.x, real.(b.cw), imag.(b.cw),
             color="red",
             lengthscale=0.1,
         )

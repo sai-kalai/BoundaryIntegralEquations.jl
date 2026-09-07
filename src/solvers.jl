@@ -269,35 +269,61 @@ function evaluate(
     m = size(target, 2)
 
     # 1. find points in the correct side of the domain
-    correct_side_mask = mask(problem.boundary, target, problem.side)
+    # correct_side_mask = mask(problem.boundary, target, problem.side)
+    correct_side_idxs = findall(problem.boundary, target, problem.side)
 
     # 2. find points within cutoff distance
+    # NOTE: magic number 8: this seems to be the ratio between delta and the
+    # proportion of points inside the domain. this should be domain dependent.
     distance = length_scale(problem.boundary) * relative_cutoff
-    inside_cutoff_mask = mask(problem.boundary, target, distance)
+    # TODO: avoid this if cutoff = 0
+    # NOTE: hot spot for δ>0: constant growing of vector, calls to malloc
+    # inside_cutoff_mask = mask(problem.boundary, target, distance)
+    inside_cutoff_idxs = findall(problem.boundary, target, distance)
+
+
+    # (correct side) and not (within cutoff)
+    far_idxs = setdiff(correct_side_idxs, inside_cutoff_idxs)
+    # (correct side) and (within cutoff)
+    near_idxs = intersect(correct_side_idxs, inside_cutoff_idxs)
+    bad_idxs = setdiff(axes(target, 2), correct_side_idxs)
 
     # 3. evaluate accordingly
-    far_mask = .!inside_cutoff_mask .& correct_side_mask
-    near_mask = inside_cutoff_mask .& correct_side_mask
+    # far_mask = .!inside_cutoff_mask .& correct_side_mask
+    # near_mask = inside_cutoff_mask .& correct_side_mask
+    #
+    # @show relative_cutoff
+    # @show length(near_idxs), length(far_idxs)
 
+    # fig = Main.Figure()
+    # ax = Main.Axis(fig[1, 1])
+    # Main.image!(ax, reshape(near_mask, 200, 200))
+    # ax2 = Main.Axis(fig[2, 1])
+    # Main.image!(ax2, reshape(far_mask, 200, 200))
+    # # Main.lines!(ax, problem.boundary.x)
+    # wait(display(fig))
+
+
+    # NOTE: hot spot for δ=0: call to huge malloc
     D_target = DoubleLayer(problem.equation, problem.boundary,
-        target[:, far_mask]; matrix_factory=matrix_factory, populate_matrix=true)
+        target[:, far_idxs]; matrix_factory=matrix_factory, populate_matrix=true)
     u_far, τ = evaluate(problem, approach, φ, H, D_target, PotentialTheory())
 
     # TODO: look into allocations for slices, look into eachrow
     # branch inside loop
-    u_near = evaluate(problem, approach, φ, target[:, near_mask], CauchyIntegral())
+    u_near = evaluate(problem, approach, φ, target[:, near_idxs], CauchyIntegral())
 
     # NOTE: enzyme doesn't like masked writes, but works fine with indices. find
     # a workaround to avoid first computing masks and then calling findall
-    far_inds = findall(far_mask)
-    near_inds = findall(near_mask)
-    bad_inds = findall(.!correct_side_mask)
+    # far_inds = findall(far_mask)
+    # near_inds = findall(near_mask)
+    # bad_inds = findall(.!correct_side_mask)
 
     u = similar(target, m)
 
-    u[far_inds] .= u_far
-    u[near_inds] .= u_near
-    u[bad_inds] .= NaN
+    u[far_idxs] .= u_far
+    u[near_idxs] .= u_near
+    u[bad_idxs] .= NaN
 
     return u, τ
 end

@@ -9,18 +9,19 @@ using JLD2
 include("plot_utils.jl")
 
 
-
-const FILE = "benchmark"
+const FILE = "benchmark-scp"
 const DATAFILE = joinpath("data", FILE * ".jld2")
 
 
 res = load_object(DATAFILE)
-ncols = 5
-nrows = 2
-fig = Figure(size=(ncols * 300, nrows * 300))
+# ncols = 5
+# nrows = 2
+fig = Figure(
+    # size=(ncols * 300, nrows * 300)
+)
 nticks = 5
 ax_time = Axis(
-    fig[1, 1],
+    fig[1, end],
     xlabel="N",
     ylabel="Time (ms)",
     xscale=log10,
@@ -30,19 +31,19 @@ ax_time = Axis(
     ytickformat=values -> [string(v/1e+6) for v in values],
 )
 
-ax_scaling = Axis(
-    fig[1, 2],
-    xlabel="N",
-    ylabel="Relative Overhead vs. N₁",
-    xscale=log10,
-    yscale=log10,
-    xticks=LinearTicks(nticks),
-    yticks=LinearTicks(nticks),
-    ytickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
-)
+# ax_scaling = Axis(
+#     fig[1, end+1],
+#     xlabel="N",
+#     ylabel="Relative Overhead vs. N₁",
+#     xscale=log10,
+#     yscale=log10,
+#     xticks=LinearTicks(nticks),
+#     yticks=LinearTicks(nticks),
+#     ytickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
+# )
 
 ax_slowdown = Axis(
-    fig[1, 3],
+    fig[1, end+1],
     xlabel="N",
     ylabel="Slowdown",
     xscale=log10,
@@ -53,8 +54,8 @@ ax_slowdown = Axis(
     ytickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
 )
 
-order_filter(x) = x in [32,] || true
-cutoff_filter(x) = x in [0.01, 0.05, 0.1, 0.5]
+order_filter(x) = x in [32, 16]
+cutoff_filter(x) = x in [0.0, 0.05, 0.1]
 filter!(order_filter, res.kr_acc_vals)
 filter!(order_filter, res.fd_acc_vals)
 filter!(cutoff_filter, res.cutoff_vals)
@@ -92,7 +93,7 @@ reference_run = nothing
 reference_times = nothing
 
 
-metric = times
+metric = gctimes
 estimator = mean
 
 # filter groups and select reference run
@@ -126,8 +127,16 @@ for (key, group) in res.solutions
     @show key, mids[end]
 
     for (ax, ref_val) in zip(
-        [ax_time, ax_scaling, ax_slowdown],
-        [1., coarsest_times, reference_times]
+        [
+            ax_time,
+            # ax_scaling,
+            ax_slowdown
+        ],
+        [
+            1.,
+            # coarsest_times,
+            reference_times
+        ]
     )
 
         scatterlines!(ax, ns, mids ./ ref_val; kwargs...)

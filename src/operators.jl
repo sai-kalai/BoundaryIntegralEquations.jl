@@ -77,7 +77,7 @@ struct SingleLayer{
     matrix::M
 end
 
-default_allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
+const default_allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
 
 # source-target interaction
 """

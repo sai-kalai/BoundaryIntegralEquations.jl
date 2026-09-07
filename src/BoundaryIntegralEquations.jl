@@ -12,6 +12,7 @@ using NearestNeighbors
 using LinearSolve
 using RecursiveFactorization
 
+
 # internal modules
 
 #
@@ -433,7 +434,7 @@ include("close_evaluation.jl")
 #
 # exports
 #
-export DiscreteClosedCurve, make_dummy_curve, polygon, mask, length_scale
+export DiscreteClosedCurve, make_dummy, polygon, mask, length_scale, make_offset
 
 export DifferentialEquation, Laplace, Helmholtz, Stokes
 export AbstractSingularCorrection, SingularCorrection, KapurRokhlin,
@@ -481,6 +482,7 @@ include("DevTools/DevTools.jl")
     include("../scripts/plot_dense.jl")
     include("../scripts/plot_problem_setup.jl")
     include("../scripts/plot_efficiency.jl")
+    include("../scripts/profile.jl")
 
     include("../benchmark/benchmark.jl")
 

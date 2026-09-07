@@ -184,7 +184,7 @@ function manufactured_solution(eqn::Laplace, x_test,)
     density_source = BoundaryDensity(density_source)
 
     # operators for exact solution at test and plot points
-    Γ_source = make_dummy_curve(x_source)
+    Γ_source = make_dummy(x_source)
     S_source = SingleLayer(eqn, Γ_source, x_test, populate_matrix=true)
     u_exact = S_source * density_source # exact solution at test points
     return Γ_source, BoundaryDensity(density_source), u_exact
