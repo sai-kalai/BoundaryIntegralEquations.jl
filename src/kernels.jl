@@ -1,5 +1,4 @@
 
-
 @doc raw"""
     kernel(::SingleLayer{Laplace}, r_norm_sq)
 
@@ -51,9 +50,10 @@ the normal derivative at y of the laplace SLP kernel.
 """
 @inline function kernel(::DoubleLayer{Laplace}, r_norm_sq, r_dot_ny)
     return 1 / 2pi * r_dot_ny / r_norm_sq
-
 end
-
+@inline function kernel(::Type{<:DoubleLayer{Laplace}}, r_norm_sq, r_dot_ny)
+    return 1 / 2pi * r_dot_ny / r_norm_sq
+end
 
 @doc raw"""
     kernel(::Hypersingular{Laplace}, r_norm_sq, r_dot_nx, r_dot_ny, nx_dot_ny)
