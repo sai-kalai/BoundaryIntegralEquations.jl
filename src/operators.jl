@@ -384,7 +384,7 @@ mutable struct PairwiseCache{T<:AbstractFloat}
 end
 
 # TODO: move cache stuff to another file
-function reset!(cache::PairwiseCache{T}) where {T}
+@inline function reset!(cache::PairwiseCache{T}) where {T}
     nan = T(NaN)
     cache.r = SA[nan, nan]
     cache.r_norm_sq = nan
@@ -392,15 +392,25 @@ function reset!(cache::PairwiseCache{T}) where {T}
     cache.r_dot_ny = nan
     cache.nx_dot_ny = nan
 end
+@inline function reset!(::Nothing)
+    return
+end
 
-function get_r!(d::PairwiseCache, x::SVector, y::SVector)
+@inline function get_r!(::Nothing, x::SVector, y::SVector)
+    return x - y
+end
+@inline function get_r!(d::PairwiseCache, x::SVector, y::SVector)
     if isnan(d.r[1]) || isnan(d.r[2])
-        d.r = x - y
+        d.r = get_r!(nothing, x, y)
     end
     return d.r
 end
 
-function get_r_norm_sq!(d::PairwiseCache, x::SVector, y::SVector)
+@inline function get_r_norm_sq!(::Nothing, x::SVector, y::SVector)
+    r = get_r!(nothing, x, y)
+    return dot(r, r)
+end
+@inline function get_r_norm_sq!(d::PairwiseCache, x::SVector, y::SVector)
     if isnan(d.r_norm_sq)
         r = get_r!(d, x, y)
         d.r_norm_sq = dot(r, r)
@@ -408,7 +418,11 @@ function get_r_norm_sq!(d::PairwiseCache, x::SVector, y::SVector)
     return d.r_norm_sq
 end
 
-function get_r_dot_nx!(d::PairwiseCache, x::SVector, y::SVector, nx::SVector)
+@inline function get_r_dot_nx!(::Nothing, x::SVector, y::SVector, nx::SVector)
+    r = get_r!(nothing, x, y)
+    return dot(r, nx)
+end
+@inline function get_r_dot_nx!(d::PairwiseCache, x::SVector, y::SVector, nx::SVector)
     if isnan(d.r_dot_nx)
         r = get_r!(d, x, y)
         d.r_dot_nx = dot(r, nx)
@@ -416,7 +430,11 @@ function get_r_dot_nx!(d::PairwiseCache, x::SVector, y::SVector, nx::SVector)
     return d.r_dot_nx
 end
 
-function get_r_dot_ny!(d::PairwiseCache, x::SVector, y::SVector, ny::SVector)
+@inline function get_r_dot_ny!(::Nothing, x::SVector, y::SVector, ny::SVector)
+    r = get_r!(nothing, x, y)
+    return dot(r, ny)
+end
+@inline function get_r_dot_ny!(d::PairwiseCache, x::SVector, y::SVector, ny::SVector)
     if isnan(d.r_dot_ny)
         r = get_r!(d, x, y)
         d.r_dot_ny = dot(r, ny)
@@ -424,22 +442,24 @@ function get_r_dot_ny!(d::PairwiseCache, x::SVector, y::SVector, ny::SVector)
     return d.r_dot_ny
 end
 
-function get_nx_dot_ny!(d::PairwiseCache, nx::SVector, ny::SVector)
+@inline function get_nx_dot_ny!(::Nothing, nx::SVector, ny::SVector)
+    return dot(nx, ny)
+end
+@inline function get_nx_dot_ny!(d::PairwiseCache, nx::SVector, ny::SVector)
     if isnan(d.nx_dot_ny)
         d.nx_dot_ny = dot(nx, ny)
     end
     return d.nx_dot_ny
 end
 
-
-function make_svector2(matrix, col)
-    return SVector{2}(matrix[1, col], matrix[2, col])
+@inline function make_svector2(matrix, col)
+    return @inbounds SVector{2}(matrix[1, col], matrix[2, col])
 end
 
 # not self interaction
-function compute_entry!(
+@inline function compute_entry!(
     op::SingleLayer{Laplace,Nothing},
-    c::PairwiseCache,
+    c::Union{PairwiseCache,Nothing},
     i::Int,
     j::Int,
     s::DiscreteClosedCurve, # source manifold
@@ -457,32 +477,53 @@ function compute_entry!(
     ) * s.w[j]
 end
 
-
-function compute_entry!(
-    op::DoubleLayer{Laplace}, # WARN: no explicit indication to separate types corresponding to self vs target interaction
-    c::PairwiseCache,
+@inline function compute_entry(
+    op::Type{<:DoubleLayer{Laplace}},
+    c::Union{PairwiseCache,Nothing},
     i::Int,
     j::Int,
     s::DiscreteClosedCurve,
     t::AbstractMatrix,
     target_normals, # ignored
 )
+
     x = make_svector2(t, i) # target point
     y = make_svector2(s.x, j) # source point
     ny = make_svector2(s.n, j) # normal at y
 
-
-    op.matrix[i, j] = kernel(
+    return kernel( # NOTE: expensive write to main memory
         op,
         get_r_norm_sq!(c, x, y),
         get_r_dot_ny!(c, x, y, ny),
-    ) * s.w[j]
+    ) * s.w[j] # NOTE: expensive fetch of w[j]
+end
+@inline function compute_entry(
+    op::DoubleLayer{Laplace},
+    c::Union{PairwiseCache,Nothing},
+    i::Int,
+    j::Int,
+    s::DiscreteClosedCurve,
+    t::AbstractMatrix,
+    target_normals, # ignored
+)
+    compute_entry(typeof(op), c, i, j, s, t, target_normals)
+end
+@inline function compute_entry!(
+    op::DoubleLayer{Laplace}, # WARN: no explicit indication to separate types corresponding to self vs target interaction
+    c::Union{PairwiseCache,Nothing},
+    i::Int,
+    j::Int,
+    s::DiscreteClosedCurve,
+    t::AbstractMatrix,
+    target_normals, # ignored
+)
+    op.matrix[i, j] = compute_entry(op, c, i, j, s, t, target_normals) #expensive fetch of w[j]
 end
 
 
-function compute_entry!(
+@inline function compute_entry!(
     op::AdjointDoubleLayer{Laplace},
-    c::PairwiseCache,
+    c::Union{PairwiseCache,Nothing},
     i::Int,
     j::Int,
     s::DiscreteClosedCurve, # outside points in this case
@@ -504,9 +545,9 @@ end
 
 
 # self interaction
-function compute_entry!(
+@inline function compute_entry!(
     op::SingleLayer{Laplace,KapurRokhlin},
-    c::PairwiseCache,
+    c::Union{PairwiseCache,Nothing},
     i::Int,
     j::Int,
     s::DiscreteClosedCurve,
@@ -536,9 +577,9 @@ function compute_entry!(
 
 end
 
-function compute_entry!(
+@inline function compute_entry!(
     op::DoubleLayer{Laplace},
-    c::PairwiseCache,
+    c::Union{PairwiseCache,Nothing},
     i::Int,
     j::Int,
     s::DiscreteClosedCurve,
@@ -560,9 +601,9 @@ function compute_entry!(
     end
 end
 
-function compute_entry!(
+@inline function compute_entry!(
     op::AdjointDoubleLayer{Laplace},
-    c::PairwiseCache,
+    c::Union{PairwiseCache,Nothing},
     i::Int,
     j::Int,
     s::DiscreteClosedCurve
@@ -584,9 +625,9 @@ function compute_entry!(
     end
 end
 
-function compute_entry!(
+@inline function compute_entry!(
     op::Hypersingular{Laplace,Sidi},
-    c::PairwiseCache,
+    c::Union{PairwiseCache,Nothing},
     i::Int,
     j::Int,
     s::DiscreteClosedCurve
@@ -625,9 +666,9 @@ function compute_entry!(
     end
 end
 
-function compute_entry!(
+@inline function compute_entry!(
     op::Hypersingular{Laplace,Zeta},
-    c::PairwiseCache,
+    c::Union{PairwiseCache,Nothing},
     i::Int,
     j::Int,
     s::DiscreteClosedCurve
@@ -796,7 +837,11 @@ function populate_matrices!(
     stencil_cache = StencilCache{Int32,Vector{Float64}}(Dict(), Dict())
 
     # if both dlp and dlp adjoint are requested, compute once and transpose before applying weights
-    pairwise_cache = PairwiseCache{Float64}()
+    pairwise_cache = if length(ops) > 1
+        PairwiseCache{Float64}()
+    else
+        nothing
+    end
 
     # loop over i
     for i in n:-1:1
@@ -817,7 +862,6 @@ function populate_matrices!(
         end
 
     end
-
 end
 
 @doc raw"""
@@ -845,7 +889,7 @@ end
 function populate_matrices!(
     source::DiscreteClosedCurve{T},
     target::AbstractMatrix{T},
-    ops;
+    ops::Tuple;
     target_normals::Union{AbstractMatrix{T},Nothing}=nothing,
 ) where {T<:AbstractFloat}
 
@@ -860,20 +904,22 @@ function populate_matrices!(
 
     # TODO: find out about SIMD and threading options in this version
     # investigate autodiff on kernels directly
-    pairwise_cache = PairwiseCache{Float64}()
-    # loop over i
-    #
-    # Ideas:
-    # - replace double nested loop by cartesian?
-    for i in m:-1:1
-        for j in 1:n
+    pairwise_cache = if length(ops) > 1
+        PairwiseCache{Float64}()
+    else
+        nothing
+    end
+
+    # slow loop over second index
+    for j in 1:n
+        # fast loop over first index
+        for i in 1:m
 
             # always every pair gets a fresh cache
 
             # call appropriate code for each operator kind
             reset!(pairwise_cache)
             foreach(ops) do op
-                # for op in ops
                 compute_entry!(op, pairwise_cache, i, j, source, target, target_normals)
             end
         end
