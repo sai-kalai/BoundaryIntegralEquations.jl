@@ -275,7 +275,7 @@ function run_all_simulations(
                 continue
             end
 
-            bvp = BoundaryValueProblem(laplace, bc, side, Γ)
+            pb = BoundaryValueProblem(laplace, bc, side, Γ)
 
             # NOTE: actually, operators of different orders can be precomputed
             # in parallel using tuple comprenhension
@@ -306,7 +306,7 @@ function run_all_simulations(
                     @show direct
                     # direct approach
                     u, cauchy_data = solve_and_evaluate(
-                        bvp,
+                        pb,
                         direct,
                         correction,
                         x_test,
@@ -316,7 +316,7 @@ function run_all_simulations(
 
                     if !isnothing(benchmark_kwargs)
                         b = @benchmarkable solve_and_evaluate(
-                            $bvp,
+                            $pb,
                             $direct,
                             $correction,
                             $x_test,
@@ -342,20 +342,20 @@ function run_all_simulations(
                     # dummy placeholder for now
                     bie_sln = BIESolution(
                         zeros(n),
-                        BIEProblem{Direct}(bvp),
+                        BIEProblem{Direct}(pb),
                         BIEAlgorithm{Direct}(correction),
                     )
 
                     bvp_sln = BVPSolution(
                         u,
                         bie_sln,
-                        bvp,
+                        pb,
                         BVPAlgorithm{Direct}(),
                     )
                     bdp_sln = BDPSolution(
                         data(cauchy_data),
                         bie_sln,
-                        BDProblem{Direct}(bvp),
+                        BDProblem{Direct}(pb),
                         BDPAlgorithm{Direct}(),
                     )
                     validate_nan(bvp_sln, bie_sln, bdp_sln)
@@ -377,7 +377,7 @@ function run_all_simulations(
 
                         try
                             u, cauchy_data = solve_and_evaluate(
-                                bvp,
+                                pb,
                                 indirect,
                                 correction,
                                 x_test,
@@ -400,7 +400,7 @@ function run_all_simulations(
                         @show method
                         if !isnothing(benchmark_kwargs)
                             b = @benchmarkable solve_and_evaluate(
-                                $bvp,
+                                $pb,
                                 $indirect,
                                 $correction,
                                 $x_test,
@@ -419,7 +419,7 @@ function run_all_simulations(
                         # dummy placeholder
                         bie_sln = BIESolution(
                             zeros(n),
-                            BIEProblem{Indirect}(bvp),
+                            BIEProblem{Indirect}(pb),
                             BIEAlgorithm{Indirect}(),
                         )
 
@@ -427,14 +427,14 @@ function run_all_simulations(
                         bvp_sln = BVPSolution(
                             u,
                             bie_sln,
-                            bvp,
+                            pb,
                             BVPAlgorithm{Indirect}(method),
                         )
 
                         bdp_sln = BDPSolution(
                             data(cauchy_data),
                             bie_sln,
-                            BDProblem{Indirect}(bvp),
+                            BDProblem{Indirect}(pb),
                             BDPAlgorithm{Indirect}(correction),
                         )
 

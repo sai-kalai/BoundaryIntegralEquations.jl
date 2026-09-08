@@ -29,10 +29,10 @@ S_source = SingleLayer(laplace, Γ_source, Γ.x; populate_matrix=true)
 σ = S_source * density_source
 
 # define problem
-bvp = BoundaryValueProblem(laplace, Dirichlet(σ), Interior(), Γ)
+pb = BoundaryValueProblem(laplace, Dirichlet(σ), Interior(), Γ)
 
 # solve using 32nd order FD correction and 5% cutoff for Cauchy integral eval
-u, _ = solve_and_evaluate(bvp, Indirect(), Zeta(32), x_plot, 0.05)
+u, _ = solve_and_evaluate(pb, Indirect(), Zeta(32), x_plot, 0.05)
 
 
 fig = Figure()

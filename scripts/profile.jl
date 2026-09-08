@@ -25,14 +25,14 @@ x_dense = stack(((x, y),) -> SA[x, y], iter; dims=2)
 
 bc = Dirichlet(SingleLayer(laplace, Γ_source, Γ.x; populate_matrix=true) * density_source)
 
-bvp = BoundaryValueProblem(laplace, bc, Interior(), Γ)
+pb = BoundaryValueProblem(laplace, bc, Interior(), Γ)
 
 cutoff_vals = [0.0, 0.01, 0.05, 0.1, 0.25]
 
 indirect = Indirect()
 # force compilation
 solve_and_evaluate(
-    bvp,
+    pb,
     indirect,
     correction,
     x_dense[:, 1:2],
@@ -44,8 +44,8 @@ for c in cutoff_vals
     t = @benchmark begin
         # @profview begin
         u, cauchy_data = solve_and_evaluate(
-            $bvp,
-            Indirect(),
+            $pb,
+            $indirect,
             $correction,
             $x_dense,
             $c
