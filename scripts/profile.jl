@@ -3,46 +3,55 @@
 using JLD2
 using StaticArrays
 using LinearAlgebra
+using BenchmarkTools
 using ProfileView
 using GLMakie
 
 using BoundaryIntegralEquations
 using BoundaryIntegralEquations.DevTools
 
-n = 200
+n_domain = 200
+n_bdry = 400
 laplace = Laplace()
 correction = Zeta(32)
-Γ_dense = DiscreteClosedCurve(n, starfish)
-xmin, xmax, ymin, ymax = extrema(Γ_dense)
-xs = range(xmin, xmax, length=n)
-ys = range(ymin, ymax, length=n)
+Γ = DiscreteClosedCurve(n_bdry, starfish)
+xmin, xmax, ymin, ymax = extrema(Γ)
+xs = range(xmin, xmax, length=n_domain)
+ys = range(ymin, ymax, length=n_domain)
 iter = Iterators.product(xs, ys)
 x_dense = stack(((x, y),) -> SA[x, y], iter; dims=2)
+# x_dense = Fixtures.test_locations()
 
 Γ_source, density_source, u_exact = manufactured_solution(laplace, x_dense)
-
-Γ = DiscreteClosedCurve(n, starfish)
 
 bc = Dirichlet(SingleLayer(laplace, Γ_source, Γ.x; populate_matrix=true) * density_source)
 
 pb = BoundaryValueProblem(laplace, bc, Interior(), Γ)
 
-cutoff_vals = [0.0, 0.01, 0.05, 0.1, 0.25]
+cutoff_vals = [
+    0.0,
+    0.01,
+    0.05,
+    0.1,
+    0.25,
+]
 
 indirect = Indirect()
-# force compilation
+#force compilation
 solve_and_evaluate(
     pb,
     indirect,
     correction,
-    x_dense[:, 1:2],
+    x_dense[:, 1:4],
     0.0,
 )
 
 
 for c in cutoff_vals
-    t = @benchmark begin
+    @show c
+    b = @benchmark begin
         # @profview begin
+        # begin
         u, cauchy_data = solve_and_evaluate(
             $pb,
             $indirect,
@@ -51,14 +60,14 @@ for c in cutoff_vals
             $c
         )
 
-        # val = (u - u_exact) .|> abs .|> log10
+        # val = (u - u_exact) .|> abs .|> ((x)->x + eps(eltype(u))) .|> log10
+        # @show extrema(val[.!isnan.(val)])
         #
-        # fig, ax, im = image(reshape(val, n, n); colormap=:viridis)
-        # Colorbar(fig[1, 2], im)
+        # fig, ax, im = scatter(x_dense; color=val, colormap=:viridis)
+        # Colorbar(fig[1, 2], im, ticks=LinearTicks(10))
         #
         # fig |> display |> wait
-        # end
 
     end
-    display(t)
+    display(b)
 end
