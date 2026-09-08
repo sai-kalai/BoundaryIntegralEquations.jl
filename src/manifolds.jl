@@ -3,6 +3,7 @@
 # specialize the concept of manifold. e.g. geometric manifold has tangents, etc.
 # curve, closed curve, 2d, 3d, surface, closed surface, ...
 
+using BoundaryIntegralEquations: make_svector2
 
 function Base.size(m::AbstractManifold, dims...)
     return size(m.x, dims...)
@@ -284,6 +285,9 @@ function NearestNeighbors.KDTree(c::DiscreteClosedCurve)
     # TODO: cache tree inside boundary
     return KDTree(c.x)
 end
+function NearestNeighbors.BallTree(c::DiscreteClosedCurve)
+    return BallTree(c.x)
+end
 
 @doc raw"""
     mask(c::DiscreteClosedCurve, x::AbstractMatrix, d::Real)
@@ -314,10 +318,76 @@ finds the indices of points within a distance of the boundary
 - `x::AbstractMatrix`: point data as a matrix of size `2xm`
 - `d::Real`: distance
 """
-function Base.findall(c::DiscreteClosedCurve, x::AbstractMatrix, d::Real)
-    tree = BallTree(x)
-    inside_cutoff_idxs = inrange(tree, c.x, d) |> Iterators.flatten |> unique
-    return inside_cutoff_idxs
+function Base.findall(c::DiscreteClosedCurve, x::AbstractMatrix, d::Real, strategy=:tree)
+    if strategy == :tree
+        tree = KDTree(c)
+        idxs = inrangecount(tree, x, d) .|> !iszero |> findall
+        return idxs
+    elseif strategy == :brute
+        idxs = Int[]
+        sizehint!(idxs, size(x, 2))
+        for j in axes(x, 2), i in axes(c.x, 2)
+            if norm(make_svector2(c.x, i) - make_svector2(x, j)) <= d
+                push!(idxs, j)
+            end
+        end
+        return idxs
+    else
+        error("Expected $strategy to be one of (`:tree`, `:brute`)")
+    end
+
+end
+
+@doc raw"""
+    Base.classifyall(c::DiscreteClosedCurve, x::AbstractMatrix, d::Real, strategy=:tree)
+
+classifies query points, returning vectors of indices of points in each region
+
+# Arguments
+- `c::DiscreteClosedCurve`: boundary of the domain
+- `x::AbstractMatrix`: point data as a matrix of size `2xn`
+- `s::DomainSide`: [TODO:description]
+- `d::Real`: cutoff distance to discern near and far points
+# Returns
+- vectors of indices of points laying on:
+    - near boundary
+    - far from boundary
+    - outside of valid region (bad points)
+"""
+function classify(
+    c::DiscreteClosedCurve, x::AbstractMatrix, s::DomainSide, d::Real)
+
+    # allocate enough space for storing indices
+    m = size(x, 2)
+    near_idxs = sizehint!(Int[], m)
+    far_idxs = sizehint!(Int[], m)
+    bad_idxs = sizehint!(Int[], m)
+
+    # construct polygon for domain side check
+    poly = polygon(c)
+    hit = s isa Interior ? 1 : 0
+
+    # construct tree for in range query
+    tree = KDTree(c)
+
+    # classify every query point accordingly
+    for i in axes(x, 2)
+        xi = make_svector2(x, i)
+
+        if !(inpolygon(xi, poly) == hit)
+            # not in correct side of domain
+            push!(bad_idxs, i)
+        else
+            # in correct side of domain
+            if iszero(inrangecount(tree, xi, d))
+                push!(far_idxs, i)
+            else
+                push!(near_idxs, i)
+            end
+        end
+    end
+
+    return near_idxs, far_idxs, bad_idxs
 end
 
 @doc raw"""
@@ -330,7 +400,7 @@ finds the indices of points that lie in the correct slide of the domain
 - `x::AbstractMatrix`: point data as a matrix of size `2xm`
 - `s::DomainSide`: interior or exterior domain
 """
-function Base.findall(c::DiscreteClosedCurve, x::AbstractMatrix, s::DomainSide; alg=HaoSun())
+function Base.findall(c::DiscreteClosedCurve, x::AbstractMatrix, s::DomainSide)
     poly = polygon(c)
     hit = s isa Interior ? 1 : 0
     return [
@@ -341,7 +411,7 @@ function Base.findall(c::DiscreteClosedCurve, x::AbstractMatrix, s::DomainSide; 
 end
 
 # TODO: this doesn't belong to manifolds
-"""
+@doc raw"""
     periodic_spectral_diff(d)
 
 periodic spectral derivative

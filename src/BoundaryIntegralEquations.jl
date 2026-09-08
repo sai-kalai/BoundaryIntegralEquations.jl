@@ -434,7 +434,8 @@ include("close_evaluation.jl")
 #
 # exports
 #
-export DiscreteClosedCurve, make_dummy, polygon, mask, length_scale, make_offset
+export DiscreteClosedCurve, make_dummy, make_offset, polygon, mask,
+    length_scale, classify
 
 export DifferentialEquation, Laplace, Helmholtz, Stokes
 export AbstractSingularCorrection, SingularCorrection, KapurRokhlin,

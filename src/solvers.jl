@@ -303,6 +303,8 @@ function evaluate(
     # # Main.lines!(ax, problem.boundary.x)
     # wait(display(fig))
 
+    near_idxs, far_idxs, bad_idxs = classify(problem.boundary, target,
+        problem.side, distance)
 
     # NOTE: hot spot for δ=0: call to huge malloc
     D_target = DoubleLayer(problem.equation, problem.boundary,
