@@ -483,6 +483,8 @@ include("DevTools/DevTools.jl")
     include("../scripts/plot_problem_setup.jl")
     include("../scripts/plot_efficiency.jl")
     include("../scripts/profile.jl")
+    include("../scripts/plot_domain_regions.jl")
+
 
     include("../benchmark/benchmark.jl")
 
