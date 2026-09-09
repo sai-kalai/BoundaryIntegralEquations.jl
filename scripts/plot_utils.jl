@@ -70,7 +70,7 @@ function get_linestyle(k::SolverParameters)
         error("invalid approach type: $(k.approach_t)")
     end
 end
-function get_color(k::SolverParameters, res::ConvergenceResult)
+function get_color(k::SolverParameters, res::ConvergenceResult)::Union{Int,Symbol}
     if k.correction isa Zeta
         findfirst(==(k.correction.order), res.fd_acc_vals)
     elseif k.correction isa KapurRokhlin
@@ -96,9 +96,10 @@ Defines shared visualization mappings for convergence and timing plots
 """
 function scatterlines_common_kwargs(k::SolverParameters, res::ConvergenceResult)
     kwargs = (;
-        markersize=10,
+        markersize=12,
         strokewidth=1,
-        linewidth=2,
+        linewidth=3,
+        alpha=0.65,
         marker=get_marker(k),
         linestyle=get_linestyle(k),
         color=get_color(k, res),
@@ -216,94 +217,3 @@ function scatterlines_common_colorbars!(fig, res::ConvergenceResult)
     return c1, c2, c3
 end
 
-function plot_errors(
-    res::ConvergenceResult,
-    ;
-)
-    # Plot
-    fig = Figure()
-    ax = Axis(
-        fig[1, 1],
-        xlabel="n",
-        ylabel="L∞-error",
-        yscale=log10,
-        xscale=log10,
-        xticks=LinearTicks(5),
-    )
-    ylims!(ax, (1e-17, 1e+1))
-
-    linestyles = []
-    markers = []
-
-    for (key::SolverParameters, group::SolutionGroup) in res.solutions
-
-
-        sort!(group, by=swm -> numpoints(swm[1]))
-        sols = solutions(group)
-        ns = [numpoints(s) for s in sols]
-
-        # extract error according to solution type
-        # errs = if key.solution_t <: BVPSolution
-        #     [norm(s.u - res.u_exact, Inf) for s in sols]
-        # elseif key.solution_t <: BDPSolution
-        #     if key.bdrycond_t <: Dirichlet
-        #         [norm(s.u - res.neumann_exact[numpoints(s)], Inf) for s in sols]
-        #     elseif key.bdrycond_t <: Neumann
-        #         [norm(s.u - res.dirichlet_exact[numpoints(s)], Inf) for s in sols]
-        #     else
-        #         error("invalid bc type $(key.bdrycond_t)")
-        #     end
-        # else
-        #     error("invalid solution type $(key.solution_t)")
-        # end
-
-        errs = errors(key, res, group)
-
-        @show key, last(errs)
-
-        if any(isnan, errs)
-            @warn "NaN found in errors"
-            @show key
-            # @show errs
-            # @show res.u_exact
-            for s in sols
-                if any(isnan, s.u)
-                    @show typeof(bvp(s))
-                    @show numpoints(s), extrema(s.u)
-                end
-            end
-        end
-
-        kwargs = scatterlines_common_kwargs(key, res)
-
-        scatterlines!(
-            ax,
-            ns,
-            errs,
-            ;
-            kwargs...,
-        )
-    end
-
-    c1, c2, c3 = scatterlines_common_colorbars!(fig, res)
-    legend = scatterlines_common_legend!(fig, res)
-    fig[0, 1] = legend
-    fig[1, 2][1, 1] = c1
-    fig[1, 2][1, 2] = c2
-    fig[1, 2][1, 3] = c3
-
-
-    # # trendlines
-    conv_style = (; linestyle=:dashdotdot, linewidth=3)
-    α = 0.1
-    lines!(ax,
-        res.n_vals, # use last iteration for getting ns
-        exp.(-α .* res.n_vals),
-        ;
-        color=:grey,
-        conv_style...
-    )
-
-
-    fig, ax
-end

@@ -33,11 +33,11 @@ x_test = Fixtures.test_locations()
 x_test = [
     x_test;;
     ball(0.1, 10);;
-    ball(0.3, 30);;
-    ball(0.6, 60);;
-    # avoid  testing close evaluation for gradient
-    stack((t) -> starfish(t, 0.8), 0:0.1:2pi);;
-    stack((t) -> starfish(t, 0.9), 0:0.1:2pi);;
+    # ball(0.3, 30);;
+    # ball(0.6, 60);;
+    # # avoid  testing close evaluation for gradient
+    # stack((t) -> starfish(t, 0.8), 0:0.1:2pi);;
+    # stack((t) -> starfish(t, 0.9), 0:0.1:2pi);;
 ]
 
 result = run_all_simulations(

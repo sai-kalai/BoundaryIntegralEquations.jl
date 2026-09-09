@@ -339,7 +339,7 @@ function Base.findall(c::DiscreteClosedCurve, x::AbstractMatrix, d::Real, strate
 end
 
 @doc raw"""
-    Base.classifyall(c::DiscreteClosedCurve, x::AbstractMatrix, d::Real, strategy=:tree)
+    classify(c::DiscreteClosedCurve, x::AbstractMatrix, s::DomainSide, d::Real)
 
 classifies query points, returning vectors of indices of points in each region
 
@@ -347,7 +347,7 @@ classifies query points, returning vectors of indices of points in each region
 - `c::DiscreteClosedCurve`: boundary of the domain
 - `x::AbstractMatrix`: point data as a matrix of size `2xn`
 - `s::DomainSide`: [TODO:description]
-- `d::Real`: cutoff distance to discern near and far points
+- `d::Real`: non-negative cutoff distance to discern near and far points
 # Returns
 - vectors of indices of points laying on:
     - near boundary
@@ -355,7 +355,7 @@ classifies query points, returning vectors of indices of points in each region
     - outside of valid region (bad points)
 """
 function classify(
-    c::DiscreteClosedCurve, x::AbstractMatrix, s::DomainSide, d::Real)
+    c::DiscreteClosedCurve, x::AbstractMatrix, s::DomainSide, d::Real=0.)
 
     # allocate enough space for storing indices
     m = size(x, 2)
@@ -367,19 +367,29 @@ function classify(
     poly = polygon(c)
     hit = s isa Interior ? 1 : 0
 
-    # construct tree for in range query
-    tree = KDTree(c)
+    @assert d >= 0
+
+    # construct tree for in range query only if d > 0
+    if iszero(d)
+        tree = nothing
+    else
+        tree = KDTree(c)
+    end
+
 
     # classify every query point accordingly
     for i in axes(x, 2)
         xi = make_svector2(x, i)
 
         if !(inpolygon(xi, poly) == hit)
-            # not in correct side of domain
+            # not correct side of domain
             push!(bad_idxs, i)
         else
-            # in correct side of domain
-            if iszero(inrangecount(tree, xi, d))
+            # correct side of domain
+            if iszero(d)
+                # if cutoff distance is zero, all points are "far"
+                push!(far_idxs, i)
+            elseif iszero(inrangecount(tree, xi, d))
                 push!(far_idxs, i)
             else
                 push!(near_idxs, i)

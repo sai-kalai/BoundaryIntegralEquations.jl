@@ -142,12 +142,24 @@ function evaluate(
     # populate_matrices!(problem.boundary, target, S_target, D_target)
     # return evaluate(problem, approach, τ, S_target, D_target)
 
-    u = apply(SingleLayer{Laplace,Nothing}, problem.boundary, target, τ) -
-        apply(DoubleLayer{Laplace}, problem.boundary, target, problem.bc)
+
+    near_id, far_id, bad_id = classify(problem.boundary, target, problem.side,)
+
+    @assert length(near_id) == 0
+
+    m = size(target, 2)
+    u = similar(target, m)
+
+    u[far_id] .= apply(SingleLayer{Laplace,Nothing}, problem.boundary, target[:, far_id], τ) -
+                 apply(DoubleLayer{Laplace}, problem.boundary, target[:, far_id], problem.bc)
+
+    u[bad_id] .= NaN
+
     return u, τ
 end
 
 # given operators
+# WARN: obsolete
 function solve_and_evaluate(
     problem::BoundaryValueProblem{Laplace,<:Dirichlet,Interior,<:DiscreteClosedCurve},
     approach::Direct,
@@ -357,11 +369,6 @@ function solve_and_evaluate(
 
     panic_if_garbage(D, H, D_target)
 
-    # WARN:
-    # since operators are precomputed, client is responsible for ensuring that
-    # the target points are found in the correct side of the domain.
-    # Actually, it might be better to disallow precomputed operators entirely.
-
     φ = solve(problem, approach, D)
 
     u, τ = evaluate(problem, approach, φ, H, D_target, PotentialTheory())
@@ -501,8 +508,20 @@ function evaluate(
     # D_target = DoubleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
     # populate_matrices!(problem.boundary, target, D_target, S_target)
     # return evaluate(problem, approach, σ, S_target, D_target)
-    u = apply(SingleLayer{Laplace,Nothing}, problem.boundary, target, problem.bc) -
-        apply(DoubleLayer{Laplace}, problem.boundary, target, σ)
+
+    m = size(target, 2)
+
+    u = similar(target, m)
+
+    near_id, far_id, bad_id = classify(problem.boundary, target, problem.side, 0.)
+
+    @assert length(near_id) == 0
+
+    u[far_id] = apply(SingleLayer{Laplace,Nothing}, problem.boundary, target[:, far_id], problem.bc) -
+                apply(DoubleLayer{Laplace}, problem.boundary, target[:, far_id], σ)
+
+    u[bad_id] = NaN
+
     return u, σ
 end
 
@@ -533,8 +552,6 @@ function solve_and_evaluate(
     ;
     matrix_factory::Function=default_allocator
 )::Tuple{AbstractVector,Dirichlet}
-
-
 
     density = solve(problem, approach, correction; matrix_factory=matrix_factory)
     u, σ = evaluate(problem, approach, density, target; matrix_factory=matrix_factory)
@@ -600,7 +617,20 @@ function evaluate(
 )::Tuple{AbstractVector,Dirichlet}
     panic_if_garbage(S)
     σ = Dirichlet(S * ψ)
-    u = apply(SingleLayer{Laplace,Nothing}, problem.boundary, target, ψ)
+
+    m = size(target, 2)
+
+    u = similar(target, m)
+
+    near_id, far_id, bad_id = classify(problem.boundary, target, problem.side, 0.)
+
+    @assert length(near_id) == 0
+
+    # TODO: avoid allocating u inside apply as well as here
+    u[far_id] = apply(SingleLayer{Laplace,Nothing}, problem.boundary, target[:, far_id], ψ)
+
+    u[bad_id] = NaN
+
     return u, σ
 end
 

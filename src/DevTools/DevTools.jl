@@ -34,10 +34,30 @@ end
 
 # compare keys
 function Base.isless(a::SolverParameters, b::SolverParameters)
-    if order(a.correction) != order(b.correction)
-        return order(a.correction) < order(b.correction)
+
+    if a.approach_t <: Direct && b.approach_t <: Indirect
+        return false
+    elseif a.approach_t <: Indirect && b.approach_t <: Direct
+        return true
     end
-    return cutoff(a.evalmethod) < cutoff(b.evalmethod)
+
+    if cutoff(a.evalmethod) != cutoff(b.evalmethod)
+        return cutoff(a.evalmethod) < cutoff(b.evalmethod)
+    end
+
+    @show typeof(a.correction), typeof(b.correction)
+    if !(typeof(a.correction) <: typeof(b.correction))
+        @show typeof(a.correction), typeof(b.correction)
+        if a.correction isa Zeta
+            return true
+        elseif a.correction isa Sidi
+            return true
+        elseif a.correction isa KapurRokhlin
+            return false
+        end
+    end
+
+    return return order(a.correction) < order(b.correction)
 end
 
 @doc raw"""
@@ -68,7 +88,7 @@ Stores the metadata and data associated with a group of simulation runs with
 different parameters for several discretization sizes
 
 """
-struct ConvergenceResult{T}
+mutable struct ConvergenceResult{T}
     # metadata: parameters used during the runs
     n_vals::Vector{Int}
     cutoff_vals::Vector{T}
@@ -84,7 +104,6 @@ struct ConvergenceResult{T}
     # results of the simulations for several n values, grouped by solver parameters
     solutions::Dict{SolverParameters,SolutionGroup}
 end
-
 function ConvergenceResult(
     n_vals::Vector{Int},
     cutoff_vals::Vector{T},
@@ -105,32 +124,6 @@ function ConvergenceResult(
         Dict{SolverParameters,Vector{SolutionWithMetadata}}(),
     )
 end
-
-@doc raw"""
-    errors(k::SolverParameters, res::ConvergenceResult, group::SolutionGroup)
-
-extract the errors of a particular solution type in a solution group in a convergence result
-"""
-function errors(key::SolverParameters, res::ConvergenceResult, group::SolutionGroup)
-    # NOTE: might be redundant to pass both key and group
-    sols = solutions(group)
-
-    errs = if key.solution_t <: BVPSolution
-        [norm(s.u - res.u_exact, Inf) for s in sols]
-    elseif key.solution_t <: BDPSolution
-        if key.bdrycond_t <: Dirichlet
-            [norm(s.u - res.neumann_exact[numpoints(s)], Inf) for s in sols]
-        elseif key.bdrycond_t <: Neumann
-            [norm(s.u - res.dirichlet_exact[numpoints(s)], Inf) for s in sols]
-        else
-            error("invalid bc type $(key.bdrycond_t)")
-        end
-    else
-        error("invalid solution type $(key.solution_t)")
-    end
-    return errs
-end
-
 function add_solutions!(res::ConvergenceResult, correction, evalmethod, sols_with_md...)
     foreach(sols_with_md) do sol_with_md
         (sol, md) = sol_with_md
@@ -151,6 +144,77 @@ function add_solutions!(res::ConvergenceResult, correction, evalmethod, sols_wit
     end
 
 end
+function Base.filter!(
+    res::ConvergenceResult,
+    by_key=(k)->true,
+)
+
+    filter!(((k, v),) -> begin
+            by_key(k)
+        end, res.solutions
+    )
+    fd_ords = [
+        order(k.correction)
+        for k in keys(res.solutions)
+        if k.correction isa Zeta
+    ]
+    kr_ords = [
+        order(k.correction)
+        for k in keys(res.solutions)
+        if k.correction isa KapurRokhlin
+    ]
+
+    intersect!(res.fd_acc_vals, fd_ords)
+
+    intersect!(res.kr_acc_vals, kr_ords)
+
+    intersect!(res.cutoff_vals,
+        (
+            cutoff(k.evalmethod)
+            for k in keys(res.solutions)
+        )
+    )
+end
+
+@doc raw"""
+    errors(k::SolverParameters, res::ConvergenceResult, group::SolutionGroup)
+
+Return a vector of errors for all mesh sizes of a particular solution type
+in a convergence result
+"""
+function errors(
+    key::SolverParameters,
+    res::ConvergenceResult,
+    group::SolutionGroup
+)
+    sols = solutions(group)
+
+    errs = if key.solution_t <: BVPSolution
+        [
+            begin
+                # exact solution at incorrect side contains correct solution;
+                # numerical solution at incorrect side contains NaN
+                # TODO: not always the three are needed
+                _, far_ids, _ = classify(s.prob.boundary, res.x, s.prob.side, 0.)
+                norm(s.u[far_ids] - res.u_exact[far_ids], Inf)
+            end
+            for s in sols
+        ]
+    elseif key.solution_t <: BDPSolution
+        if key.bdrycond_t <: Dirichlet
+            [norm(s.u - res.neumann_exact[numpoints(s)], Inf) for s in sols]
+        elseif key.bdrycond_t <: Neumann
+            [norm(s.u - res.dirichlet_exact[numpoints(s)], Inf) for s in sols]
+        else
+            error("invalid bc type $(key.bdrycond_t)")
+        end
+    else
+        error("invalid solution type $(key.solution_t)")
+    end
+    @assert all(.!isnan.(errs))
+    return errs
+end
+
 
 function Base.show(io::IO, ::MIME"text/plain", res::ConvergenceResult{T}) where {T}
     println(io, "ConvergenceResult{", T, "}:")
@@ -162,9 +226,8 @@ function Base.show(io::IO, ::MIME"text/plain", res::ConvergenceResult{T}) where 
     println(io, "  u_exact:         ", summary(res.u_exact))
     println(io, "  neumann_exact:   Dict with ", length(res.neumann_exact), " entries")
     println(io, "  dirichlet_exact: Dict with ", length(res.dirichlet_exact), " entries")
-    print(io, "  solutions:       ", length(res.solutions), "-element", typeof(res.solutions))
+    println(io, "  solutions:       ", length(res.solutions), "-element ", typeof(res.solutions))
 end
-
 
 
 @doc raw"""
@@ -203,7 +266,7 @@ function run_all_simulations(
     n_vals=20:20:400,
     cutoff_vals=[0.0, 0.01, 0.05, 0.1, 0.5],
     fd_acc_vals=[4, 8, 16, 32],
-    kr_acc_vals=fd_acc_vals,
+    kr_acc_vals=copy(fd_acc_vals),
     approach_types=[Direct, Indirect],
     bc_types=[Dirichlet, Neumann],
     # indicate how to reserve memory

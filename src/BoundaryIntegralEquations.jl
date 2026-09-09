@@ -307,7 +307,7 @@ struct BVPSolution{
     bie_solution::BS # keep solution to the associated BIE
     prob::P
     alg::AL
-
+    # TODO: missing: information about spatial discretization
 end
 function BVPSolution(
     u,

@@ -8,11 +8,17 @@ using JLD2
 
 include("plot_utils.jl")
 
-const FILE = "benchmark-scp4"
+const FILE = "benchmark-scp6"
 const DATAFILE = joinpath("data", FILE * ".jld2")
 
 
+###########
+# Read data
+###########
 res = load_object(DATAFILE)
+###########
+# Make figure
+###########
 # ncols = 5
 # nrows = 2
 fig = Figure(
@@ -53,77 +59,58 @@ ax_slowdown = Axis(
     ytickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
 )
 
-order_filter(x) = x in [32, 16] || true
-cutoff_filter(x) = x in [0.0, 0.05, 0.1] || true
-filter!(order_filter, res.kr_acc_vals)
-filter!(order_filter, res.fd_acc_vals)
-filter!(cutoff_filter, res.cutoff_vals)
-
-filter!(((k, v),) -> begin
-        # filter by
-        # if !(k.approach_t <: Indirect)
-        #     return false
-        # end
-        if !(k.solution_t <: BVPSolution || k.solution_t <: BDPSolution)
+###########
+# Filter data
+###########
+filter!(
+    res,
+    (k) -> begin
+        if !(order(k.correction) in [8, 32, 16])
             return false
         end
-        # if !(k.correction isa Zeta)
-        #     return false
-        # end
-
-        if !(cutoff_filter(cutoff(k.evalmethod)))
+        if !(cutoff(k.evalmethod) in [0.0, 0.05, 0.1])
             return false
         end
-
-        # if k.bdrycond_t <: Neumann
+        if (k.solution_t <: BIESolution)
+            return false
+        end
+        # if !(k.bdrycond_t <: Neumann)
         #     return false
         # end
-
-        if k.correction isa Union{Zeta,KapurRokhlin}
-            _r = order_filter(k.correction.order)
-            return _r
-        end
         return true
-
-    end, res.solutions
+    end
 )
 
 reference_run = nothing
 reference_times = nothing
-
 
 metric = times
 estimator = median
 
 # filter groups and select reference run
 for (key, group) in res.solutions
-    filter!((x) -> begin
-            (s, m) = x
-            # if !(numpoints(s) > 300)
-            #     return false
-            # end
-            return true
-        end, group)
-
     if isnothing(reference_run)||key < reference_run
         global reference_run = key
         global reference_times = estimator.(metric(group))
     end
 end
 
+@show reference_run
+
 for (key, group) in res.solutions
 
     ns = numpoints.(solutions(group))
 
+    errs = errors(key, res, group)
 
     mids = estimator.(metric(group))
     coarsest_times = mids[1]
     los = quantile.(metric(group), 0.25)
     his = quantile.(metric(group), 0.75)
 
+    @show key
     kwargs = scatterlines_common_kwargs(key, res)
 
-    @show key, mids[end]
 
     for (ax, ref_val) in zip(
         [
@@ -151,23 +138,20 @@ for (key, group) in res.solutions
             alpha=0.3,
         )
     end
-
-
-
 end
 
 c1, c2, c3 = scatterlines_common_colorbars!(fig, res)
 legend = scatterlines_common_legend!(fig, res)
 # legend.halign=:left
-fig[1, end+1] = c1
-fig[1, end+1] = c2
-fig[1, end+1] = c3
+fig[1, end+1][1, 1] = c1
+fig[1, end][1, 2] = c2
+fig[1, end][1, 3] = c3
 fig[0, 1:end] = legend
 
 const PLOTFILE = if nameof(Makie.current_backend()) === :CairoMakie
-    joinpath("figures", FILE * ".pdf")
+    joinpath("figures", "runtime_" * FILE * ".pdf")
 else
-    joinpath("figures", FILE * ".png")
+    joinpath("figures", "runtime_" * FILE * ".png")
 end
 save(PLOTFILE, fig)
 @info "saved `fig` to $(PLOTFILE)"
