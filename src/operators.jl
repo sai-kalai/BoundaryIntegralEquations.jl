@@ -368,6 +368,10 @@ function Hypersingular(
     return op
 end
 
+###
+#Caching
+###
+
 # store data to avoid recomputing
 mutable struct PairwiseCache{T<:AbstractFloat}
     r::SVector{2,T}
@@ -456,7 +460,32 @@ end
     return @inbounds SVector{2}(matrix[1, col], matrix[2, col])
 end
 
-# not self interaction
+###
+#Computing entries
+###
+
+# forward call from instances to types
+@inline function compute_entry(op::IntegralOperator, args...)
+    compute_entry(typeof(op), args...)
+end
+
+# single-layer, not self interaction
+@inline function compute_entry(
+    op_t::Type{<:SingleLayer{Laplace,Nothing}},
+    c::Union{PairwiseCache,Nothing},
+    i::Int,
+    j::Int,
+    s::DiscreteClosedCurve, # source manifold
+    t::AbstractMatrix, # target points
+    target_normals, # ignored
+)
+    x = make_svector2(t, i)
+    y = make_svector2(s.x, j)
+    return kernel(
+        op_t,
+        get_r_norm_sq!(c, x, y)
+    ) * s.w[j]
+end
 @inline function compute_entry!(
     op::SingleLayer{Laplace,Nothing},
     c::Union{PairwiseCache,Nothing},
@@ -466,19 +495,11 @@ end
     t::AbstractMatrix, # target points
     target_normals, # ignored
 )
-
-    x = make_svector2(t, i)
-    y = make_svector2(s.x, j)
-
-
-    op.matrix[i, j] = kernel(
-        op,
-        get_r_norm_sq!(c, x, y)
-    ) * s.w[j]
+    op.matrix[i, j] = compute_entry(op, c, i, j, s, t, target_normals)
 end
 
 @inline function compute_entry(
-    op::Type{<:DoubleLayer{Laplace}},
+    op_t::Type{<:DoubleLayer{Laplace}},
     c::Union{PairwiseCache,Nothing},
     i::Int,
     j::Int,
@@ -486,27 +507,15 @@ end
     t::AbstractMatrix,
     target_normals, # ignored
 )
-
     x = make_svector2(t, i) # target point
     y = make_svector2(s.x, j) # source point
     ny = make_svector2(s.n, j) # normal at y
 
     return kernel( # NOTE: expensive write to main memory
-        op,
+        op_t,
         get_r_norm_sq!(c, x, y),
         get_r_dot_ny!(c, x, y, ny),
     ) * s.w[j] # NOTE: expensive fetch of w[j]
-end
-@inline function compute_entry(
-    op::DoubleLayer{Laplace},
-    c::Union{PairwiseCache,Nothing},
-    i::Int,
-    j::Int,
-    s::DiscreteClosedCurve,
-    t::AbstractMatrix,
-    target_normals, # ignored
-)
-    compute_entry(typeof(op), c, i, j, s, t, target_normals)
 end
 @inline function compute_entry!(
     op::DoubleLayer{Laplace}, # WARN: no explicit indication to separate types corresponding to self vs target interaction
