@@ -32,20 +32,27 @@ using BoundaryIntegralEquations.DevTools: Fixtures
 x_test = Fixtures.test_locations()
 x_test = [
     x_test;;
-    # ball(0.1, 10);;
-    # ball(0.3, 30);;
-    # ball(0.6, 60);;
-    # # avoid  testing close evaluation for gradient
-    # stack((t) -> starfish(t, 0.9), 0:0.1:2pi)
+    ball(0.1, 10);;
+    ball(0.3, 30);;
+    ball(0.6, 60);;
+    # avoid  testing close evaluation for gradient
+    stack((t) -> starfish(t, 0.8), 0:0.1:2pi);;
+    stack((t) -> starfish(t, 0.9), 0:0.1:2pi);;
 ]
 
 result = run_all_simulations(
     x_test;
     n_vals=collect(100:40:400),
-    cutoff_vals=[0.0,],
+    cutoff_vals=[0.0, 0.1],
     fd_acc_vals=[4, 8, 16, 32,],
-    bc_types=[Neumann, Dirichlet],
-    approach_types=[Direct, Indirect],
+    bc_types=[
+        Neumann,
+        Dirichlet,
+    ],
+    approach_types=[
+        Direct,
+        Indirect,
+    ],
 )
 
 # TODO: this could be automated following path of script
