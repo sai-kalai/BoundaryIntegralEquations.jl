@@ -1,4 +1,10 @@
 
+# forward from instances to types
+@inline function kernel(op::IntegralOperator, args...)
+    return kernel(typeof(op), args...)
+end
+
+
 @doc raw"""
     kernel(::SingleLayer{Laplace}, r_norm_sq)
 
@@ -11,7 +17,7 @@ k_{\text{Lap}}(x, y) = -\frac{1}{2\pi} \log|x - y|
 # Arguments
 - `r_norm_sq`: square magnitude of the displacement vector
 """
-@inline function kernel(::SingleLayer{Laplace}, r_norm_sq)
+@inline function kernel(::Type{<:SingleLayer{Laplace}}, r_norm_sq)
     return -1 / 4pi * log(r_norm_sq) # avoid sqrt: log(√a) = 1/2 log(a)
 end
 
@@ -30,7 +36,7 @@ the normal derivative at x of the laplace SLP kernel.
 - `r_norm_sq`: square magnitude of the displacement vector
 - `r_dot_nx`: dot product between the displacement vector and the normal vector at x
 """
-@inline function kernel(::AdjointDoubleLayer{Laplace}, r_norm_sq, r_dot_nx,)
+@inline function kernel(::Type{<:AdjointDoubleLayer{Laplace}}, r_norm_sq, r_dot_nx,)
     return -1 / 2pi * r_dot_nx / r_norm_sq
 end
 
@@ -48,9 +54,6 @@ the normal derivative at y of the laplace SLP kernel.
 - `r_norm_sq`: square magnitude of the displacement vector
 - `r_dot_ny`: dot product between the displacement vector and the normal vector at y
 """
-@inline function kernel(::DoubleLayer{Laplace}, r_norm_sq, r_dot_ny)
-    return 1 / 2pi * r_dot_ny / r_norm_sq
-end
 @inline function kernel(::Type{<:DoubleLayer{Laplace}}, r_norm_sq, r_dot_ny)
     return 1 / 2pi * r_dot_ny / r_norm_sq
 end
@@ -73,22 +76,12 @@ the mixed second-order normal derivative of the laplace SLP kernel.
 - `nx_dot_ny`: dot product between the normal vectory at x and the normal vector at y
 
 """
-@inline function kernel(::Hypersingular{Laplace}, r_norm_sq, r_dot_nx, r_dot_ny, nx_dot_ny)
+@inline function kernel(::Type{<:Hypersingular{Laplace}}, r_norm_sq, r_dot_nx, r_dot_ny, nx_dot_ny)
     return 1 / 2pi * (
         -2 * r_dot_nx * r_dot_ny / (r_norm_sq * r_norm_sq)
         +
         nx_dot_ny / r_norm_sq
     )
 end
-
-# Loop unrolling for linear algebra operations in 2D
-@inline function _a_dot_b(a1, a2, b1, b2)
-    return a1 * b1 + a2 * b2
-end
-@inline function _a_dot_a(a1, a2)
-    return a1 * a1 + a2 * a2
-end
-
-
 
 
