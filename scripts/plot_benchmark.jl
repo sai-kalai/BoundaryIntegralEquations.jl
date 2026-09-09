@@ -8,7 +8,7 @@ using JLD2
 
 include("plot_utils.jl")
 
-const FILE = "benchmark-scp2"
+const FILE = "benchmark-scp4"
 const DATAFILE = joinpath("data", FILE * ".jld2")
 
 
@@ -30,23 +30,23 @@ ax_time = Axis(
     ytickformat=values -> [string(v/1e+6) for v in values],
 )
 
-# ax_scaling = Axis(
-#     fig[1, end+1],
-#     xlabel="N",
-#     ylabel="Relative Overhead vs. N₁",
-#     xscale=log10,
-#     yscale=log10,
-#     xticks=LinearTicks(nticks),
-#     yticks=LinearTicks(nticks),
-#     ytickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
-# )
+ax_scaling = Axis(
+    fig[1, end+1],
+    xlabel="N",
+    ylabel="Relative Overhead vs. N₁",
+    xscale=log10,
+    yscale=log10,
+    xticks=LinearTicks(nticks),
+    yticks=LinearTicks(nticks),
+    ytickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
+)
 
 ax_slowdown = Axis(
     fig[1, end+1],
     xlabel="N",
     ylabel="Slowdown",
     xscale=log10,
-    yscale=log10,
+    # yscale=log10,
     xticks=LinearTicks(nticks),
     yticks=LinearTicks(nticks),
     # xtickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
@@ -61,15 +61,15 @@ filter!(cutoff_filter, res.cutoff_vals)
 
 filter!(((k, v),) -> begin
         # filter by
-        if !(k.approach_t <: Indirect)
+        # if !(k.approach_t <: Indirect)
+        #     return false
+        # end
+        if !(k.solution_t <: BVPSolution || k.solution_t <: BDPSolution)
             return false
         end
-        if !(k.solution_t <: BVPSolution)
-            return false
-        end
-        if !(k.correction isa Zeta)
-            return false
-        end
+        # if !(k.correction isa Zeta)
+        #     return false
+        # end
 
         if !(cutoff_filter(cutoff(k.evalmethod)))
             return false
@@ -118,8 +118,8 @@ for (key, group) in res.solutions
 
     mids = estimator.(metric(group))
     coarsest_times = mids[1]
-    los = quantile.(metric(group), 0.4)
-    his = quantile.(metric(group), 0.6)
+    los = quantile.(metric(group), 0.25)
+    his = quantile.(metric(group), 0.75)
 
     kwargs = scatterlines_common_kwargs(key, res)
 
@@ -128,12 +128,12 @@ for (key, group) in res.solutions
     for (ax, ref_val) in zip(
         [
             ax_time,
-            # ax_scaling,
+            ax_scaling,
             ax_slowdown
         ],
         [
             1.,
-            # coarsest_times,
+            coarsest_times,
             reference_times
         ]
     )
@@ -144,10 +144,11 @@ for (key, group) in res.solutions
             ax, ns,
             los ./ ref_val,
             his ./ ref_val,
-            whiskerwidth=10,
-            colormap=kwargs.markercolormap,
-            colorrange=kwargs.markercolorrange,
-            color=fill(kwargs.markercolor, length(ns)),
+            whiskerwidth=20,
+            colormap=kwargs.colormap,
+            colorrange=kwargs.colorrange,
+            color=fill(kwargs.color, length(ns)),
+            alpha=0.3,
         )
     end
 

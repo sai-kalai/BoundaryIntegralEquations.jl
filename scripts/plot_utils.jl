@@ -63,9 +63,9 @@ function get_marker(k::SolverParameters)
 end
 function get_linestyle(k::SolverParameters)
     if k.approach_t <: Direct
-        :dashdot
-    elseif k.approach_t <: Indirect
         :dot
+    elseif k.approach_t <: Indirect
+        :dashdot
     else
         error("invalid approach type: $(k.approach_t)")
     end
@@ -96,9 +96,9 @@ Defines shared visualization mappings for convergence and timing plots
 """
 function scatterlines_common_kwargs(k::SolverParameters, res::ConvergenceResult)
     kwargs = (;
-        markersize=15,
+        markersize=10,
         strokewidth=1,
-        linewidth=5,
+        linewidth=2,
         marker=get_marker(k),
         linestyle=get_linestyle(k),
         color=get_color(k, res),
@@ -259,6 +259,8 @@ function plot_errors(
 
         errs = errors(key, res, group)
 
+        @show key, last(errs)
+
         if any(isnan, errs)
             @warn "NaN found in errors"
             @show key
@@ -272,7 +274,6 @@ function plot_errors(
             end
         end
 
-
         kwargs = scatterlines_common_kwargs(key, res)
 
         scatterlines!(
@@ -284,10 +285,13 @@ function plot_errors(
         )
     end
 
-
-    c1, c2 = scatterlines_common_colorbars!(fig, res)
+    c1, c2, c3 = scatterlines_common_colorbars!(fig, res)
     legend = scatterlines_common_legend!(fig, res)
-    fig[1, 1] = legend
+    fig[0, 1] = legend
+    fig[1, 2][1, 1] = c1
+    fig[1, 2][1, 2] = c2
+    fig[1, 2][1, 3] = c3
+
 
     # # trendlines
     conv_style = (; linestyle=:dashdotdot, linewidth=3)

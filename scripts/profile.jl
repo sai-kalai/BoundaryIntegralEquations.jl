@@ -13,7 +13,6 @@ using BoundaryIntegralEquations.DevTools
 n_domain = 200
 n_bdry = 400
 laplace = Laplace()
-correction = Zeta(32)
 Γ = DiscreteClosedCurve(n_bdry, starfish)
 xmin, xmax, ymin, ymax = extrema(Γ)
 xs = range(xmin, xmax, length=n_domain)
@@ -24,40 +23,43 @@ x_dense = stack(((x, y),) -> SA[x, y], iter; dims=2)
 
 Γ_source, density_source, u_exact = manufactured_solution(laplace, x_dense)
 
-bc = Dirichlet(SingleLayer(laplace, Γ_source, Γ.x; populate_matrix=true) * density_source)
+# bc, correction = Dirichlet(SingleLayer(laplace, Γ_source, Γ.x; populate_matrix=true) * density_source), Zeta(32)
+bc, correction = Neumann(AdjointDoubleLayer(laplace, Γ_source, Γ.x, Γ.n; populate_matrix=true) * density_source), KapurRokhlin(32)
+
 
 pb = BoundaryValueProblem(laplace, bc, Interior(), Γ)
 
+approach = Indirect()
+
 cutoff_vals = [
     0.0,
-    0.01,
-    0.05,
-    0.1,
-    0.25,
+    # 0.01,
+    # 0.05,
+    # 0.1,
+    # 0.25,
 ]
 
-indirect = Indirect()
 #force compilation
 solve_and_evaluate(
     pb,
-    indirect,
+    approach,
     correction,
     x_dense[:, 1:4],
-    0.0,
+    # 0.0,
 )
 
 
 for c in cutoff_vals
     @show c
-    b = @benchmark begin
-        # @profview begin
+    # b = @benchmark begin
+    @profview begin
         # begin
         u, cauchy_data = solve_and_evaluate(
-            $pb,
-            $indirect,
-            $correction,
-            $x_dense,
-            $c
+            pb,
+            approach,
+            correction,
+            x_dense,
+            # $c
         )
 
         # val = (u - u_exact) .|> abs .|> ((x)->x + eps(eltype(u))) .|> log10
@@ -69,5 +71,5 @@ for c in cutoff_vals
         # fig |> display |> wait
 
     end
-    display(b)
+    # display(b)
 end
