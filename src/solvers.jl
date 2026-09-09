@@ -136,10 +136,15 @@ function evaluate(
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Neumann}
 
-    S_target = SingleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
-    D_target = DoubleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
-    populate_matrices!(problem.boundary, target, S_target, D_target)
-    return evaluate(problem, approach, τ, S_target, D_target)
+    # previous implementation: allocation for many query points bad
+    # S_target = SingleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
+    # D_target = DoubleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
+    # populate_matrices!(problem.boundary, target, S_target, D_target)
+    # return evaluate(problem, approach, τ, S_target, D_target)
+
+    u = apply(SingleLayer{Laplace,Nothing}, problem.boundary, target, τ) -
+        apply(DoubleLayer{Laplace}, problem.boundary, target, problem.bc)
+    return u, τ
 end
 
 # given operators
@@ -232,21 +237,9 @@ function evaluate(
 
     τ = H * φ
 
-    m = size(target, 2)
-    n = size(problem.boundary, 2)
+    # apply dlp without allocating memory
+    u = apply(DoubleLayer{Laplace}, problem.boundary, target, φ)
 
-    u = similar(target, m)
-
-
-    for i in 1:m
-        acc = zero(eltype(u))
-        for j in 1:n
-            D_ij = compute_entry(DoubleLayer{Laplace}, nothing, i, j,
-                problem.boundary, target, nothing)
-            acc += D_ij * data(φ)[j]
-        end
-        u[i] = acc
-    end
     return u, Neumann(τ)
 end
 
@@ -504,10 +497,13 @@ function evaluate(
     ;
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Dirichlet}
-    S_target = SingleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
-    D_target = DoubleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
-    populate_matrices!(problem.boundary, target, D_target, S_target)
-    return evaluate(problem, approach, σ, S_target, D_target)
+    # S_target = SingleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
+    # D_target = DoubleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory)
+    # populate_matrices!(problem.boundary, target, D_target, S_target)
+    # return evaluate(problem, approach, σ, S_target, D_target)
+    u = apply(SingleLayer{Laplace,Nothing}, problem.boundary, target, problem.bc) -
+        apply(DoubleLayer{Laplace}, problem.boundary, target, σ)
+    return u, σ
 end
 
 #given operators
@@ -594,8 +590,22 @@ function evaluate(
 
     return u, σ
 end
+# matrix-free version
+function evaluate(
+    problem::BoundaryValueProblem{Laplace,<:Neumann,Interior,<:DiscreteClosedCurve},
+    approach::Indirect,
+    ψ::BoundaryDensity,
+    S::SingleLayer,
+    target::AbstractMatrix,
+)::Tuple{AbstractVector,Dirichlet}
+    panic_if_garbage(S)
+    σ = Dirichlet(S * ψ)
+    u = apply(SingleLayer{Laplace,Nothing}, problem.boundary, target, ψ)
+    return u, σ
+end
 
 # compute operators
+# WARN: obsolete
 function evaluate(
     problem::BoundaryValueProblem{Laplace,<:Neumann,Interior,<:DiscreteClosedCurve},
     approach::Indirect,
@@ -605,15 +615,12 @@ function evaluate(
     ;
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Dirichlet}
-
-
     S = SingleLayer(problem.equation, problem.boundary, correction; matrix_factory=matrix_factory, populate_matrix=true)
-    S_target = SingleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory, populate_matrix=true)
-
-    return evaluate(problem, approach, ψ, S, S_target)
+    return evaluate(problem, approach, ψ, S, target)
 end
 
 # given operators
+# WARN: obsolete
 function solve_and_evaluate(
     problem::BoundaryValueProblem{Laplace,<:Neumann,Interior,<:DiscreteClosedCurve},
     approach::Indirect,
@@ -641,10 +648,10 @@ function solve_and_evaluate(
     S = SingleLayer(problem.equation, problem.boundary, correction; matrix_factory=matrix_factory)
     D_star = AdjointDoubleLayer(problem.equation, problem.boundary; matrix_factory=matrix_factory)
     populate_matrices!(problem.boundary, S, D_star)
+    panic_if_garbage(S, D_star)
 
-    S_target = SingleLayer(problem.equation, problem.boundary, target; matrix_factory=matrix_factory, populate_matrix=true)
-
-    u, σ = solve_and_evaluate(problem, approach, S, D_star, S_target)
+    density = solve(problem, approach, D_star)
+    u, σ = evaluate(problem, approach, density, S, target)
 
     return u, σ
 end
@@ -660,7 +667,9 @@ function solve_and_evaluate(
     ;
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Dirichlet}
-    throw("not implemented")
-    println("neumann with cutoff $cutoff")
-    return solve_and_evaluate(problem, approach, correction, target; matrix_factory)
+    if cutoff == 0.0
+        return solve_and_evaluate(problem, approach, correction, target; matrix_factory)
+    else
+        throw("not implemented: Neumann problem with cutoff $cutoff")
+    end
 end
