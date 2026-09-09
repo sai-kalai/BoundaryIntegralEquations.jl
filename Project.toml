@@ -22,6 +22,7 @@ BoundaryIntegralEquationsGLMakieExt = "GLMakie"
 
 [compat]
 FFTW = "1.10.0"
+GLMakie = "0.13.14"
 LinearAlgebra = "1.12.0"
 LinearSolve = "4.3.0"
 NearestNeighbors = "0.4.29"
