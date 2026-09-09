@@ -444,7 +444,7 @@ export AbstractSingularCorrection, SingularCorrection, KapurRokhlin,
 export DomainSide, Interior, Exterior
 export IntegralOperator, SingleLayer, DoubleLayer, AdjointDoubleLayer, Hypersingular
 export Approach, Direct, Indirect
-export BoundaryDensity, BoundaryCondition, Dirichlet, Neumann, data
+export BoundaryDensity, BoundaryCondition, Dirichlet, Neumann, data, apply
 export cauchy_integral, holomorphism_boundary_limit
 
 export BDProblem, BIEProblem
