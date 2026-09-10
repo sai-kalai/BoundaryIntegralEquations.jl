@@ -253,7 +253,25 @@ function manufactured_solution(eqn::Laplace, x_test,)
     return Γ_source, BoundaryDensity(density_source), u_exact
 end
 
+function find_farthest(target, bdry)
+    max_dist_sq = -Inf
+    farthest_idx = -1
 
+    for j in 1:size(bdry, 2)
+
+        for i in 1:size(target, 2)
+            # Calculate squared Euclidean distance to avoid unnecessary sqrt operations
+            d_sq = sum(abs2, view(target, :, i) .- view(bdry, :, j))
+            if d_sq > max_dist_sq
+                max_dist_sq = d_sq
+                farthest_idx = i
+            end
+        end
+    end
+
+
+    return farthest_idx, sqrt(max_dist_sq)
+end
 
 @doc raw"""
 
@@ -332,6 +350,11 @@ function run_all_simulations(
 
         for side in [interior,], bc in [Dirichlet(σ_exact), Neumann(τ_exact)]
 
+            if bc isa Neumann
+                #recover integration constant by choosing farthest point from boundary
+                idx, d = find_farthest(x_test, Γ.x)
+            end
+
             @show side, typeof(bc)
 
             if !any(T -> bc isa T, bc_types)
@@ -395,8 +418,7 @@ function run_all_simulations(
                     end
 
                     if bc isa Neumann
-                        #recover integration constant
-                        offset = u_exact[1] - u[1]
+                        offset = u_exact[idx] - u[idx]
                         u .+= offset
                         data(cauchy_data) .+= offset # TODO: put this inside solver maybe and user passes integration constant
                     end
@@ -455,7 +477,10 @@ function run_all_simulations(
 
                         if (bc isa Neumann)
                             #recover integration constant
-                            offset = u_exact[1] - u[1]
+
+                            idx, d = find_farthest(x_test, Γ.x)
+
+                            offset = u_exact[idx] - u[idx]
                             u .+= offset
                             data(cauchy_data) .+= offset # TODO: put this inside solver maybe and user passes integration constant
                         end

@@ -228,7 +228,7 @@ inscribed. This gives an idea of the characteristic length of the domain.
 # Arguments
 - `c::DiscreteClosedCurve`: curve to compute the characteristic length
 """
-function length_scale(c::DiscreteClosedCurve)
+function lengthscale(c::DiscreteClosedCurve)
     xmin, xmax, ymin, ymax = extrema(c)
     hypot(xmax - xmin, ymax - ymin)
 end

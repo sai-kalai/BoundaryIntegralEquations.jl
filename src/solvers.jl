@@ -308,7 +308,7 @@ function evaluate(
     # find points in the correct side of the domain and within cutoff distance
     # NOTE: magic number 8: this seems to be the ratio between delta and the
     # proportion of points inside the domain. this should be domain dependent.
-    distance = length_scale(problem.boundary) * relative_cutoff
+    distance = lengthscale(problem.boundary) * relative_cutoff
 
     near_idxs, far_idxs, bad_idxs = classify(problem.boundary, target,
         problem.side, distance)
@@ -517,10 +517,10 @@ function evaluate(
 
     @assert length(near_id) == 0
 
-    u[far_id] = apply(SingleLayer{Laplace,Nothing}, problem.boundary, target[:, far_id], problem.bc) -
-                apply(DoubleLayer{Laplace}, problem.boundary, target[:, far_id], σ)
+    u[far_id] .= apply(SingleLayer{Laplace,Nothing}, problem.boundary, target[:, far_id], problem.bc) -
+                 apply(DoubleLayer{Laplace}, problem.boundary, target[:, far_id], σ)
 
-    u[bad_id] = NaN
+    u[bad_id] .= NaN
 
     return u, σ
 end
@@ -627,9 +627,9 @@ function evaluate(
     @assert length(near_id) == 0
 
     # TODO: avoid allocating u inside apply as well as here
-    u[far_id] = apply(SingleLayer{Laplace,Nothing}, problem.boundary, target[:, far_id], ψ)
+    u[far_id] .= apply(SingleLayer{Laplace,Nothing}, problem.boundary, target[:, far_id], ψ)
 
-    u[bad_id] = NaN
+    u[bad_id] .= NaN
 
     return u, σ
 end

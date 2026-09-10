@@ -11,7 +11,7 @@ using BoundaryIntegralEquations.DevTools
 
 
 
-const FILE = "benchmark-scp6"
+const FILE = "benchmark-scp7"
 const DATAFILE = joinpath("data", FILE * ".jld2")
 
 
@@ -55,9 +55,9 @@ filter!(res, (k) -> begin
     if !(cutoff(k.evalmethod) in [0.0, 0.05, 0.1])
         return false
     end
-    # if !(k.approach_t <: Indirect)
-    #     return false
-    # end
+    # # if !(k.approach_t <: Indirect)
+    # #     return false
+    # # end
     return true
 end)
 
@@ -78,7 +78,9 @@ end
 # n_cols = ceil(Int, sqrt(n_sols))
 # n_rows = ceil(Int, n_sols / n_cols)
 
-fig = Figure(size=(300 * n_cols, 300 * n_rows))
+fig = Figure(
+# size=(300 * n_cols, 300 * n_rows)
+)
 
 
 for (i, (k, group)) in enumerate(valid_sols)
@@ -95,6 +97,7 @@ for (i, (k, group)) in enumerate(valid_sols)
         )
 
 
+        sol.u[isnan.(sol.u)] .= -1.
 
         curve = bvp(sol).boundary
 
