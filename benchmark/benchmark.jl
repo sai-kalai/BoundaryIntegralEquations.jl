@@ -14,11 +14,14 @@ x_dense = stack(((x, y),) -> SA[x, y], iter; dims=2)
 
 result = run_all_simulations(
     x_dense;
-    n_vals=[200, 300, 400],
-    fd_acc_vals=[16, 32],
-    cutoff_vals=[0.0, 0.01, 0.05, 0.1],
-    bc_types=[Dirichlet,],
-    approach_types=[Indirect],
+    # n_vals=[400, 800,],
+    # fd_acc_vals=[32,],
+    # cutoff_vals=[
+    #     0.0,
+    #     # 0.01, 0.05, 0.1
+    # ],
+    # bc_types=[Neumann,],
+    # approach_types=[Indirect],
     benchmark_kwargs=(; samples=100)
 )
 

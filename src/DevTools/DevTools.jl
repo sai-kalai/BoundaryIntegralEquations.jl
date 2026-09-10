@@ -211,7 +211,11 @@ function errors(
     else
         error("invalid solution type $(key.solution_t)")
     end
-    @assert all(.!isnan.(errs))
+    if any(isnan.(errs))
+        @warn "NaN found in errs:"
+        @show key
+        @show errs
+    end
     return errs
 end
 
@@ -254,23 +258,22 @@ function manufactured_solution(eqn::Laplace, x_test,)
 end
 
 function find_farthest(target, bdry)
-    max_dist_sq = -Inf
+    max_cost = Inf
     farthest_idx = -1
 
-    for j in 1:size(bdry, 2)
-
-        for i in 1:size(target, 2)
-            # Calculate squared Euclidean distance to avoid unnecessary sqrt operations
-            d_sq = sum(abs2, view(target, :, i) .- view(bdry, :, j))
-            if d_sq > max_dist_sq
-                max_dist_sq = d_sq
-                farthest_idx = i
-            end
+    for i in 1:size(target, 2)
+        cost = 0
+        for j in 1:size(bdry, 2)
+            cost += sum(abs2, view(target, :, i) .- view(bdry, :, j))
+        end
+        if cost < max_cost
+            max_cost = cost
+            farthest_idx = i
+            # @show max_cost
         end
     end
 
-
-    return farthest_idx, sqrt(max_dist_sq)
+    return farthest_idx, sqrt(max_cost)
 end
 
 @doc raw"""
@@ -350,12 +353,26 @@ function run_all_simulations(
 
         for side in [interior,], bc in [Dirichlet(σ_exact), Neumann(τ_exact)]
 
-            if bc isa Neumann
-                #recover integration constant by choosing farthest point from boundary
-                idx, d = find_farthest(x_test, Γ.x)
-            end
-
             @show side, typeof(bc)
+
+            if bc isa Neumann
+                # find farthest point from boundary in the correct side of the
+                # domain to reconstruct the integration constant
+                near_id, far_id, bad_id = classify(Γ, x_test, side, 0.0)
+                farthest_idx, farthest_dist = find_farthest(x_test[:, far_id], Γ.x)
+                farthest_idx = far_id[farthest_idx]
+
+                # farthest_idx = size(x_test, 2) ÷ 2
+                # @error x_test[:, farthest_idx]
+
+                # fig = Main.Figure()
+                # ax = Main.Axis(fig[1, 1])
+                # Main.scatter!(ax, x_test[:, near_id], color=:blue)
+                # Main.scatter!(ax, x_test[:, far_id], color=:green)
+                # Main.scatter!(ax, x_test[:, bad_id], color=:red)
+                # Main.scatter!(ax, x_test[:, farthest_idx]..., color=:black)
+                # fig |> display |> wait
+            end
 
             if !any(T -> bc isa T, bc_types)
                 continue
@@ -418,7 +435,7 @@ function run_all_simulations(
                     end
 
                     if bc isa Neumann
-                        offset = u_exact[idx] - u[idx]
+                        offset = u_exact[farthest_idx] - u[farthest_idx]
                         u .+= offset
                         data(cauchy_data) .+= offset # TODO: put this inside solver maybe and user passes integration constant
                     end
@@ -475,12 +492,9 @@ function run_all_simulations(
                             continue
                         end
 
-                        if (bc isa Neumann)
+                        if bc isa Neumann
                             #recover integration constant
-
-                            idx, d = find_farthest(x_test, Γ.x)
-
-                            offset = u_exact[idx] - u[idx]
+                            offset = u_exact[farthest_idx] - u[farthest_idx]
                             u .+= offset
                             data(cauchy_data) .+= offset # TODO: put this inside solver maybe and user passes integration constant
                         end

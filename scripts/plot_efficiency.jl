@@ -23,7 +23,7 @@ include("plot_utils.jl")
 ###########
 # Read data
 ###########
-const FILE = "benchmark-scp6"
+const FILE = "benchmark-scp8"
 const DATAFILE = joinpath("data", FILE * ".jld2")
 result = load_object(DATAFILE)
 @info "loaded `result` from $DATAFILE"

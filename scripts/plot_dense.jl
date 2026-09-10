@@ -10,8 +10,7 @@ using BoundaryIntegralEquations
 using BoundaryIntegralEquations.DevTools
 
 
-
-const FILE = "benchmark-scp7"
+const FILE = "benchmark"
 const DATAFILE = joinpath("data", FILE * ".jld2")
 
 
@@ -52,9 +51,9 @@ filter!(res, (k) -> begin
     if !(order(k.correction) in [32,])
         return false
     end
-    if !(cutoff(k.evalmethod) in [0.0, 0.05, 0.1])
-        return false
-    end
+    # if !(cutoff(k.evalmethod) in [0.0, 0.05, 0.1])
+    #     return false
+    # end
     # # if !(k.approach_t <: Indirect)
     # #     return false
     # # end
@@ -86,7 +85,7 @@ fig = Figure(
 for (i, (k, group)) in enumerate(valid_sols)
     @show k
 
-    sols = [s for s in solutions(group) if numpoints(s) == 400]
+    sols = [s for s in solutions(group) if true || numpoints(s) == 400]
 
     for (j, sol) in enumerate(sols)
         @show i, j
@@ -97,7 +96,7 @@ for (i, (k, group)) in enumerate(valid_sols)
         )
 
 
-        sol.u[isnan.(sol.u)] .= -1.
+        # sol.u[isnan.(sol.u)] .= -1.
 
         curve = bvp(sol).boundary
 

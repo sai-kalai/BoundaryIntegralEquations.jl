@@ -8,7 +8,7 @@ using JLD2
 
 include("plot_utils.jl")
 
-const FILE = "benchmark-scp6"
+const FILE = "benchmark"
 const DATAFILE = joinpath("data", FILE * ".jld2")
 
 
