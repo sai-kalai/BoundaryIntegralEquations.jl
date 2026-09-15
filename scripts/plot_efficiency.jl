@@ -23,7 +23,7 @@ include("plot_utils.jl")
 ###########
 # Read data
 ###########
-const FILE = "benchmark-scp8"
+const FILE = "benchmark-scp10"
 const DATAFILE = joinpath("data", FILE * ".jld2")
 result = load_object(DATAFILE)
 @info "loaded `result` from $DATAFILE"
@@ -31,7 +31,10 @@ result = load_object(DATAFILE)
 ###########
 # Make figure
 ###########
-fig = Figure()
+w=1200
+fig = Figure(
+    size=(w, w * 9 ÷ 16)
+)
 ax = Axis(
     fig[1, 1],
     xlabel="n",
@@ -39,6 +42,8 @@ ax = Axis(
     xscale=log10,
     yscale=log10,
 )
+xlims!(ax, (10^2.7, 10^2.8))
+ylims!(ax, (10^5, 10^6))
 
 ###########
 # Filter data
@@ -47,10 +52,13 @@ filter!(result, (k) -> begin
     if !(k.solution_t <: BVPSolution)
         return false
     end
-    # if !(order(k.correction) in [16, 32, Inf])
-    #     return false
-    # end
+    if !(order(k.correction) in [16, 32, Inf])
+        return false
+    end
     if !(k.approach_t <: Indirect)
+        return false
+    end
+    if !(k.bdrycond_t <: Dirichlet)
         return false
     end
     return true

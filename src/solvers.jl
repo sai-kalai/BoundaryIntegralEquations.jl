@@ -132,8 +132,6 @@ function evaluate(
     approach::Direct,
     τ::Neumann,
     target::AbstractMatrix,
-    ;
-    matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Neumann}
 
     # previous implementation: allocation for many query points bad
@@ -185,7 +183,7 @@ function solve_and_evaluate(
     matrix_factory::Function=default_allocator,
 )::Tuple{AbstractVector,Neumann}
     density = solve(problem, approach, correction; matrix_factory=matrix_factory)
-    u, τ = evaluate(problem, approach, density, target; matrix_factory=matrix_factory)
+    u, τ = evaluate(problem, approach, density, target)
     return u, τ
 end
 

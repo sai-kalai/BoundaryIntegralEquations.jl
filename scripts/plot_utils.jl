@@ -36,8 +36,8 @@ function get_markercolormap(res::ConvergenceResult, ::Type{<:EvaluationMethod})
     cgrad(
         :greens,
         length(res.cutoff_vals), categorical=true
-        # )
     )
+    # )
 end
 get_markercolormap(res::ConvergenceResult, m::EvaluationMethod) = get_markercolormap(res, typeof(m))
 function get_marker(k::SolverParameters)
@@ -62,13 +62,14 @@ function get_marker(k::SolverParameters)
     end
 end
 function get_linestyle(k::SolverParameters)
-    if k.approach_t <: Direct
-        :dot
-    elseif k.approach_t <: Indirect
-        :dashdot
-    else
-        error("invalid approach type: $(k.approach_t)")
-    end
+    # if k.approach_t <: Direct
+    #     :dot
+    # elseif k.approach_t <: Indirect
+    #     :dashdot
+    # else
+    #     error("invalid approach type: $(k.approach_t)")
+    # end
+    return :solid
 end
 function get_color(k::SolverParameters, res::ConvergenceResult)::Union{Int,Symbol}
     if k.correction isa Zeta
@@ -96,18 +97,21 @@ Defines shared visualization mappings for convergence and timing plots
 """
 function scatterlines_common_kwargs(k::SolverParameters, res::ConvergenceResult)
     kwargs = (;
-        markersize=12,
-        strokewidth=1,
+        markersize=25,
+        strokewidth=3,
         linewidth=3,
-        alpha=0.65,
-        marker=get_marker(k),
+        # alpha=0.7,
+        # marker=get_marker(k),
         linestyle=get_linestyle(k),
-        color=get_color(k, res),
-        colormap=get_colormap(res, k.correction),
-        colorrange=get_colorrange(res, k.correction),
-        markercolor=get_markercolor(k, res),
-        markercolorrange=get_markercolorrange(res, k.evalmethod),
-        markercolormap=get_markercolormap(res, k.evalmethod),
+        markercolor=:transparent,
+        # color=get_color(k, res),
+        colormap=cgrad(:tab10, length(res.solutions)),
+        colorrange=(1, length(result.solutions)),
+        # colorrange=get_colorrange(res, k.correction),
+        # markercolor=get_markercolor(k, res),
+        # strokecolor=get_colormap(res, k.correction)[color isa Int ? color : 0],
+        # markercolorrange=get_markercolorrange(res, k.evalmethod),
+        # markercolormap=get_markercolormap(res, k.evalmethod),
     )
 
     # distinguish lines that overlap
@@ -121,6 +125,24 @@ function scatterlines_common_kwargs(k::SolverParameters, res::ConvergenceResult)
 
     return kwargs
 end
+
+const MARKER_LABELS = [
+    :cross,
+    :utriangle,
+    :circle,
+    :rect,
+    :diamond,
+    :hexagon,
+    :xcross,
+    :rtriangle,
+    :pentagon,
+    :dtriangle,
+    :star4,
+    :star5,
+    :star6,
+    :star8,
+    :ltriangle,
+]
 
 function scatterlines_common_legend!(fig, res::ConvergenceResult)
     # collect all uniques

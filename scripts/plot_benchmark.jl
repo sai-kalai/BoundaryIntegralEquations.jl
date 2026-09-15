@@ -1,28 +1,29 @@
 # Plot the solution time
 # To acquire the data, first run `benchmark/benchmark.jl`
 
-using BoundaryIntegralEquations, BoundaryIntegralEquations.DevTools
+using BenchmarkTools
 using Statistics
 using GLMakie
 using JLD2
 
-include("plot_utils.jl")
+using BoundaryIntegralEquations, BoundaryIntegralEquations.DevTools
 
-const FILE = "benchmark"
-const DATAFILE = joinpath("data", FILE * ".jld2")
+include("plot_utils.jl")
 
 
 ###########
 # Read data
 ###########
-res = load_object(DATAFILE)
+benchmark_result = BenchmarkTools.load("data/benchmark_dense-eval.jl.json")[1] # [1] because json stores a vector of results
+res = load_object("data/convergence_dense-eval.jl.jld2")
 ###########
 # Make figure
 ###########
 # ncols = 5
 # nrows = 2
+w=1200
 fig = Figure(
-# size=(ncols * 300, nrows * 300)
+    size=(w, w*9÷16)
 )
 nticks = 5
 ax_time = Axis(
@@ -36,16 +37,16 @@ ax_time = Axis(
     ytickformat=values -> [string(v/1e+6) for v in values],
 )
 
-ax_scaling = Axis(
-    fig[1, end+1],
-    xlabel="N",
-    ylabel="Relative Overhead vs. N₁",
-    xscale=log10,
-    yscale=log10,
-    xticks=LinearTicks(nticks),
-    yticks=LinearTicks(nticks),
-    ytickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
-)
+# ax_scaling = Axis(
+#     fig[1, end+1],
+#     xlabel="N",
+#     ylabel="Relative Overhead vs. N₁",
+#     xscale=log10,
+#     yscale=log10,
+#     xticks=LinearTicks(nticks),
+#     yticks=LinearTicks(nticks),
+#     ytickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
+# )
 
 ax_slowdown = Axis(
     fig[1, end+1],
@@ -65,62 +66,94 @@ ax_slowdown = Axis(
 filter!(
     res,
     (k) -> begin
-        if !(order(k.correction) in [8, 32, 16])
+        if !(order(k.correction) in [32,])
             return false
         end
-        if !(cutoff(k.evalmethod) in [0.0, 0.05, 0.1])
+        if !(cutoff(k.evalmethod) in [0.0, 0.5])
             return false
         end
-        if (k.solution_t <: BIESolution)
+        if !(k.solution_t <: BVPSolution)
             return false
         end
-        # if !(k.bdrycond_t <: Neumann)
-        #     return false
-        # end
+        if !(k.bdrycond_t <: Dirichlet)
+            return false
+        end
+        if !(k.approach_t <: Indirect)
+
+            return false
+        end
         return true
     end
 )
 
-reference_run = nothing
-reference_times = nothing
-
-metric = times
+# decide what metric to use from benchmarking (times, gctimes, etc...)
+metric = :times
+# decide what estimator to use for summarizing the times (median, mean, etc...)
 estimator = median
 
-# filter groups and select reference run
-for (key, group) in res.solutions
-    if isnothing(reference_run)||key < reference_run
-        global reference_run = key
-        global reference_times = estimator.(metric(group))
+# the reference run is the fastest solver, used to compute slowdown of more accurate
+# solvers
+reference_run = minimum(keys(res.solutions))
+# fetch the reference trials associated to each n value
+reference_times = [
+    begin
+        # fetch the bvp
+        pb = bvp(soln)
+        # index of the benchmark trial
+        s = get_string(
+            pb, res.x, reference_run.correction, reference_run.approach_t(),
+            reference_run.evalmethod
+        )
+        # the trial at this n value
+        trial = benchmark_result[s]
+        # e.g. the mean time at each n value
+        estimator(getproperty(trial, metric))
     end
-end
+    for soln in solutions(res.solutions[reference_run])
+]
 
-@show reference_run
+@show reference_run, reference_times
 
-for (key, group) in res.solutions
+
+# iterate over solutions and add elements to the plot
+for (i, (key, group)) in enumerate(res.solutions)
 
     ns = numpoints.(solutions(group))
 
     errs = errors(key, res, group)
 
-    mids = estimator.(metric(group))
+    # get all the benchmarking trials related to each n value
+    # WARN: code duplicated for extracting trials
+    times = [
+        begin
+            # fetch the bvp
+            pb = bvp(soln)
+            # index of the benchmark trial
+            s = get_string(pb, res.x, key.correction, key.approach_t(), key.evalmethod)
+            # the trial at this n value
+            trial = benchmark_result[s]
+            getproperty(trial, metric)
+        end
+        for soln in solutions(group)
+    ]
+
+    mids = estimator.(times)
     coarsest_times = mids[1]
-    los = quantile.(metric(group), 0.25)
-    his = quantile.(metric(group), 0.75)
+    los = quantile.(times, 0.25)
+    his = quantile.(times, 0.75)
 
     @show key
     kwargs = scatterlines_common_kwargs(key, res)
 
-
     for (ax, ref_val) in zip(
         [
             ax_time,
-            ax_scaling,
+            # ax_scaling,
             ax_slowdown
         ],
         [
             1.,
-            coarsest_times,
+            # coarsest_times,
             reference_times
         ]
     )
@@ -134,26 +167,30 @@ for (key, group) in res.solutions
             whiskerwidth=20,
             colormap=kwargs.colormap,
             colorrange=kwargs.colorrange,
-            color=fill(kwargs.color, length(ns)),
+            color=fill(i, length(ns)),
             alpha=0.3,
         )
     end
 end
 
-c1, c2, c3 = scatterlines_common_colorbars!(fig, res)
-legend = scatterlines_common_legend!(fig, res)
-# legend.halign=:left
-fig[1, end+1][1, 1] = c1
-fig[1, end][1, 2] = c2
-fig[1, end][1, 3] = c3
-fig[0, 1:end] = legend
+# c1, c2, c3 = scatterlines_common_colorbars!(fig, res)
+# legend = scatterlines_common_legend!(fig, res)
+# # legend.halign=:left
+# fig[1, end+1][1, 1] = c1
+# fig[1, end][1, 2] = c2
+# fig[1, end][1, 3] = c3
+# fig[0, 1:end] = legend
 
-const PLOTFILE = if nameof(Makie.current_backend()) === :CairoMakie
-    joinpath("figures", "runtime_" * FILE * ".pdf")
-else
-    joinpath("figures", "runtime_" * FILE * ".png")
-end
-save(PLOTFILE, fig)
-@info "saved `fig` to $(PLOTFILE)"
+plotfile =
+    joinpath("figures", basename(@__FILE__) * begin
+        if nameof(Makie.current_backend()) === :CairoMakie
+            ".pdf"
+        else
+            ".png"
+        end
+    end
+    )
+save(plotfile, fig)
+@info "saved `fig` to $(plotfile)"
 fig
 

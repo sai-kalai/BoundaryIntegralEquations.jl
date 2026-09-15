@@ -1,5 +1,6 @@
 using JLD2
 using StaticArrays
+using BenchmarkTools
 
 using BoundaryIntegralEquations
 using BoundaryIntegralEquations.DevTools
@@ -12,18 +13,22 @@ ys = range(ymin, ymax, length=n)
 iter = Iterators.product(xs, ys)
 x_dense = stack(((x, y),) -> SA[x, y], iter; dims=2)
 
-result = run_all_simulations(
+result, suite = run_all_simulations(
     x_dense;
-    # n_vals=[400, 800,],
-    # fd_acc_vals=[32,],
-    # cutoff_vals=[
-    #     0.0,
-    #     # 0.01, 0.05, 0.1
-    # ],
+    n_vals=[100, 200],
+    fd_acc_vals=[32,],
+    cutoff_vals=[
+        0.0,
+        # 0.01,
+        0.05,
+        # 0.1
+    ],
     # bc_types=[Neumann,],
     # approach_types=[Indirect],
-    benchmark_kwargs=(; samples=100)
+    return_benchmark_suite=true
 )
+
+benchmark_result = run(suite, verbose=true, samples=10)
 
 const F = "data/benchmark.jld2"
 

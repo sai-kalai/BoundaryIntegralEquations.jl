@@ -8,7 +8,8 @@ using ..BoundaryIntegralEquations
 
 export ConvergenceResult, SolverParameters, SolutionMetadata,
     SolutionWithMetadata, add_solutions!, SolutionGroup,
-    solutions, metadatas, trials, times, gctimes, manufactured_solution, errors
+    solutions, metadatas, trials, times, gctimes, manufactured_solution,
+    errors, get_string
 
 
 export run_all_simulations, Fixtures
@@ -45,9 +46,7 @@ function Base.isless(a::SolverParameters, b::SolverParameters)
         return cutoff(a.evalmethod) < cutoff(b.evalmethod)
     end
 
-    @show typeof(a.correction), typeof(b.correction)
     if !(typeof(a.correction) <: typeof(b.correction))
-        @show typeof(a.correction), typeof(b.correction)
         if a.correction isa Zeta
             return true
         elseif a.correction isa Sidi
@@ -76,10 +75,14 @@ const SolutionGroup = Vector{SolutionWithMetadata}
 # iterators for broadcasting
 solutions(g::SolutionGroup) = (s for (s, _) in g)
 metadatas(g::SolutionGroup) = (m for (_, m) in g)
-trials(g::SolutionGroup) = (m.trial for (_, m) in g)
+
+
 times(g::SolutionGroup) = (t.times for t in trials(g))
 gctimes(g::SolutionGroup) = (t.gctimes for t in trials(g))
 
+function trials(g::SolutionGroup)
+    (m.trial for (_, m) in g)
+end
 
 @doc raw"""
     ConvergenceResult
@@ -276,6 +279,18 @@ function find_farthest(target, bdry)
     return farthest_idx, sqrt(max_cost)
 end
 
+
+@doc raw"""
+    get_string(pb, x, correction, approach, method)
+
+Return a key to the benchmark suite associated with this run
+
+"""
+function get_string(pb, x, correction, approach, method)
+    "$(pb.equation)-$(typeof(pb.bc).name.name)-$(pb.side)-n$(size(pb.boundary, 2))-m$(size(x, 2))-$(correction)-$(approach)-$(method)"
+end
+
+
 @doc raw"""
 
 run all methods with different parameters
@@ -292,13 +307,16 @@ function run_all_simulations(
     bc_types=[Dirichlet, Neumann],
     # indicate how to reserve memory
     allocator=(_m, _n) -> Matrix{Float64}(undef, _m, _n),
-    benchmark_kwargs=nothing,
+    return_benchmark_suite::Bool=false,
 )
-    @show n_vals
-    @show cutoff_vals
-    @show fd_acc_vals
-    @show kr_acc_vals
-    @show benchmark_kwargs
+    @info "n_vals =$(n_vals)"
+    @info "cutoff_vals =$(cutoff_vals)"
+    @info "fd_acc_vals =$(fd_acc_vals)"
+    @info "kr_acc_vals =$(kr_acc_vals)"
+
+    if return_benchmark_suite
+        suite = BenchmarkGroup()
+    end
 
     # common variables
     laplace = Laplace()
@@ -321,10 +339,10 @@ function run_all_simulations(
     nan_count = 0
     function validate_nan(sols...)
         foreach(sols) do sol
-            @info "validating $(typeof(sol))"
-            @show sol.alg
+            # @info "validating $(typeof(sol))"
+            # @show sol.alg
             if any(isnan, sol.u)
-                @warn "NaN found in solution"
+                # @warn "NaN found in solution"
                 # @show sol.u
                 nan_count += 1
             end
@@ -333,7 +351,7 @@ function run_all_simulations(
 
     for n in n_vals
 
-        @info @show n
+        @info "n =$(n)"
 
         # boundary discretization
         Γ = DiscreteClosedCurve(n, starfish)
@@ -353,7 +371,8 @@ function run_all_simulations(
 
         for side in [interior,], bc in [Dirichlet(σ_exact), Neumann(τ_exact)]
 
-            @show side, typeof(bc)
+            @info "side =$(side)"
+            @info "bc =$(typeof(bc))"
 
             if bc isa Neumann
                 # find farthest point from boundary in the correct side of the
@@ -361,17 +380,6 @@ function run_all_simulations(
                 near_id, far_id, bad_id = classify(Γ, x_test, side, 0.0)
                 farthest_idx, farthest_dist = find_farthest(x_test[:, far_id], Γ.x)
                 farthest_idx = far_id[farthest_idx]
-
-                # farthest_idx = size(x_test, 2) ÷ 2
-                # @error x_test[:, farthest_idx]
-
-                # fig = Main.Figure()
-                # ax = Main.Axis(fig[1, 1])
-                # Main.scatter!(ax, x_test[:, near_id], color=:blue)
-                # Main.scatter!(ax, x_test[:, far_id], color=:green)
-                # Main.scatter!(ax, x_test[:, bad_id], color=:red)
-                # Main.scatter!(ax, x_test[:, farthest_idx]..., color=:black)
-                # fig |> display |> wait
             end
 
             if !any(T -> bc isa T, bc_types)
@@ -403,10 +411,10 @@ function run_all_simulations(
             end
 
             for correction in corrections
-                @show correction
+                @info "correction =$(correction)"
 
                 if Direct in approach_types
-                    @show direct
+                    @info "approach =$(direct)"
                     # direct approach
                     u, cauchy_data = solve_and_evaluate(
                         pb,
@@ -417,8 +425,9 @@ function run_all_simulations(
                         matrix_factory=allocator
                     )
 
-                    if !isnothing(benchmark_kwargs)
-                        b = @benchmarkable solve_and_evaluate(
+                    if return_benchmark_suite
+                        s = get_string(pb, x_test, correction, direct, PotentialTheory())
+                        suite[s] = @benchmarkable solve_and_evaluate(
                             $pb,
                             $direct,
                             $correction,
@@ -426,13 +435,9 @@ function run_all_simulations(
                             ;
                             matrix_factory=($allocator)
                         )
-                        @time begin
-                            trial = run(b; benchmark_kwargs...)
-                        end
-                        display(trial)
-                    else
-                        trial = nothing
                     end
+
+                    trial = nothing
 
                     if bc isa Neumann
                         offset = u_exact[farthest_idx] - u[farthest_idx]
@@ -469,7 +474,7 @@ function run_all_simulations(
                 end
 
                 if Indirect in approach_types
-                    @show indirect
+                    @info "approach =$(indirect)"
                     # indirect approach: cutoff is available
                     for cutoff in cutoff_vals
 
@@ -499,9 +504,11 @@ function run_all_simulations(
                             data(cauchy_data) .+= offset # TODO: put this inside solver maybe and user passes integration constant
                         end
 
-                        @show method
-                        if !isnothing(benchmark_kwargs)
-                            b = @benchmarkable solve_and_evaluate(
+                        @info "method =$(method)"
+                        if return_benchmark_suite
+                            suite[
+                                get_string(pb, x_test, correction, indirect, method)
+                            ] = @benchmarkable solve_and_evaluate(
                                 $pb,
                                 $indirect,
                                 $correction,
@@ -510,13 +517,9 @@ function run_all_simulations(
                                 ;
                                 matrix_factory=($allocator)
                             )
-                            @time begin
-                                trial = run(b; benchmark_kwargs...)
-                            end
-                            display(trial)
-                        else
-                            trial = nothing
                         end
+
+                        trial = nothing
 
                         # dummy placeholder
                         bie_sln = BIESolution(
@@ -524,7 +527,6 @@ function run_all_simulations(
                             BIEProblem{Indirect}(pb),
                             BIEAlgorithm{Indirect}(),
                         )
-
 
                         bvp_sln = BVPSolution(
                             u,
@@ -552,9 +554,13 @@ function run_all_simulations(
         end
     end
 
-    @info @show nan_count
-    return res
-end
+    @info "nan_count =$(nan_count)"
 
+    if return_benchmark_suite
+        return res, suite
+    else
+        return res
+    end
+end
 
 end
