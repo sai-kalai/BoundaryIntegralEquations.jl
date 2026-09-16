@@ -93,7 +93,7 @@ end)
     sols = [s for s in solutions(group)]
 
     ns = [numpoints(s) for s in sols]
-    errs = errors(key, result, group)
+    errs = errors(key, result)
     kwargs = scatterlines_common_kwargs(key, result)
 
 

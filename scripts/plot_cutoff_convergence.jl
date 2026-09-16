@@ -118,7 +118,7 @@ deltas = [cutoff(k.evalmethod) for k in ks[sorted_perm]]
 
 @show deltas
 # collect error for all n values
-all_errs = [errors(k, result, group) for (k, group) in result.solutions]
+all_errs = [errors(k, result) for (k, group) in result.solutions]
 @show all_errs
 
 
@@ -165,7 +165,7 @@ for (i, (key, group)) in enumerate(result2.solutions)
     sort!(group, by=swm -> numpoints(swm[1]))
     sols = solutions(group)
     ns = [numpoints(s) for s in sols]
-    errs = errors(key, result2, group)
+    errs = errors(key, result2)
     scatterlines!(
         ax2,
         ns,

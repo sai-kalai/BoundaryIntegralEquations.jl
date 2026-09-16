@@ -10,7 +10,8 @@ using BoundaryIntegralEquations
 using BoundaryIntegralEquations.DevTools
 
 # define dense cartesian background grid
-n = 200
+n = parse(Int, ARGS[1])
+# n = 200
 Γ_dense = DiscreteClosedCurve(n, starfish)
 xmin, xmax, ymin, ymax = extrema(Γ_dense)
 xs = range(xmin, xmax, length=n)
@@ -21,7 +22,7 @@ x_dense = stack(((x, y),) -> SA[x, y], iter; dims=2)
 # run simulations to collect error results
 convergence_result, suite = run_all_simulations(
     x_dense;
-    n_vals=[ 50],
+    n_vals=[50],
     fd_acc_vals=[32,],
     cutoff_vals=[
         0.0,

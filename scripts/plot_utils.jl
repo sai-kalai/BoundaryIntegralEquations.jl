@@ -97,16 +97,18 @@ Defines shared visualization mappings for convergence and timing plots
 """
 function scatterlines_common_kwargs(k::SolverParameters, res::ConvergenceResult)
     kwargs = (;
-        markersize=25,
+        markersize=10,
         strokewidth=3,
         linewidth=3,
+        joinstyle=:miter,
         # alpha=0.7,
         # marker=get_marker(k),
         linestyle=get_linestyle(k),
         markercolor=:transparent,
+        # strokecolor=:black,
         # color=get_color(k, res),
-        colormap=cgrad(:tab10, length(res.solutions)),
-        colorrange=(1, length(result.solutions)),
+        # colormap=cgrad(:tab10, length(res.solutions)),
+        # colorrange=(1, length(result.solutions)),
         # colorrange=get_colorrange(res, k.correction),
         # markercolor=get_markercolor(k, res),
         # strokecolor=get_colormap(res, k.correction)[color isa Int ? color : 0],

@@ -73,7 +73,7 @@ for (key, group) in result.solutions
     sols = solutions(group)
     ns = numpoints.(sols)
 
-    errs = errors(key, result, group)
+    errs = errors(key, result)
 
     # compute efficiencies
     mids = 1 ./ (errs .* median.(times(group)))

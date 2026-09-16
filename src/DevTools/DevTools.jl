@@ -188,8 +188,9 @@ in a convergence result
 function errors(
     key::SolverParameters,
     res::ConvergenceResult,
-    group::SolutionGroup
 )
+
+    group = res.solutions[key]
     sols = solutions(group)
 
     errs = if key.solution_t <: BVPSolution
