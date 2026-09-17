@@ -300,9 +300,9 @@ run all methods with different parameters
 function run_all_simulations(
     x_test::AbstractMatrix, # test locations
     ;
-    n_vals=20:20:400,
-    cutoff_vals=[0.0, 0.01, 0.05, 0.1, 0.5],
-    fd_acc_vals=[4, 8, 16, 32],
+    n_vals=[100, 200, 400, 800],
+    cutoff_vals=[0.0, 0.01, 0.05, 0.1, 1.0],
+    fd_acc_vals=[8, 16, 32],
     kr_acc_vals=copy(fd_acc_vals),
     approach_types=[Direct, Indirect],
     bc_types=[Dirichlet, Neumann],
@@ -310,10 +310,13 @@ function run_all_simulations(
     allocator=(_m, _n) -> Matrix{Float64}(undef, _m, _n),
     return_benchmark_suite::Bool=false,
 )
+
+
     @info "n_vals =$(n_vals)"
     @info "cutoff_vals =$(cutoff_vals)"
     @info "fd_acc_vals =$(fd_acc_vals)"
     @info "kr_acc_vals =$(kr_acc_vals)"
+
 
     if return_benchmark_suite
         suite = BenchmarkGroup()
@@ -477,11 +480,18 @@ function run_all_simulations(
                 if Indirect in approach_types
                     @info "approach =$(indirect)"
                     # indirect approach: cutoff is available
-                    for cutoff in cutoff_vals
+
+                    all_cutoff_vals = [cutoff_vals; 0.25*100/n]
+
+                    for cutoff in all_cutoff_vals
+
+
 
                         method = cutoff == 0. ? PotentialTheory() :
-                                 isinf(cutoff) ? CauchyIntegral() :
+                                 cutoff == 1. ? CauchyIntegral() :
                                  DistancePolicy(cutoff)
+
+
 
                         try
                             u, cauchy_data = solve_and_evaluate(

@@ -40,48 +40,48 @@ mx = sqrt(size(res.x, 2))
 ###########
 # ncols = 5
 # nrows = 2
-w=1200
-fig = Figure(
-    title="$(mx) x $(mx) evaluation grid",
-    size=(w, w*9÷16)
-)
-nticks = 5
-cm = Makie.to_colormap(:tab10)
-ax_time = Axis(
-    fig[1, 1],
-    xlabel="N",
-    ylabel="Time (ms)",
-    xscale=log10,
-    yscale=log10,
-    xticks=LinearTicks(nticks),
-    yticks=LinearTicks(nticks),
-    ytickformat=values -> [string(v/1e+6) for v in values],
-    palette=(; color=cm,)
-)
-
-# ax_scaling = Axis(
-#     fig[1, end+1],
+# w=1200
+# fig = Figure(
+#     title="$(mx) x $(mx) evaluation grid",
+#     size=(w, w*9÷16)
+# )
+# nticks = 5
+# cm = Makie.to_colormap(:tab10)
+# ax_time = Axis(
+#     fig[1, 1],
 #     xlabel="N",
-#     ylabel="Relative Overhead vs. N₁",
+#     ylabel="Time (ms)",
 #     xscale=log10,
 #     yscale=log10,
 #     xticks=LinearTicks(nticks),
 #     yticks=LinearTicks(nticks),
-#     ytickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
+#     ytickformat=values -> [string(v/1e+6) for v in values],
+#     palette=(; color=cm,)
 # )
-
-ax_slowdown = Axis(
-    fig[1, end+1],
-    xlabel="N",
-    ylabel="Slowdown",
-    xscale=log10,
-    # yscale=log10,
-    xticks=LinearTicks(nticks),
-    yticks=LinearTicks(nticks),
-    # xtickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
-    ytickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
-    palette=(; color=cm,)
-)
+#
+# # ax_scaling = Axis(
+# #     fig[1, end+1],
+# #     xlabel="N",
+# #     ylabel="Relative Overhead vs. N₁",
+# #     xscale=log10,
+# #     yscale=log10,
+# #     xticks=LinearTicks(nticks),
+# #     yticks=LinearTicks(nticks),
+# #     ytickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
+# # )
+#
+# ax_slowdown = Axis(
+#     fig[1, end+1],
+#     xlabel="N",
+#     ylabel="Slowdown",
+#     xscale=log10,
+#     # yscale=log10,
+#     xticks=LinearTicks(nticks),
+#     yticks=LinearTicks(nticks),
+#     # xtickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
+#     ytickformat=values -> [isinteger(v) ? "$(Int(v))x" : "$(v)x" for v in values],
+#     palette=(; color=cm,)
+# )
 
 ###########
 # Filter data
@@ -207,7 +207,7 @@ end
 
 
 lines!(
-    ax_time, res.n_vals, 5 * reference_times[1] .* (res.n_vals ./ res.n_vals[1]),
+    ax_time, res.n_vals, 5 * reference_times[1] .* (res.n_vals ./ res.n_vals[1]) .^ 2,
     label="O(N)",
     color=:grey,
     linewidth=3,
@@ -217,7 +217,7 @@ lines!(
 
 l = axislegend(ax_time, position=:rb)
 Label(fig[0, :],
-    "Background Grid $(mx) x $(mx)",
+    "Background Grid $(floor(Int, mx)) x $(floor(Int, mx))",
     fontsize=20,
     font=:bold)
 
@@ -230,7 +230,7 @@ Label(fig[0, :],
 # fig[0, 1:end] = legend
 
 plotfile =
-    joinpath("figures", basename(@__FILE__) * begin
+    joinpath("figures", basename(@__FILE__) * "ci" * begin
         if nameof(Makie.current_backend()) === :CairoMakie
             ".pdf"
         else

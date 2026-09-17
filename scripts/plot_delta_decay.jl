@@ -1,8 +1,10 @@
-
-# Plot solution error on a dense grid inside the domain for different values
-# of cutoff and discretization, for fixed quadrature order
-# domain
+docstring = raw"""
+Plot solution error on a dense grid inside the domain for different values
+of cutoff and discretization, for fixed quadrature order
+domain
+"""
 using GLMakie
+using BenchmarkTools
 using StaticArrays
 using JLD2
 using NearestNeighbors
@@ -11,38 +13,39 @@ using Printf
 using BoundaryIntegralEquations
 using BoundaryIntegralEquations.DevTools
 
-
-const FILE = "benchmark-scp10"
-const DATAFILE = joinpath("data", FILE * ".jld2")
-
-
-
-if false && isfile(DATAFILE)
-    @info "loaded `res` from $(DATAFILE)"
-    res = load_object(DATAFILE)
-    n_grid = sqrt(length(res.x))
-else
-    # acquire data
-    n_grid = 200
-    @show "hi"
-    Γ_dense = DiscreteClosedCurve(n_grid, starfish)
-    xmin, xmax, ymin, ymax = extrema(Γ_dense)
-    xs = range(xmin, xmax, length=n_grid)
-    ys = range(ymin, ymax, length=n_grid)
-    iter = Iterators.product(xs, ys)
-    x_dense = stack(((x, y),) -> SA[x, y], iter; dims=2)
-    res = run_all_simulations(
-        x_dense,
-        ;
-        n_vals=[100, 200, 400,],
-        cutoff_vals=[0., 0.05, 0.1, 0.5,],
-        approach_types=[Indirect, Direct],
-        bc_types=[Neumann, Dirichlet],
-        fd_acc_vals=[32,],
-    )
-    save_object(DATAFILE, res)
-    @info "saved `res` to $(DATAFILE)"
+try
+    global benchmark_result = BenchmarkTools.load(ARGS[1])[1] # [1] because json stores a vector of results
+    global res = load_object(ARGS[2])
+catch e
+    @info docstring
+    rethrow(e)
 end
+
+# if false #isfile(DATAFILE)
+# @info "loaded `res` from $(DATAFILE)"
+# res = load_object(DATAFILE)
+# n_grid = sqrt(length(res.x))
+# else
+# acquire data
+# n_grid = 200
+# Γ_dense = DiscreteClosedCurve(n_grid, starfish)
+# xmin, xmax, ymin, ymax = extrema(Γ_dense)
+# xs = range(xmin, xmax, length=n_grid)
+# ys = range(ymin, ymax, length=n_grid)
+# iter = Iterators.product(xs, ys)
+# x_dense = stack(((x, y),) -> SA[x, y], iter; dims=2)
+# res = run_all_simulations(
+#     x_dense,
+#     ;
+#     n_vals=[100, 200, 400,],
+#     cutoff_vals=[0., 0.05, 0.1, 0.5,],
+#     approach_types=[Indirect, Direct],
+#     bc_types=[Neumann, Dirichlet],
+#     fd_acc_vals=[32,],
+# )
+# save_object(DATAFILE, res)
+# @info "saved `res` to $(DATAFILE)"
+# end
 
 
 filter!(res, (k) -> begin
@@ -55,7 +58,7 @@ filter!(res, (k) -> begin
     if !(order(k.correction) in [32])
         return false
     end
-    if !(cutoff(k.evalmethod) in [0.0, 0.5])
+    if !(cutoff(k.evalmethod) in [0.0, 0.25])
         return false
     end
     if !(k.bdrycond_t <: Dirichlet)
@@ -78,16 +81,16 @@ k_pt = res.solutions |> keys |> collect |> minimum
 sols_cau = Dict(numpoints(s) => s for s in solutions(res.solutions[k_ref]))
 sols_pt = Dict(numpoints(s) => s for s in solutions(res.solutions[k_pt]))
 
-n_vals = [200, 400, 800,]
+n_vals = [100, 200, 400,]
 
 rows = length(n_vals)
 
 axs = [Axis(
     fig[i, 1][1, 1],
     yscale=log10,
-    xscale=log10,
-    xticks=LogTicks(LinearTicks(10)),
-    xtickformat=values -> [@sprintf("%.2f", v) for v in values],
+    # xscale=log10,
+    xticks=LinearTicks(10),
+    # xtickformat=values -> [@sprintf("%.2f", v) for v in values],
     # ylims=(1e-16, 1e+1),
     # xlims=(1e-10, 1e+0)
 ) for i in 1:rows]
@@ -101,6 +104,8 @@ axs[1].title = "Potential Theory"
 axs[2].title = "Cauchy Integral"
 axs[3].title = "Difference"
 
+tolerance = 1e-10
+
 for (j, n) in enumerate(n_vals[end:-1:1])
 
     sol_cau = sols_cau[n]
@@ -108,9 +113,13 @@ for (j, n) in enumerate(n_vals[end:-1:1])
     sol_pt = sols_pt[n]
 
     curve = bvp(sol_cau).boundary
-
     near, far, bad = classify(curve, res.x, Interior(), 0.0)
+    ls = lengthscale(curve)
+    global dists
+    tree = KDTree(curve)
+    _, dists = nn(tree, res.x)
 
+    global vals
     vals = [
         abs.(err)
         for err in [
@@ -119,24 +128,43 @@ for (j, n) in enumerate(n_vals[end:-1:1])
             sol_cau.u - sol_pt.u
         ]
     ]
+    difference = vals[3]
+
+    # sort points by distance, find smallest distance where error is below tolerance
+    sp = sortperm(dists)
+    optimal_id = findlast(>(tolerance), difference[sp])
+    optimal_delta = dists[sp][optimal_id] / ls
+
+
+    scatter!(axs[3], [optimal_delta,], [difference[sp][optimal_id]], color=:red, markersize=10,)
+
+    @show n, optimal_delta
+    lines!(
+        axs[3],
+        [optimal_delta, optimal_delta],
+        [1e-15, 1e+1],
+        colormap=:tab10,
+        color=j,
+        colorrange=(1, 10),
+        label="δ = $optimal_delta"
+    )
 
     for (i, val) in enumerate(vals)
 
-        tree = KDTree(curve)
-        _, dists = nn(tree, res.x)
-
         sc = scatter!(
             axs[i],
-            dists ./ lengthscale(curve),
+            dists ./ ls,
             val,
             label="n = $(n)",
+            markersize=1,
+            alpha=0.1,
             colormap=:tab10,
             color=j,
-            alpha=0.1,
             colorrange=(1, 10),
         )
 
-        axislegend(axs[i])
+
+
 
         # Hide interior axis labels/decorations
         if i < 3
@@ -173,13 +201,17 @@ for (j, n) in enumerate(n_vals[end:-1:1])
     end
 end
 
-const PLOTFILE = if nameof(Makie.current_backend()) === :CairoMakie
-    joinpath("figures", "dense" * FILE * ".pdf")
-else
-    joinpath("figures", "dense" * FILE * ".png")
-end
 
-save(PLOTFILE, fig)
-@info "saved `fig` to $(PLOTFILE)"
+# find delta such that CI and PT agree up to a tolerance
+
+
+# const PLOTFILE = if nameof(Makie.current_backend()) === :CairoMakie
+#     joinpath("figures", "dense" * FILE * ".pdf")
+# else
+#     joinpath("figures", "dense" * FILE * ".png")
+# end
+#
+# save(PLOTFILE, fig)
+# @info "saved `fig` to $(PLOTFILE)"
 
 fig

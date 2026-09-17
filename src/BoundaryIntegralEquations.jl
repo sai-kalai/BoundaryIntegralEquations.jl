@@ -138,7 +138,7 @@ struct DistancePolicy{T<:Real} <: EvaluationMethod
     cutoff::T
 end
 
-cutoff(::CauchyIntegral) = Inf
+cutoff(::CauchyIntegral) = 1.0
 cutoff(::PotentialTheory) = 0.0
 cutoff(d::DistancePolicy) = d.cutoff
 
