@@ -25,14 +25,17 @@ function BoundaryIntegralEquations.visualize!(
     # TODO: these should be kwargs
     arrows::Bool=true,
     parameter::Bool=true,
+    ;
+    line_kwargs...
 )
 
     curve = lines!(
         ax,
         polygon(b),
-        label="Γ",
         ;
-        color=parameter ? (1:size(b, 2)) : :black
+        label="Γ",
+        color=parameter ? (1:size(b, 2)) : :black,
+        line_kwargs...,
     )
 
     if arrows

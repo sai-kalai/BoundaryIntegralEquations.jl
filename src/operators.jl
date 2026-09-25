@@ -26,6 +26,16 @@ function Base.:-(s::Number, op::IntegralOperator)
     return op - s
 end
 
+function correction(::IntegralOperator)
+    return nothing
+end
+function correction(op::SingleLayer{E,C}) where {E,C}
+    return op.correction
+end
+function correction(op::Hypersingular{E,C}) where {E,C}
+    return op.correction
+end
+
 
 # function Base.:*(op::IntegralOperator, v::AbstractArray)
 #     return matrix(op) * v
@@ -553,7 +563,15 @@ end
 end
 
 
-# self interaction
+@doc raw"""
+    compute_entry!(op::SingleLayer{Laplace,KapurRokhlin}, c::Union{PairwiseCache,Nothing}, i::Int, j::Int, s::DiscreteClosedCurve)
+
+Apply the correction for separable logarithmic singularities
+
+[1] Kapur and Rokhlin, High-Order Corrected Trapezoidal Quadrature Rules for
+Singular Functions, 1997
+
+"""
 @inline function compute_entry!(
     op::SingleLayer{Laplace,KapurRokhlin},
     c::Union{PairwiseCache,Nothing},
@@ -561,7 +579,6 @@ end
     j::Int,
     s::DiscreteClosedCurve,
 )
-
     if j < i
         # lower  triangular sweep
         x = make_svector2(s.x, i)
@@ -576,7 +593,7 @@ end
         op.matrix[j, i] = val * s.w[i]
 
     elseif j == i
-        #diagonal
+        #diagonal correction: τ₀ term from [1], eqn. (81), (82), (114)
         op.matrix[i, i] = -0.5 * log(s.w[i]) / π * s.w[i]
 
     elseif j > i
@@ -714,6 +731,7 @@ end
 
 end
 
+# TODO: stencils should be statically available, caching is redundant
 # store stencils of possibly several orders
 mutable struct StencilCache{
     I<:Integer,
@@ -748,6 +766,14 @@ function apply_correction!(
     return
 end
 
+@doc raw"""
+    apply_correction!(op::SingleLayer{Laplace,KapurRokhlin}, c::StencilCache, i::Int, s::DiscreteClosedCurve)
+
+Apply the correction for separable logarithmic singularities
+
+[1] Kapur and Rokhlin, High-Order Corrected Trapezoidal Quadrature Rules for
+Singular Functions, 1997
+"""
 function apply_correction!(
     op::SingleLayer{Laplace,KapurRokhlin},
     c::StencilCache,
@@ -755,14 +781,22 @@ function apply_correction!(
     s::DiscreteClosedCurve
 )
     ord = op.correction.order
-    m = size(s, 2) # NOTE: unsure about this
-    k = clamp((ord - 1) ÷ 2, 0, (m - 1) ÷ 2)
+    m = size(s, 2)
+
+    #
+    k = clamp(
+        (ord - 1) ÷ 2,
+        0,
+        (m - 1) ÷ 2
+    )
 
     stencil = get_kr!(c, k)
 
+    # apply band from [1], eqn. (82)
     for dj in (-k):k
-        j = mod1(i + dj, m)
         # TODO: replace by abs
+        j = mod1(i + dj, m)
+        # divide by 2π = h
         val = stencil[dj+k+1] * 0.5 / pi
         op.matrix[i, j] += val * s.w[j]
     end

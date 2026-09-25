@@ -18,7 +18,7 @@ using Statistics
 
 using BoundaryIntegralEquations, BoundaryIntegralEquations.DevTools
 
-include("plot_utils.jl")
+include("utils.jl")
 
 ###########
 # Read data
@@ -37,7 +37,7 @@ fig = Figure(
 )
 ax = Axis(
     fig[1, 1],
-    xlabel="n",
+    xlabel="$(_N)",
     ylabel=L"\frac{1}{\text{error} \times \text{runtime}}",
     xscale=log10,
     yscale=log10,

@@ -1,8 +1,146 @@
 # Shared functionality for plotting consistently
 
+using Makie
 using LinearAlgebra
+
 using BoundaryIntegralEquations
 using BoundaryIntegralEquations.DevTools
+using BoundaryIntegralEquations: order
+
+
+using GLMakie
+using CairoMakie
+
+const MARKER_LABELS = [
+    :diamond,
+    'x',
+    '+',
+    :cross,
+    :dtriangle,
+    :utriangle,
+    :xcross,
+    :rect,
+    :circle,
+    :hexagon,
+    :rtriangle,
+    :pentagon,
+    :star4,
+    :star5,
+    :star6,
+    :star8,
+    :ltriangle,
+]
+
+
+mytheme = Theme(
+    fontsize=25,
+    # Label=(fontsize=25,),
+    Axis=(
+        xlabelsize=30,
+        ylabelsize=35,
+        xticklabelsize=20,
+        yticklabelsize=20,
+        palette=(;
+            color=Makie.to_colormap(:tab10),
+            marker=MARKER_LABELS,
+            linestyle=[
+                :dash,
+                :dot,
+                :dashdot,
+                :dashdotdot,
+            ]
+        ),
+        # width=150,
+        # height=150,
+    ),
+    Colorbar=(ticklabelsize=15,),
+    # Legend=(labelsize=10),
+    annotation=(fontsize=20),
+)
+mytheme = merge(mytheme, theme_latexfonts())
+set_theme!(mytheme)
+
+function save_and_display!(name, fig)
+    # save using Cairo
+    plotfile = joinpath("figures", name)
+    CairoMakie.activate!()
+    CairoMakie.save(plotfile * ".pdf", fig)
+    CairoMakie.save(plotfile * ".png", fig)
+
+    @info "saved `fig` to $(plotfile)"
+
+    # display using GL
+    GLMakie.activate!()
+    screen = display(GLMakie.Screen(), fig)
+
+    if !isinteractive()
+        screen |> wait
+    end
+end
+
+
+const _N = "N"
+
+conv_style = (;
+    alpha=0.6,
+    # color=:grey,
+    linewidth=3,
+)
+lstyles = [
+    :dash,
+    :dot,
+    :dashdot,
+    :dashdotdot,
+]
+function convergence_trendline!(ax, xrange, yoffset, order, type)
+    dense_n = extrema(xrange) |> x -> range(x..., length=50) |> collect
+
+    if type == :poly
+        # polynomial trend
+        lines!(ax,
+            dense_n,
+            10. ^ (yoffset) .* (dense_n ./ dense_n[1]) .^ -order,
+            ;
+            label=L"\mathcal{O}(%$_N^{%$(-order)})",
+            cycle=Cycle([:linestyle,]; covary=true),
+            color=:black,
+            conv_style...
+        )
+
+    elseif type == :expo
+        # exponential trend
+        lines!(ax,
+            dense_n,
+            10. ^ (yoffset) .* exp.(-order .* (dense_n .- dense_n[1])),
+            # exp.(-order .* (dense_n)),
+            ;
+            label=L"\mathcal{O} (\exp(%$(-order)%$(_N)))",
+            cycle=Cycle([:linestyle,]; covary=true),
+            color=:grey,
+            conv_style...
+        )
+    elseif type == :nlogn
+        lines!(ax,
+            dense_n,
+            10. ^ (yoffset) .* dense_n .* log2.(dense_n .- dense_n[1] .+ 1.),
+            # exp.(-order .* (dense_n)),
+            ;
+            label=L"\mathcal{O} (%$_N \log(%$(_N)))",
+            cycle=Cycle([:linestyle,]; covary=true),
+            color=:grey,
+            conv_style...
+        )
+    else
+
+        error("convergence type $type not supported")
+    end
+
+
+end
+
+
+
+
 
 # categorical colormaps for correction orders
 function get_colormap(res::ConvergenceResult, ::Type{<:Zeta})
@@ -72,6 +210,7 @@ function get_linestyle(k::SolverParameters)
     return :solid
 end
 function get_color(k::SolverParameters, res::ConvergenceResult)::Union{Int,Symbol}
+
     if k.correction isa Zeta
         findfirst(==(k.correction.order), res.fd_acc_vals)
     elseif k.correction isa KapurRokhlin
@@ -86,6 +225,16 @@ function get_markercolor(k::SolverParameters, res::ConvergenceResult)
     findfirst(==(cutoff(k.evalmethod)), res.cutoff_vals)
 end
 
+get_palette(nummarkers) = (;
+    color=Makie.to_colormap(:tab10),
+    marker=MARKER_LABELS[1:nummarkers],
+    linestyle=[
+        :dash,
+        :dot,
+        :dashdot,
+        :dashdotdot,
+    ],
+)
 
 @doc raw"""
     scatterline_common_kwargs(k::SolverParameters)
@@ -97,14 +246,15 @@ Defines shared visualization mappings for convergence and timing plots
 """
 function scatterlines_common_kwargs(k::SolverParameters, res::ConvergenceResult)
     kwargs = (;
-        markersize=10,
-        strokewidth=3,
-        linewidth=3,
+        markersize=20,
+        strokewidth=1,
+        linewidth=2,
         joinstyle=:miter,
         # alpha=0.7,
         # marker=get_marker(k),
         linestyle=get_linestyle(k),
-        markercolor=:transparent,
+        strokecolor=:black,
+        # cycle=[[:color, :linecolor, :markercolor]=>:color]
         # strokecolor=:black,
         # color=get_color(k, res),
         # colormap=cgrad(:tab10, length(res.solutions)),
@@ -128,23 +278,6 @@ function scatterlines_common_kwargs(k::SolverParameters, res::ConvergenceResult)
     return kwargs
 end
 
-const MARKER_LABELS = [
-    :cross,
-    :utriangle,
-    :circle,
-    :rect,
-    :diamond,
-    :hexagon,
-    :xcross,
-    :rtriangle,
-    :pentagon,
-    :dtriangle,
-    :star4,
-    :star5,
-    :star6,
-    :star8,
-    :ltriangle,
-]
 
 function scatterlines_common_legend!(fig, res::ConvergenceResult)
     # collect all uniques

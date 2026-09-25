@@ -32,7 +32,7 @@ using BoundaryIntegralEquations.DevTools: Fixtures
 x_test = Fixtures.test_locations()
 x_test = [
     x_test;;
-    ball(0.1, 10);;
+    # ball(0.1, 10);;
     # ball(0.3, 30);;
     # ball(0.6, 60);;
     # # avoid  testing close evaluation for gradient
@@ -59,7 +59,7 @@ result = run_all_simulations(
 # There's an uncomfortable coupling between the names of plotting files in scripts/
 # and the names of files in test/convergence and benchmark/
 # maybe config file to unify
-const F = "data/convergence_laplace_2d.jld2"
+const F = "data/convergence/m$(size(result.x, 2))_test.jld2"
 
 save_object(F, result)
 

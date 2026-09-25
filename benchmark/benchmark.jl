@@ -25,6 +25,11 @@ if domain_type == "dense"
     x = stack(((x, y),) -> SA[x, y], iter; dims=2)
 elseif domain_type == "far"
     x = ball(0.01, mx)
+elseif domain_type == "test"
+    x = Fixtures.test_locations()
+else
+
+    error("expected ARGS[2] to be one of dense, far, test")
 end
 
 # run simulations to collect error results
@@ -49,7 +54,7 @@ id = "m$(m)_$domain_type"
 
 # save error and timing data
 convergence_file = joinpath(
-    "data", "convergence_" * id * ".jld2")
+    "data", "convergence", id * ".jld2")
 save_object(convergence_file, convergence_result)
 @info "convergence_result = "
 display(convergence_result)
@@ -58,7 +63,7 @@ display(convergence_result)
 benchmark_result = run(suite, verbose=true, samples=100)
 
 benchmark_file = joinpath(
-    "data", "benchmark_" * id * ".json")
+    "data", "benchmark", id * ".json")
 BenchmarkTools.save(benchmark_file, benchmark_result)
 @info "benchmark_result = "
 display(benchmark_result)

@@ -1,4 +1,13 @@
 
+@doc raw"""
+    krcoeffs(accuracy_order::Int)
+
+compute the correction weights τᵢ for singular functions with separable logarithmic
+singularity from [1], Table 7. Zeroth therm from equation (111) is already included.
+
+[1] Kapur and Rokhlin, High-Order Corrected Trapezoidal Quadrature Rules for
+Singular Functions, 1997
+"""
 function krcoeffs(accuracy_order::Int)::Vector{Float64}
     stencil = get!(precomputed_coeffs_rk, accuracy_order) do
         compute_coeffs_rk(accuracy_order)
@@ -23,7 +32,6 @@ function compute_coeffs_rk(k::Int)
     # return cd
 end
 
-# TODO move this to config file, populate by solving system
 precomputed_coeffs_rk = Dict{Int32,Vector{Float64}}(
     0 => [0],
     1 => [

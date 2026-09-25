@@ -1,5 +1,4 @@
-is_garbage(x::Number) = isnan(x) || isinf(x) || abs(x) > 1e10
-has_garbage(a::Array) = any(is_garbage, a)
+is_garbage(x::Number) = isnan(x) || isinf(x) || abs(x) > 1e10 has_garbage(a::Array) = any(is_garbage, a)
 has_garbage(o::IntegralOperator) = has_garbage(matrix(o))
 const CHECK_GARBAGE = true # TODO: turn off optionally
 function panic_if_garbage(ops...)

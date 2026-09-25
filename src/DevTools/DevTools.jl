@@ -3,13 +3,14 @@ module DevTools
 using BenchmarkTools # keeping as dependency for now, find better way
 using LinearAlgebra
 using StaticArrays
+using JLD2
 
 using ..BoundaryIntegralEquations
 
 export ConvergenceResult, SolverParameters, SolutionMetadata,
     SolutionWithMetadata, add_solutions!, SolutionGroup,
     solutions, metadatas, trials, times, gctimes, manufactured_solution,
-    errors, get_string
+    errors, get_string, trials
 
 
 export run_all_simulations, Fixtures
@@ -35,6 +36,10 @@ end
 
 # compare keys
 function Base.isless(a::SolverParameters, b::SolverParameters)
+
+    if a.bdrycond_t != b.bdrycond_t
+        return string(a.bdrycond_t) < string(b.bdrycond_t)
+    end
 
     if a.approach_t <: Direct && b.approach_t <: Indirect
         return false
@@ -81,6 +86,7 @@ times(g::SolutionGroup) = (t.times for t in trials(g))
 gctimes(g::SolutionGroup) = (t.gctimes for t in trials(g))
 
 function trials(g::SolutionGroup)
+    error("no longer supported")
     (m.trial for (_, m) in g)
 end
 
@@ -187,7 +193,8 @@ in a convergence result
 """
 function errors(
     key::SolverParameters,
-    res::ConvergenceResult,
+    res::ConvergenceResult;
+    _norm=Inf
 )
 
     group = res.solutions[key]
@@ -200,15 +207,15 @@ function errors(
                 # numerical solution at incorrect side contains NaN
                 # TODO: not always the three are needed
                 _, far_ids, _ = classify(s.prob.boundary, res.x, s.prob.side, 0.)
-                norm(s.u[far_ids] - res.u_exact[far_ids], Inf)
+                norm(s.u[far_ids] - res.u_exact[far_ids], _norm)
             end
             for s in sols
         ]
     elseif key.solution_t <: BDPSolution
         if key.bdrycond_t <: Dirichlet
-            [norm(s.u - res.neumann_exact[numpoints(s)], Inf) for s in sols]
+            [norm(s.u - res.neumann_exact[numpoints(s)], _norm) for s in sols]
         elseif key.bdrycond_t <: Neumann
-            [norm(s.u - res.dirichlet_exact[numpoints(s)], Inf) for s in sols]
+            [norm(s.u - res.dirichlet_exact[numpoints(s)], _norm) for s in sols]
         else
             error("invalid bc type $(key.bdrycond_t)")
         end
@@ -237,6 +244,9 @@ function Base.show(io::IO, ::MIME"text/plain", res::ConvergenceResult{T}) where 
     println(io, "  solutions:       ", length(res.solutions), "-element ", typeof(res.solutions))
 end
 
+function Base.show(io::IO, res::ConvergenceResult{T}) where {T}
+    print(io, "ConvergenceResult{", T, "} with ", length(res.solutions), " solutions, ", size(res.x, 2), " evaluation points")
+end
 
 @doc raw"""
     manufactured_solution()
@@ -291,6 +301,28 @@ function get_string(pb, x, correction, approach, method)
     "$(pb.equation)-$(typeof(pb.bc).name.name)-$(pb.side)-n$(size(pb.boundary, 2))-m$(size(x, 2))-$(correction)-$(approach)-$(method)"
 end
 
+@doc raw"""
+    trials(key::SolverParameters, res::ConvergenceResult, bres::BenchmarkTools.BenchmarkGroup)
+
+Return a vector of `BenchmarkingTools.Trial` objects associated with this key
+
+"""
+function trials(key::SolverParameters, res::ConvergenceResult, bres::BenchmarkTools.BenchmarkGroup)
+    return [
+        begin
+            # index of the benchmark trial
+            id = get_string(
+                bvp(soln), res.x, key.correction,
+                key.approach_t(),
+                key.evalmethod
+            )
+            # the trial at this n value
+            bres[id]
+        end
+        for soln in solutions(res.solutions[key])
+    ]
+end
+
 
 @doc raw"""
 
@@ -309,6 +341,8 @@ function run_all_simulations(
     # indicate how to reserve memory
     allocator=(_m, _n) -> Matrix{Float64}(undef, _m, _n),
     return_benchmark_suite::Bool=false,
+    datafile=nothing,
+    benchmarkfile=nothing,
 )
 
 
@@ -317,6 +351,10 @@ function run_all_simulations(
     @info "fd_acc_vals =$(fd_acc_vals)"
     @info "kr_acc_vals =$(kr_acc_vals)"
 
+
+    if !(isnothing(benchmarkfile))
+        benchmark = BenchmarkTools.load(benchmarkfile)
+    end
 
     if return_benchmark_suite
         suite = BenchmarkGroup()
@@ -331,8 +369,12 @@ function run_all_simulations(
 
     Γ_source, density_source, u_exact = manufactured_solution(laplace, x_test)
     # accumulate results
-    res = ConvergenceResult(collect(n_vals), cutoff_vals, fd_acc_vals, kr_acc_vals,
-        x_test, u_exact)
+    if !(isnothing(datafile))
+        res = load_object(datafile)
+    else
+        res = ConvergenceResult(collect(n_vals), cutoff_vals, fd_acc_vals, kr_acc_vals,
+            x_test, u_exact)
+    end
 
     # verify that results match MATLAB version
     u_exact_reference = Fixtures.reference_exact_solution()
