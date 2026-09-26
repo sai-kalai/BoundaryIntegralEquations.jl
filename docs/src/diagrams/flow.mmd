@@ -1,0 +1,272 @@
+classDiagram
+
+    %% =========================
+    %% Core mathematical concepts
+    %% =========================
+
+    class IntegralOperator {
+        <<abstract>>
+    }
+
+    class DifferentialEquation {
+        <<abstract>>
+    }
+
+    DifferentialEquation <|-- Laplace
+    DifferentialEquation <|-- Helmholtz
+    DifferentialEquation <|-- Stokes
+
+    class Laplace
+    class Helmholtz
+    class Stokes
+
+
+    %% =========================
+    %% Singular corrections
+    %% =========================
+
+    class AbstractSingularCorrection {
+        <<abstract>>
+    }
+
+    class HypersingularCorrection {
+        <<abstract>>
+    }
+
+    class SingularCorrection {
+        <<abstract>>
+    }
+
+    AbstractSingularCorrection <|-- HypersingularCorrection
+    AbstractSingularCorrection <|-- SingularCorrection
+
+    HypersingularCorrection <|-- Sidi
+    HypersingularCorrection <|-- Zeta
+
+    SingularCorrection <|-- KapurRokhlin
+
+    class Sidi
+    class Zeta {
+        +order : Int
+    }
+
+    class KapurRokhlin {
+        +order : Int
+    }
+
+
+    %% =========================
+    %% Domain and approach
+    %% =========================
+
+    class DomainSide {
+        <<abstract>>
+    }
+
+    DomainSide <|-- Interior
+    DomainSide <|-- Exterior
+
+    class Interior
+    class Exterior
+
+    class Approach {
+        <<abstract>>
+    }
+
+    Approach <|-- Direct
+    Approach <|-- Indirect
+
+    class Direct
+    class Indirect
+
+
+    %% =========================
+    %% Boundary data
+    %% =========================
+
+    class AbstractBoundaryDensity {
+        <<abstract>>
+    }
+
+    class BoundaryDensity~T~ {
+        +φ : T
+    }
+
+    class BoundaryCondition {
+        <<abstract>>
+    }
+
+    class Dirichlet~T~ {
+        +σ : T
+    }
+
+    class Neumann~T~ {
+        +τ : T
+    }
+
+    AbstractBoundaryDensity <|-- BoundaryDensity
+    AbstractBoundaryDensity <|-- BoundaryCondition
+
+    BoundaryCondition <|-- Dirichlet
+    BoundaryCondition <|-- Neumann
+
+
+    %% =========================
+    %% Evaluation methods
+    %% =========================
+
+    class EvaluationMethod {
+        <<abstract>>
+    }
+
+    EvaluationMethod <|-- CauchyIntegral
+    EvaluationMethod <|-- PotentialTheory
+    EvaluationMethod <|-- DistancePolicy
+
+    class CauchyIntegral
+    class PotentialTheory
+
+    class DistancePolicy~T~ {
+        +cutoff : T
+    }
+
+
+    %% =========================
+    %% Algorithms
+    %% =========================
+
+    class AbstractAlgorithm~A~ {
+        <<abstract>>
+    }
+
+    class BIEAlgorithm~A~ {
+        <<abstract>>
+    }
+
+    class DirectBIEAlgorithm {
+        +correction
+        +linearsolve
+    }
+
+    class IndirectBIEAlgorithm {
+        +linearsolve
+    }
+
+    AbstractAlgorithm <|-- BIEAlgorithm
+    BIEAlgorithm <|-- DirectBIEAlgorithm
+    BIEAlgorithm <|-- IndirectBIEAlgorithm
+
+    %%BIEAlgorithm --> Direct : "A = Direct"
+    %%BIEAlgorithm --> Indirect : "A = Indirect"
+    %%DirectBIEAlgorithm --> AbstractSingularCorrection : uses
+    %%DirectBIEAlgorithm --> "LinearSolve Algorithm" : uses
+
+
+    %% BVP algorithms
+    class BVPAlgorithm~A~ {
+        <<abstract>>
+    }
+
+    class DirectBVPAlgorithm
+    class IndirectBVPAlgorithm {
+        +evalmethod
+    }
+
+    AbstractAlgorithm <|-- BVPAlgorithm
+    BVPAlgorithm <|-- DirectBVPAlgorithm
+    BVPAlgorithm <|-- IndirectBVPAlgorithm
+
+    IndirectBVPAlgorithm --> EvaluationMethod : uses
+
+
+    %% BDP algorithms
+    class BDPAlgorithm~A~ {
+        <<abstract>>
+    }
+
+    class DirectBDPAlgorithm
+    class IndirectBDPAlgorithm {
+        +correction
+    }
+
+    AbstractAlgorithm <|-- BDPAlgorithm
+    BDPAlgorithm <|-- DirectBDPAlgorithm
+    BDPAlgorithm <|-- IndirectBDPAlgorithm
+
+    IndirectBDPAlgorithm --> AbstractSingularCorrection : uses
+
+
+    %% =========================
+    %% Problems
+    %% =========================
+
+    class AbstractManifold {
+        <<abstract>>
+    }
+
+    class BoundaryValueProblem {
+        +equation
+        +bc
+        +side
+        +boundary
+    }
+
+    class BIEProblem~A,P~ {
+        +bvp
+    }
+
+    class BDProblem~A,P~ {
+        +bvp
+    }
+
+    BoundaryValueProblem --> DifferentialEquation : equation
+    BoundaryValueProblem --> BoundaryCondition : bc
+    BoundaryValueProblem --> DomainSide : side
+    BoundaryValueProblem --> AbstractManifold : boundary
+
+    BIEProblem --> BoundaryValueProblem : contains
+    BDProblem --> BoundaryValueProblem : contains
+
+
+    %% =========================
+    %% Solutions
+    %% =========================
+
+    class AbstractSolution~A,T,P~ {
+        <<abstract>>
+    }
+
+    class BIESolution~A,T,P~ {
+        +u
+        +prob
+        +alg
+    }
+
+    class BVPSolution~A,T,P~ {
+        +u
+        +bie_solution
+        +prob
+        +alg
+    }
+
+    class BDPSolution~A,T,P~ {
+        +u
+        +bie_solution
+        +prob
+        +alg
+    }
+
+    AbstractSolution <|-- BIESolution
+    AbstractSolution <|-- BVPSolution
+    AbstractSolution <|-- BDPSolution
+
+    BIESolution --> BIEProblem : solves
+    BIESolution --> BIEAlgorithm : uses
+
+    BVPSolution --> BoundaryValueProblem : solves
+    BVPSolution --> BIESolution : contains
+    BVPSolution --> BVPAlgorithm : uses
+
+    BDPSolution --> BDProblem : solves
+    BDPSolution --> BIESolution : contains
+    BDPSolution --> BDPAlgorithm : uses
