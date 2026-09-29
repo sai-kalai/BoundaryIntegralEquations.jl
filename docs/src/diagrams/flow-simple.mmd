@@ -1,0 +1,35 @@
+flowchart TB
+
+    BVP["BoundaryValueProblem"]
+    BIE["BoundaryIntegralEquation"]
+    BDP["BoundaryDataProblem"]
+
+    BVPSolution["BVPSolution"]
+    BIESolution["BIESolution"]
+    BDPSolution["BDPSolution"]
+
+    BVPAlg["&lt;&lt;abstract&gt;&gt;<br/>BVPAlgorithm"]
+    BIEAlg["&lt;&lt;abstract&gt;&gt;<br/>BIEAlgorithm"]
+    BDPAlg["&lt;&lt;abstract&gt;&gt;<br/>BDPAlgorithm"]
+
+    SolveBVP(["solve"])
+    SolveBIE(["solve"])
+    SolveBDP(["solve"])
+
+
+    BVP -- determines --> BIE & BDP
+    %%BVP -- determines --> BDP
+
+    BIE -- input --> SolveBIE
+    BIEAlg -- input --> SolveBIE
+    SolveBIE -- output --> BIESolution
+
+    BVP -- input --> SolveBVP
+    BIESolution -- input --> SolveBVP
+    BVPAlg -- input --> SolveBVP
+    SolveBVP -- output --> BVPSolution
+
+    BDP -- input --> SolveBDP
+    BIESolution -- input --> SolveBDP
+    BDPAlg -- input --> SolveBDP
+    SolveBDP -- output --> BDPSolution

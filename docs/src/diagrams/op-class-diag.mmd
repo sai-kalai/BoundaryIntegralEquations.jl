@@ -1,0 +1,76 @@
+classDiagram
+
+    %% =========================
+    %% Core mathematical concepts
+    %% =========================
+
+    class IntegralOperator{
+        <<abstract>>
+    }
+
+    class Equation {
+      <<abstract>>
+    }
+
+    class Laplace {
+
+    }
+
+    class AbstractMatrix {
+      <<abstract>>
+    }
+
+    class SingleLayer {
+    }
+
+    class DoubleLayer {
+    }
+
+    class AdjointDoubleLayer {
+    }
+
+    class Hypersingular {
+    }
+
+    IntegralOperator <|-- SingleLayer
+    IntegralOperator <|-- DoubleLayer
+    IntegralOperator <|-- AdjointDoubleLayer
+    IntegralOperator <|-- Hypersingular
+
+
+    class HypersingularCorrection {
+        <<abstract>>
+    }
+
+    class SingularCorrection {
+        <<abstract>>
+    }
+
+    HypersingularCorrection <|-- RichardsonExtrapolation
+    HypersingularCorrection <|-- FiniteDifferences
+
+    SingularCorrection <|-- KapurRokhlin
+
+    Equation <|-- Laplace
+
+    IntegralOperator --> AbstractMatrix : matrix
+    IntegralOperator --> Equation : equation
+
+    SingleLayer  --> SingularCorrection : correction
+    Hypersingular --> HypersingularCorrection : correction
+
+    SingleLayer --> Laplace : equation
+    DoubleLayer --> Laplace : equation
+    AdjointDoubleLayer --> Laplace : equation
+    Hypersingular --> Laplace : equation
+
+
+    class RichardsonExtrapolation
+    class FiniteDifferences {
+        Int order
+    }
+
+    class KapurRokhlin {
+        Int order
+    }
+

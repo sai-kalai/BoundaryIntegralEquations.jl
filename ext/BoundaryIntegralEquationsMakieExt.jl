@@ -8,46 +8,54 @@ using Makie
 
 # non inplace version to allocate fig and ax
 function BoundaryIntegralEquations.visualize(
-    args...
+    args...;
+    kwargs...,
 )
 
     fig = Figure()
     ax = Axis(fig[1, 1]; aspect=DataAspect())
 
-    ax = visualize!(ax, args...)
 
-    return fig, ax
+    return fig, ax, visualize!(ax, args..., kwargs...)
 end
 
 function BoundaryIntegralEquations.visualize!(
     ax::Axis,
     b::DiscreteClosedCurve,
     # TODO: these should be kwargs
-    arrows::Bool=true,
-    parameter::Bool=true,
+    arrows::Bool=false,
+    parameter::Bool=false,
     ;
-    line_kwargs...
+    line_kwargs=(;),
+    arr_kwargs=(;),
 )
+
+
+    if arrows
+        norm = arrows2d!(ax, eachrow(b.x)..., eachrow(b.n)...;
+            color="red",
+            lengthscale=0.1,
+            # label=L"\hat{n}_y"
+            arr_kwargs...,
+        )
+        tang = arrows2d!(ax, eachrow(b.x)..., real.(b.cw), imag.(b.cw),
+            color="blue",
+            lengthscale=0.3,
+            # label="Complex Weight"
+            arr_kwargs...,
+        )
+    end
 
     curve = lines!(
         ax,
         polygon(b),
         ;
         label="Γ",
-        color=parameter ? (1:size(b, 2)) : :black,
+        colormap=Makie.to_colormap(:viridis),
+        colorrange=(1, size(b, 2)+1),
+        color=parameter ? (1:(size(b, 2)+1)) : :black,
         line_kwargs...,
     )
-
-    if arrows
-        norm = arrows2d!(ax, b.x, b.n[1, :], b.n[2, :],
-            color="red",
-            lengthscale=0.1,
-        )
-        tang = arrows2d!(ax, b.x, real.(b.cw), imag.(b.cw),
-            color="red",
-            lengthscale=0.1,
-        )
-    end
 
     # Legend(fig[1, 1][1, 2],
     #     [curve, norm],
@@ -56,7 +64,7 @@ function BoundaryIntegralEquations.visualize!(
     #     # halign=:left,
     #     # valign=:bottom,
     # )
-    return ax
+    return curve, norm, tang
 end
 
 

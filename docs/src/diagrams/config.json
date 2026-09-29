@@ -1,5 +1,14 @@
 {
+  "theme": "redux-color",
+  "look": "neo",
+  "layout": "elk",
+  "flowchart": {
+      "rankSpacing": 20,
+      "nodeSpacing": 20,
+      "padding": 2,
+      "diagramPadding": 0
+  },
   "themeVariables": {
-    "fontSize": "20px"
+    "fontSize": "15px"
   }
 }

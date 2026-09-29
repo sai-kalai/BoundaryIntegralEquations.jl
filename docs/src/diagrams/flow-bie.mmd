@@ -1,0 +1,35 @@
+flowchart TB
+
+    BIE["BIEProblem"]
+
+    BIEAlg["&lt;&lt;abstract&gt;&gt;<br/>BIEAlgorithm"]
+
+    DirectBIE["DirectBIEAlgorithm"]
+    IndirectBIE["IndirectBIEAlgorithm"]
+
+
+    SingularCorrection["&lt;&lt;abstract&gt;&gt;<br/>SingularCorrection"]
+    KapurRokhlin["KapurRokhlin"]
+
+    HypersingularCorrection["&lt;&lt;abstract&gt;&gt;<br/>HypersingularCorrection"]
+    FiniteDifferences["FiniteDifferences"]
+    RichardsonExtrapolation["RichardsonExtrapolation"]
+
+    BIESolution["BIESolution"]
+
+    SolveBIE(["solve"])
+
+    DirectBIE -- subtype --> BIEAlg
+    IndirectBIE -- subtype --> BIEAlg
+    SingularCorrection -. "Diri. BC" .- DirectBIE
+    HypersingularCorrection -. "Neum. BC" .- DirectBIE
+    KapurRokhlin -- subtype --> SingularCorrection
+    FiniteDifferences -- subtype --> HypersingularCorrection
+    RichardsonExtrapolation -- subtype --> HypersingularCorrection
+
+    SciMLLinearSolveAlgorithm -. solver .- BIEAlg
+
+    BIE -- input --> SolveBIE
+    BIEAlg -- input --> SolveBIE
+
+    SolveBIE -- output --> BIESolution

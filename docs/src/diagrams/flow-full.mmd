@@ -1,0 +1,178 @@
+---
+config:
+  theme: redux-color
+  look: neo
+  displayMode: compact
+  layout: elk
+  flowchart:
+    rankSpacing: 15
+    nodeSpacing: 10
+    padding: 2
+    diagramPadding: 0
+---
+flowchart TD
+
+    START([Boundary Value Problem])
+
+    START --> BC{"Boundary condition?"}
+
+    %% ============================================================
+    %% DIRICHLET BRANCH
+    %% ============================================================
+
+    BC -->|Dirichlet| D_SIDE{"Domain side?"}
+
+    D_SIDE -->|Internal| D_INT_APPROACH{"Approach?"}
+    D_SIDE -->|External| D_EXT_APPROACH{"Approach?"}
+
+    %% Dirichlet / Internal / Direct
+    D_INT_APPROACH -->|Direct| D_INT_DIR_CORR{"Hypersingular correction?"}
+    D_INT_DIR_CORR -->|Finite Differences| D_INT_DIR_FD["Apply finite-difference correction"]
+    D_INT_DIR_CORR -->|Richardson Extrapolation| D_INT_DIR_RE["Apply Richardson-extrapolation correction"]
+
+    D_INT_DIR_FD --> D_INT_DIR_ASSEMBLE["Assemble matrices<br/><i>insert mathematical formulation</i>"]
+    D_INT_DIR_RE --> D_INT_DIR_ASSEMBLE
+
+    %% Dirichlet / Internal / Indirect
+    D_INT_APPROACH -->|Indirect| D_INT_IND_EVAL{"Evaluation method?"}
+
+    D_INT_IND_EVAL -->|Potential Theory| D_INT_IND_PT["Compute Green function"]
+    D_INT_IND_EVAL -->|Cauchy Integral| D_INT_IND_CI["Compute holomorphic function"]
+    D_INT_IND_EVAL -->|Distance Policy| D_INT_IND_DP["Specify δ<br/>Classify evaluation points"]
+
+    D_INT_IND_PT --> D_INT_IND_ASSEMBLE["Assemble matrices<br/><i>insert mathematical formulation</i>"]
+    D_INT_IND_CI --> D_INT_IND_ASSEMBLE
+    D_INT_IND_DP --> D_INT_IND_ASSEMBLE
+
+    %% Dirichlet / External / Direct
+    D_EXT_APPROACH -->|Direct| D_EXT_DIR_CORR{"Hypersingular correction?"}
+    D_EXT_DIR_CORR -->|Finite Differences| D_EXT_DIR_FD["Apply finite-difference correction"]
+    D_EXT_DIR_CORR -->|Richardson Extrapolation| D_EXT_DIR_RE["Apply Richardson-extrapolation correction"]
+
+    D_EXT_DIR_FD --> D_EXT_DIR_ASSEMBLE["Assemble matrices<br/><i>insert mathematical formulation</i>"]
+    D_EXT_DIR_RE --> D_EXT_DIR_ASSEMBLE
+
+    %% Dirichlet / External / Indirect
+    D_EXT_APPROACH -->|Indirect| D_EXT_IND_EVAL{"Evaluation method?"}
+
+    D_EXT_IND_EVAL -->|Potential Theory| D_EXT_IND_PT["Compute Green function"]
+    D_EXT_IND_EVAL -->|Cauchy Integral| D_EXT_IND_CI["Compute holomorphic function"]
+    D_EXT_IND_EVAL -->|Distance Policy| D_EXT_IND_DP["Specify δ<br/>Classify evaluation points"]
+
+    D_EXT_IND_PT --> D_EXT_IND_ASSEMBLE["Assemble matrices<br/><i>insert mathematical formulation</i>"]
+    D_EXT_IND_CI --> D_EXT_IND_ASSEMBLE
+    D_EXT_IND_DP --> D_EXT_IND_ASSEMBLE
+
+
+    %% ============================================================
+    %% NEUMANN BRANCH
+    %% ============================================================
+
+    BC -->|Neumann| N_SIDE{"Domain side?"}
+
+    N_SIDE -->|Internal| N_INT_APPROACH{"Approach?"}
+    N_SIDE -->|External| N_EXT_APPROACH{"Approach?"}
+
+    %% Neumann / Internal / Direct
+    N_INT_APPROACH -->|Direct| N_INT_DIR_CORR["Singular correction<br/>Kapur–Rokhlin"]
+
+    N_INT_DIR_CORR --> N_INT_DIR_ASSEMBLE["Assemble matrices<br/><i>insert mathematical formulation</i>"]
+
+    %% Neumann / Internal / Indirect
+    N_INT_APPROACH -->|Indirect| N_INT_IND_EVAL{"Evaluation method?"}
+
+    N_INT_IND_EVAL -->|Potential Theory| N_INT_IND_PT["Compute Green function"]
+    N_INT_IND_EVAL -->|Cauchy Integral| N_INT_IND_CI["Compute holomorphic function"]
+    N_INT_IND_EVAL -->|Distance Policy| N_INT_IND_DP["Specify δ<br/>Classify evaluation points"]
+
+    N_INT_IND_PT --> N_INT_IND_ASSEMBLE["Assemble matrices<br/><i>insert mathematical formulation</i>"]
+    N_INT_IND_CI --> N_INT_IND_ASSEMBLE
+    N_INT_IND_DP --> N_INT_IND_ASSEMBLE
+
+    %% Neumann / External / Direct
+    N_EXT_APPROACH -->|Direct| N_EXT_DIR_CORR["Singular correction<br/>Kapur–Rokhlin"]
+
+    N_EXT_DIR_CORR --> N_EXT_DIR_ASSEMBLE["Assemble matrices<br/><i>insert mathematical formulation</i>"]
+
+    %% Neumann / External / Indirect
+    N_EXT_APPROACH -->|Indirect| N_EXT_IND_EVAL{"Evaluation method?"}
+
+    N_EXT_IND_EVAL -->|Potential Theory| N_EXT_IND_PT["Compute Green function"]
+    N_EXT_IND_EVAL -->|Cauchy Integral| N_EXT_IND_CI["Compute holomorphic function"]
+    N_EXT_IND_EVAL -->|Distance Policy| N_EXT_IND_DP["Specify δ<br/>Classify evaluation points"]
+
+    N_EXT_IND_PT --> N_EXT_IND_ASSEMBLE["Assemble matrices<br/><i>insert mathematical formulation</i>"]
+    N_EXT_IND_CI --> N_EXT_IND_ASSEMBLE
+    N_EXT_IND_DP --> N_EXT_IND_ASSEMBLE
+
+
+    %% ============================================================
+    %% SOLVE + OUTPUT
+    %% ============================================================
+
+    D_INT_DIR_ASSEMBLE --> D_INT_DIR_SOLVE["Solve linear system"]
+    D_EXT_DIR_ASSEMBLE --> D_EXT_DIR_SOLVE["Solve linear system"]
+
+    D_INT_IND_ASSEMBLE --> D_INT_IND_SOLVE["Solve linear system"]
+    D_EXT_IND_ASSEMBLE --> D_EXT_IND_SOLVE["Solve linear system"]
+
+    N_INT_DIR_ASSEMBLE --> N_INT_DIR_SOLVE["Solve linear system"]
+    N_EXT_DIR_ASSEMBLE --> N_EXT_DIR_SOLVE["Solve linear system"]
+
+    N_INT_IND_ASSEMBLE --> N_INT_IND_SOLVE["Solve linear system"]
+    N_EXT_IND_ASSEMBLE --> N_EXT_IND_SOLVE["Solve linear system"]
+
+
+    D_INT_DIR_SOLVE --> D_INT_DIR_DATA["Data produced<br/><i>insert symbols</i>"]
+    D_EXT_DIR_SOLVE --> D_EXT_DIR_DATA["Data produced<br/><i>insert symbols</i>"]
+    D_INT_IND_SOLVE --> D_INT_IND_DATA["Data produced<br/><i>insert symbols</i>"]
+    D_EXT_IND_SOLVE --> D_EXT_IND_DATA["Data produced<br/><i>insert symbols</i>"]
+
+    N_INT_DIR_SOLVE --> N_INT_DIR_DATA["Data produced<br/><i>insert symbols</i>"]
+    N_EXT_DIR_SOLVE --> N_EXT_DIR_DATA["Data produced<br/><i>insert symbols</i>"]
+    N_INT_IND_SOLVE --> N_INT_IND_DATA["Data produced<br/><i>insert symbols</i>"]
+    N_EXT_IND_SOLVE --> N_EXT_IND_DATA["Data produced<br/><i>insert symbols</i>"]
+
+
+    %% ============================================================
+    %% DIRECT EVALUATION
+    %% ============================================================
+
+    D_INT_DIR_DATA --> D_INT_DIR_EVAL["Evaluation<br/>Potential Theory"]
+    D_EXT_DIR_DATA --> D_EXT_DIR_EVAL["Evaluation<br/>Potential Theory"]
+
+    N_INT_DIR_DATA --> N_INT_DIR_EVAL["Evaluation<br/>Potential Theory"]
+    N_EXT_DIR_DATA --> N_EXT_DIR_EVAL["Evaluation<br/>Potential Theory"]
+
+    D_INT_DIR_EVAL --> D_INT_DIR_GREEN["Compute Green function"]
+    D_EXT_DIR_EVAL --> D_EXT_DIR_GREEN["Compute Green function"]
+
+    N_INT_DIR_EVAL --> N_INT_DIR_GREEN["Compute Green function"]
+    N_EXT_DIR_EVAL --> N_EXT_DIR_GREEN["Compute Green function"]
+
+
+    %% ============================================================
+    %% INDIRECT EVALUATION
+    %% ============================================================
+
+    D_INT_IND_DATA --> D_INT_IND_RESULT["Evaluate using<br/>selected method"]
+    D_EXT_IND_DATA --> D_EXT_IND_RESULT["Evaluate using<br/>selected method"]
+
+    N_INT_IND_DATA --> N_INT_IND_RESULT["Evaluate using<br/>selected method"]
+    N_EXT_IND_DATA --> N_EXT_IND_RESULT["Evaluate using<br/>selected method"]
+
+
+    %% ============================================================
+    %% STYLING
+    %% ============================================================
+
+    classDef decision fill:#fff,stroke:#333,stroke-width:2px;
+    classDef process fill:#fff,stroke:#666,stroke-width:1px;
+    classDef output fill:#fff,stroke:#333,stroke-width:2px;
+
+    class BC,D_SIDE,D_INT_APPROACH,D_EXT_APPROACH,N_SIDE,N_INT_APPROACH,N_EXT_APPROACH decision;
+    class D_INT_DIR_CORR,D_EXT_DIR_CORR,N_INT_DIR_CORR,N_EXT_DIR_CORR,D_INT_IND_EVAL,D_EXT_IND_EVAL,N_INT_IND_EVAL,N_EXT_IND_EVAL decision;
+
+    class D_INT_DIR_ASSEMBLE,D_EXT_DIR_ASSEMBLE,D_INT_IND_ASSEMBLE,D_EXT_IND_ASSEMBLE,N_INT_DIR_ASSEMBLE,N_EXT_DIR_ASSEMBLE,N_INT_IND_ASSEMBLE,N_EXT_IND_ASSEMBLE process;
+
+    class D_INT_DIR_DATA,D_EXT_DIR_DATA,D_INT_IND_DATA,D_EXT_IND_DATA,N_INT_DIR_DATA,N_EXT_DIR_DATA,N_INT_IND_DATA,N_EXT_IND_DATA output;

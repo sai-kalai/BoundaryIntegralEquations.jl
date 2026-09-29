@@ -26,15 +26,6 @@ function Base.:-(s::Number, op::IntegralOperator)
     return op - s
 end
 
-function correction(::IntegralOperator)
-    return nothing
-end
-function correction(op::SingleLayer{E,C}) where {E,C}
-    return op.correction
-end
-function correction(op::Hypersingular{E,C}) where {E,C}
-    return op.correction
-end
 
 
 # function Base.:*(op::IntegralOperator, v::AbstractArray)
@@ -376,6 +367,16 @@ function Hypersingular(
         populate_matrices!(source, op)
     end
     return op
+end
+
+function correction(::IntegralOperator)
+    return nothing
+end
+function correction(op::SingleLayer{E,C}) where {E,C}
+    return op.correction
+end
+function correction(op::Hypersingular{E,C}) where {E,C}
+    return op.correction
 end
 
 ###
@@ -880,16 +881,15 @@ function populate_matrices!(
     stencil_cache = StencilCache{Int32,Vector{Float64}}(Dict(), Dict())
 
     # if both dlp and dlp adjoint are requested, compute once and transpose before applying weights
-    pairwise_cache = if length(ops) > 1
+    pairwise_cache = if false && length(ops) > 1 # disable caching for now
         PairwiseCache{Float64}()
     else
         nothing
     end
 
     # loop over i
-    for i in n:-1:1
+    Threads.@threads for i in n:-1:1 # WARN: reverse iteration is back, from where?
         for j in 1:n
-
             # always every pair gets a fresh cache
             reset!(pairwise_cache)
             foreach(ops) do op
@@ -900,10 +900,13 @@ function populate_matrices!(
         end
 
 
+
+    end
+    # note: move outside of hot loop to avoid data races
+    Threads.@threads for i in n:-1:1 # WARN: reverse iteration is back, from where?
         foreach(ops) do op
             apply_correction!(op, stencil_cache, i, source)
         end
-
     end
 end
 
@@ -947,14 +950,14 @@ function populate_matrices!(
 
     # TODO: find out about SIMD and threading options in this version
     # investigate autodiff on kernels directly
-    pairwise_cache = if length(ops) > 1
+    pairwise_cache = if false && length(ops) > 1 # disable caching for now
         PairwiseCache{Float64}()
     else
         nothing
     end
 
     # slow loop over second index
-    for j in 1:n
+    Threads.@threads for j in 1:n
         # fast loop over first index
         for i in 1:m
 

@@ -1,0 +1,28 @@
+flowchart TB
+    BVP["BoundaryValueProblem"]
+    EvaluationMethod["EvaluationMethod"]
+    CauchyIntegral["CauchyIntegral"]
+    PotentialTheory["PotentialTheory"]
+    DistancePolicy["DistancePolicy"]
+    BVPAlg["&lt;&lt;abstract&gt;&gt;<br/>BVPAlgorithm"]
+    DirectBVP["DirectBVPAlgorithm"]
+    IndirectBVP["IndirectBVPAlgorithm"]
+    BVPSolution["BVPSolution"]
+
+    BIESolution["BIESolution"]
+
+    SolveBVP(["solve"])
+
+    PotentialTheory -. evalmethod .- DirectBVP
+    EvaluationMethod -. evalmethod .- IndirectBVP
+
+    DirectBVP -- subtype --> BVPAlg
+    IndirectBVP -- subtype --> BVPAlg
+    CauchyIntegral -- subtype --> EvaluationMethod
+    PotentialTheory -- subtype --> EvaluationMethod
+    DistancePolicy -- subtype --> EvaluationMethod
+
+    BVP -- input --> SolveBVP
+    BIESolution -- input --> SolveBVP
+    BVPAlg -- input --> SolveBVP
+    SolveBVP -- output --> BVPSolution

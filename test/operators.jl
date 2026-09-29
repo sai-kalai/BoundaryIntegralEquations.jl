@@ -21,16 +21,23 @@ using Test
     allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
 
     @testset "Separate computation" begin
-        # S = SingleLayer(laplace, Γ, kapur_rokhlin)
-        # D = DoubleLayer(laplace, ) # ok
-        # D_star = AdjointDoubleLayer(laplace, )  # ok
-        # H_zeta = Hypersingular(laplace, zeta, ) # ok
-        # H_sidi = Hypersingular(laplace, sidi, ) # ok
+        S = SingleLayer(laplace, Γ, kapur_rokhlin; populate_matrix=true)
+        D = DoubleLayer(laplace, Γ; populate_matrix=true) # ok
+        D_star = AdjointDoubleLayer(laplace, Γ; populate_matrix=true)  # ok
+        H_zeta = Hypersingular(laplace, Γ, zeta; populate_matrix=true) # ok
+        H_sidi = Hypersingular(laplace, Γ, sidi; populate_matrix=true) # ok
         # populate_matrices!(Γ, S, D, D_star, H_sidi, H_zeta)
-        #
-        # S_target = SingleLayer(laplace, nothing, ) # ok
-        # D_target = DoubleLayer(laplace, ) # ok
-        # populate_matrices!(Γ, x_test, S_target, D_target)
+
+        S_target = SingleLayer(laplace, Γ, x_test; populate_matrix=true) # ok
+        D_target = DoubleLayer(laplace, Γ, x_test; populate_matrix=true) # ok
+        # populate_matrices!(Γ, x_test, S_target, D_target, populate_matrix=true)
+        @test S.matrix ≈ reference_operator_matrix(typeof(S)) atol=1e-4
+        @test D.matrix ≈ reference_operator_matrix(typeof(D), Val(:self)) atol=1e-4
+        @test D_star.matrix ≈ reference_operator_matrix(typeof(D_star)) atol=1e-4
+        @test H_zeta.matrix ≈ reference_operator_matrix(typeof(H_zeta)) atol=1e-4
+        @test H_sidi.matrix ≈ reference_operator_matrix(typeof(H_sidi)) atol=1e-4
+        @test S_target.matrix ≈ reference_operator_matrix(typeof(S_target)) atol=1e-4
+        @test D_target.matrix ≈ reference_operator_matrix(typeof(D_target), Val(:target)) atol=1e-4
 
     end
 

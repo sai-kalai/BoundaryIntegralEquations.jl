@@ -110,7 +110,6 @@ flowchart TB
     Stokes -- subtype -->PDE
     Neumann -- subtype -->BoundaryCondition
     Dirichlet -- subtype -->BoundaryCondition
-
     Interior -- subtype --> Side
     Exterior -- subtype --> Side
 
@@ -121,21 +120,23 @@ flowchart TB
     CauchyIntegral -- subtype --> EvaluationMethod
     PotentialTheory -- subtype --> EvaluationMethod
     DistancePolicy -- subtype --> EvaluationMethod
-    BVP -- input --> SolveBVP
 
-    BVPAlg -- input --> SolveBVP
-    BIESolution -- input --> SolveBVP
     BIE -- input --> SolveBIE
     BIEAlg -- input --> SolveBIE
     DirectBIE -- subtype --> BIEAlg
     IndirectBIE -- subtype --> BIEAlg
-
     SingularCorrection -. "Diri. BC" .- DirectBIE
     HypersingularCorrection -. "Neum. BC" .- DirectBIE
-
     KapurRokhlin -- subtype --> SingularCorrection
     FiniteDifferences -- subtype --> HypersingularCorrection
     RichardsonExtrapolation -- subtype --> HypersingularCorrection
+
+    BIESolution -- input --> SolveBVP
+
+
+    BVPAlg -- input --> SolveBVP
+    BVP -- input --> SolveBVP
+
     SolveBVP -- output --> BVPSolution
     SolveBIE -- output --> BIESolution
 

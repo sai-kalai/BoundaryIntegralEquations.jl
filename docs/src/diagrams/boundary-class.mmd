@@ -1,0 +1,18 @@
+
+
+classDiagram
+
+    class Boundary {
+      <<abstract>>
+    }
+
+    class DiscreteParametricCurve {
+      AbstractMatrix~Float~ x  # position
+      AbstractMatrix~Float~ n  # normal
+      AbstractVector~Float~ k  # curvature
+      AbstractVector~Float~ w  # jacobian
+      AbstractVector~Complex~Float~~ cw  # complex weights
+    }
+
+
+    Boundary <|-- DiscreteParametricCurve

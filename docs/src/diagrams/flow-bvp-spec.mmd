@@ -1,0 +1,44 @@
+flowchart TB
+
+    BVP["BoundaryValueProblem"]
+
+    PDE["&lt;&lt;abstract&gt;&gt;<br/>Equation"]
+    Laplace["Laplace"]
+    Helmholtz["Helmholtz"]
+    Stokes["Stokes"]
+
+    Curve["Boundary"]
+
+    BoundaryCondition["&lt;&lt;abstract&gt;&gt;<br/>BoundaryCondition"]
+    Dirichlet["Dirichlet"]
+    Neumann["Neumann"]
+
+    Side["&lt;&lt;abstract&gt;&gt;<br/>DomainSide"]
+    Interior["Interior"]
+    Exterior["Interior"]
+
+    BIESolution["BIESolution"]
+
+    SolveBVP(["solve"])
+    BVPAlg["&lt;&lt;abstract&gt;&gt;<br/>BVPAlgorithm"]
+
+    PDE -.equation.- BVP
+    Curve -. boundary .- BVP
+    BoundaryCondition -. bc .- BVP
+    Side -. side .- BVP
+    Laplace -- subtype -->PDE
+    Helmholtz -- subtype -->PDE
+    Stokes -- subtype -->PDE
+    Neumann -- subtype -->BoundaryCondition
+    Dirichlet -- subtype -->BoundaryCondition
+
+    Interior -- subtype --> Side
+    Exterior -- subtype --> Side
+
+    BIESolution -- input --> SolveBVP
+    BVPAlg -- input --> SolveBVP
+    BVP -- input --> SolveBVP
+
+    SolveBVP -- output --> BVPSolution
+
+

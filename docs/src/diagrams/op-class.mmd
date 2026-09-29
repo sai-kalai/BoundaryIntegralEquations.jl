@@ -1,0 +1,56 @@
+classDiagram
+    class IntegralOperator
+
+    class DifferentialEquation
+    class Laplace
+
+    class SingularCorrection
+    class HypersingularCorrection
+
+    class AbstractMatrix
+    class Number
+
+    class SingleLayer {
+        equation
+        correction
+        matrix
+    }
+
+    class DoubleLayer {
+        equation
+        matrix
+    }
+
+    class AdjointDoubleLayer {
+        equation
+        matrix
+    }
+
+    class Hypersingular {
+        equation
+        correction
+        matrix
+    }
+
+    DifferentialEquation <|-- Laplace
+
+    IntegralOperator <|-- SingleLayer
+    IntegralOperator <|-- DoubleLayer
+    IntegralOperator <|-- AdjointDoubleLayer
+    IntegralOperator <|-- Hypersingular
+
+    SingleLayer --> DifferentialEquation : equation
+    SingleLayer --> SingularCorrection : correction
+    SingleLayer --> AbstractMatrix : matrix
+
+    DoubleLayer --> DifferentialEquation : equation
+    DoubleLayer --> AbstractMatrix : matrix
+
+    AdjointDoubleLayer --> DifferentialEquation : equation
+    AdjointDoubleLayer --> AbstractMatrix : matrix
+
+    Hypersingular --> DifferentialEquation : equation
+    Hypersingular --> HypersingularCorrection : correction
+    Hypersingular --> AbstractMatrix : matrix
+
+    AbstractMatrix --> Number : element type
