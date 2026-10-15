@@ -51,7 +51,6 @@ Represents an approach used to evaluate singular integrals
 
 """
 abstract type AbstractSingularCorrection end
-# TODO: tie this concept of weakly singular and hypersingular explicitly to BC type
 abstract type HypersingularCorrection <: AbstractSingularCorrection end
 # rename: RichardsonExtrapolation; subtype: ZetaQuadrature
 struct Sidi <: HypersingularCorrection end
@@ -59,7 +58,6 @@ struct Sidi <: HypersingularCorrection end
 struct Zeta <: HypersingularCorrection
     order::Int
 end
-# rename: WeaklySingularCorrection
 abstract type SingularCorrection <: AbstractSingularCorrection end
 struct KapurRokhlin <: SingularCorrection
     order::Int
@@ -111,7 +109,7 @@ end
 Method used to evaluate the solution to a BVP inside the domain
 
 """
-abstract type EvaluationMethod end
+abstract type EvaluationMethod end # todo rename abstract
 @doc raw"""
     CauchyIntegral
 
@@ -423,6 +421,9 @@ boundary_condition(::AbstractSolution{A,T,<:BoundaryValueProblem{E,C}}) where {A
 #
 include("finite_differences.jl")
 include("kapur_rokhlin_sep_log.jl")
+include("problems.jl")
+include("solutions.jl")
+include("algorithms.jl")
 include("densities.jl")
 include("manifolds.jl")
 include("operators.jl")
@@ -430,6 +431,7 @@ include("kernels.jl")
 include("solvers.jl")
 include("utils.jl")
 include("close_evaluation.jl")
+
 
 #
 # exports
