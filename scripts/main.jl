@@ -1,7 +1,5 @@
 
 
 
-using BimDiff
+using BoundaryIntegralEquations
 
-greet()
-display(compute_laplace_slp_matrix)

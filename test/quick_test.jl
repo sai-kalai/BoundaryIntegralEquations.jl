@@ -1,11 +1,18 @@
 
 
+using BoundaryIntegralEquations
 
+using Test
 
-using BimDiff
+# include("TestFixtures.jl")
+# import TestFixtures
 
-using FFTW
-using LinearAlgebra
+@testset "quick test" begin
 
+    @test false
 
-println("hello")
+    # x, s = TestFixtures.point_sources()
+    #
+    # @test size(s, 1) == size(s, 1)
+
+end
