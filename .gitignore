@@ -30,5 +30,5 @@ Manifest*.toml
 LocalPreferences.toml
 JuliaLocalPreferences.toml
 
-logs/
+logs/**
 figures
