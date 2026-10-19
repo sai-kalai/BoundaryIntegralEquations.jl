@@ -1,4 +1,13 @@
 
+struct BoundaryDensity{T<:AbstractVector} <: AbstractBoundaryDensity
+    φ::T # TODO: remove unicode from public API acc. to SciML best practices
+end
+struct Dirichlet{T<:AbstractVector} <: BoundaryCondition
+    σ::T
+end
+struct Neumann{T<:AbstractVector} <: BoundaryCondition
+    τ::T
+end
 function data(density::BoundaryDensity)
     density.φ
 end
@@ -10,6 +19,7 @@ function data(density::Neumann)
 end
 
 # apply an operator to a density
+# TODO: use SciMLOperator
 function Base.:*(A::IntegralOperator, φ::AbstractBoundaryDensity)
     return matrix(A) * data(φ)
 end
