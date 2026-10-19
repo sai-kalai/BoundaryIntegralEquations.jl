@@ -31,20 +31,14 @@ function populate_matrices!(
     stencil_cache = StencilCache{Int32,Vector{Float64}}(Dict(), Dict())
 
     # if both dlp and dlp adjoint are requested, compute once and transpose before applying weights
-    pairwise_cache = if false && length(ops) > 1 # disable caching for now
-        PairwiseCache{Float64}()
-    else
-        nothing
-    end
 
     # loop over i
     Threads.@threads for i in n:-1:1 # WARN: reverse iteration is back, from where?
         for j in 1:n
             # always every pair gets a fresh cache
-            reset!(pairwise_cache)
             foreach(ops) do op
                 # call appropriate code for each operator kind
-                compute_entry!(op, pairwise_cache, i, j, source)
+                compute_entry!(op, i, j, source)
             end
 
         end
@@ -98,11 +92,6 @@ function populate_matrices!(
 
     # TODO: find out about SIMD and threading options in this version
     # investigate autodiff on kernels directly
-    pairwise_cache = if false && length(ops) > 1 # disable caching for now
-        PairwiseCache{Float64}()
-    else
-        nothing
-    end
 
     # slow loop over second index
     Threads.@threads for j in 1:n
@@ -112,9 +101,8 @@ function populate_matrices!(
             # always every pair gets a fresh cache
 
             # call appropriate code for each operator kind
-            reset!(pairwise_cache)
             foreach(ops) do op
-                compute_entry!(op, pairwise_cache, i, j, source, target, target_normals)
+                compute_entry!(op, i, j, source, target, target_normals)
             end
         end
     end
