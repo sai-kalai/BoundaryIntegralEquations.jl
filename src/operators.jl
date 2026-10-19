@@ -45,6 +45,7 @@ end
 # end
 
 
+const default_allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
 
 # a.k.a S
 # TODO: include bitpattern of floating point representation as a type param
@@ -77,7 +78,6 @@ struct SingleLayer{
     matrix::M
 end
 
-const default_allocator = (_m, _n) -> Matrix{Float64}(undef, _m, _n)
 
 # source-target interaction
 """
