@@ -12,24 +12,26 @@ include("plot/utils.jl")
 
 function make_operators(n_vals=100:20:800)
 
-    ops=[]
+    ops = []
     for n in n_vals
 
-        ops2=[]
+        ops2 = []
         c = DiscreteClosedCurve(n, starfish)
 
         append!(
-            ops2,
-            [DoubleLayer(Laplace(), c)
+            ops2, [
+                DoubleLayer(Laplace(), c)
                 AdjointDoubleLayer(Laplace(), c)
-                Hypersingular(Laplace(), c, Sidi())]
+                Hypersingular(Laplace(), c, Sidi())
+            ]
         )
 
         for o in [8, 32]
             append!(
-                ops2,
-                [SingleLayer(Laplace(), c, KapurRokhlin(o))
-                    Hypersingular(Laplace(), c, Zeta(o))]
+                ops2, [
+                    SingleLayer(Laplace(), c, KapurRokhlin(o))
+                    Hypersingular(Laplace(), c, Zeta(o))
+                ]
             )
         end
         populate_matrices!(c, ops2...)
@@ -44,14 +46,14 @@ end
 function make_row(o)
 
     if o isa AdjointDoubleLayer
-        letter="D^*"
+        letter = "D^*"
     else
-        letter=(o|>typeof|>nameof|>string)[1]
+        letter = (o|>typeof|>nameof|>string)[1]
     end
 
-    m=BoundaryIntegralEquations.matrix(o);
+    m = BoundaryIntegralEquations.matrix(o)
     if (o isa DoubleLayer || o isa AdjointDoubleLayer)
-        m = 0.5I-m
+        m = 0.5I - m
         opname = L"\pm \left(\frac{1}{2}-\mathcal{%$letter}\right)"
     else
         opname = L"\mathcal{%$letter}"
@@ -102,7 +104,7 @@ function plot_conditioning(df)
     )
     veerapaneni
     e = extrema(df.pts)
-    ax.xticks=e[1]:100:e[2]
+    ax.xticks = e[1]:100:e[2]
 
     for g in groupby(sort(df, :group, rev=true), :group)
         scatterlines!(
