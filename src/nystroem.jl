@@ -56,11 +56,8 @@ end
 )
     x = make_svector2(t, i)
     y = make_svector2(s.x, j)
-    r = x - y
-    return kernel(
-        op_t,
-        dot(r, r),
-    ) * s.w[j]
+
+    return kernel(op_t, x, y) * s.w[j]
 end
 
 @inline function compute_entry(
@@ -74,12 +71,8 @@ end
     x = make_svector2(t, i) # target point
     y = make_svector2(s.x, j) # source point
     ny = make_svector2(s.n, j) # normal at y
-    r = x - y
-    return kernel(
-        op_t,
-        dot(r, r),
-        dot(r, ny),
-    ) * s.w[j] # NOTE: expensive fetch of w[j]
+
+    return kernel(op_t, x, y, ny) * s.w[j] # NOTE: expensive fetch of w[j]
 end
 @inline function compute_entry(
     op_t::Type{<:AdjointDoubleLayer{Laplace,Nothing,Nystroem}},
@@ -92,12 +85,7 @@ end
     x = make_svector2(t, i) # target point
     y = make_svector2(s.x, j) # source point
     nx = make_svector2(target_normals, i) # normal at x
-    r = x - y
-    return kernel(
-        op_t,
-        dot(r, r),
-        dot(r, nx),
-    ) * s.w[j]
+    return kernel(op_t, x, y, nx) * s.w[j]
 end
 
 ###
@@ -128,12 +116,7 @@ Singular Functions, 1997
         x = make_svector2(s.x, i)
         y = make_svector2(s.x, j)
 
-        r = x - y
-
-        val = kernel(
-            op,
-            dot(r, r),
-        )
+        val = kernel(op, x, y)
 
         op.matrix[i, j] = val * s.w[j]
         op.matrix[j, i] = val * s.w[i]
@@ -163,13 +146,8 @@ end
         y = make_svector2(s.x, j)
         ny = make_svector2(s.n, j)
 
-        r = x - y
-
-        op.matrix[i, j] = kernel(
-            op,
-            dot(r, r),
-            dot(r, ny),
-        ) * s.w[j]
+# NOTE: why is this float multiplication so expensive? how to make setindex and getindex faster?
+        op.matrix[i, j] = kernel(op, x, y, ny) * s.w[j]
     end
 end
 
@@ -188,13 +166,7 @@ end
         y = make_svector2(s.x, j)
         nx = make_svector2(s.n, i)
 
-        r = x - y
-
-        op.matrix[i, j] = kernel(
-            op,
-            dot(r, r),
-            dot(r, nx),
-        ) * s.w[j]
+        op.matrix[i, j] = kernel(op, x, y, nx) * s.w[j]
     end
 end
 
@@ -210,6 +182,7 @@ end
 
     elseif iseven(i) == iseven(j)
         # checkered pattern zero-out
+# NOTE: it's unexpectedly expensive to store a zero
         op.matrix[i, j] = 0.
 
     elseif j > i
@@ -222,20 +195,14 @@ end
         nx = make_svector2(s.n, i)
         ny = make_svector2(s.n, j)
 
-        r = x - y
-
-        val = 2 * kernel(
-            op,
-            dot(r, r),
-            dot(r, nx),
-            dot(r, ny),
-            dot(nx, ny),
-        )
+        val = 2 * kernel(op, x, y, nx, ny)
 
         op.matrix[i, j] = val * s.w[j]
         op.matrix[j, i] = val * s.w[i]
     end
 end
+
+# TODO: simplify logic by adding trait is_self_adjoint()
 
 @inline function compute_entry!(
     op::Hypersingular{Laplace,Zeta,Nystroem},
@@ -257,16 +224,7 @@ end
         nx = make_svector2(s.n, i)
         ny = make_svector2(s.n, j)
 
-        r = x - y
-
-
-        val = kernel(
-            op,
-            dot(r, r),
-            dot(r, nx),
-            dot(r, ny),
-            dot(nx, ny),
-        )
+        val = kernel(op, x, y, nx, ny)
 
         op.matrix[i, j] = val * s.w[j]
         op.matrix[j, i] = val * s.w[i]
@@ -283,8 +241,6 @@ mutable struct StencilCache{
     kr::Dict{I,V} # kapur rokhlin
     fd::Dict{I,V} # finite differences
 end
-
-
 
 function get_kr!(c::StencilCache, k::Int)
     get!(c.kr, k) do

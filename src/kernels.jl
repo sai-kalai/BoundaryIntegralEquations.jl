@@ -1,9 +1,9 @@
+const SV2 = SVector{2}
 
 # forward from instances to types
 @inline function kernel(op::IntegralOperator, args...)
     return kernel(typeof(op), args...)
 end
-
 
 @doc raw"""
     kernel(::SingleLayer{Laplace}, r_norm_sq)
@@ -17,7 +17,13 @@ k_{\text{Lap}}(x, y) = -\frac{1}{2\pi} \log|x - y|
 # Arguments
 - `r_norm_sq`: square magnitude of the displacement vector
 """
-@inline function kernel(::Type{<:SingleLayer{Laplace}}, r_norm_sq)
+@inline function kernel(
+    ::Type{<:SingleLayer{Laplace}},
+    x::SV2, y::SV2
+)
+    r = x - y
+    r_norm_sq = dot(r, r)
+# NOTE: log call is quite expensive
     return -1 / 4pi * log(r_norm_sq) # avoid sqrt: log(√a) = 1/2 log(a)
 end
 
@@ -36,7 +42,12 @@ the normal derivative at x of the laplace SLP kernel.
 - `r_norm_sq`: square magnitude of the displacement vector
 - `r_dot_nx`: dot product between the displacement vector and the normal vector at x
 """
-@inline function kernel(::Type{<:AdjointDoubleLayer{Laplace}}, r_norm_sq, r_dot_nx,)
+@inline function kernel(::Type{<:AdjointDoubleLayer{Laplace}},
+    x::SV2, y::SV2, nx::SV2
+)
+    r = x - y
+    r_norm_sq = dot(r, r)
+    r_dot_nx = dot(r, nx)
     return -1 / 2pi * r_dot_nx / r_norm_sq
 end
 
@@ -54,7 +65,17 @@ the normal derivative at y of the laplace SLP kernel.
 - `r_norm_sq`: square magnitude of the displacement vector
 - `r_dot_ny`: dot product between the displacement vector and the normal vector at y
 """
-@inline function kernel(::Type{<:DoubleLayer{Laplace}}, r_norm_sq, r_dot_ny)
+@inline function kernel(
+    ::Type{<:DoubleLayer{Laplace}},
+    x::SV2,
+    y::SV2,
+    ny::SV2
+)
+    r = x - y
+
+    r_norm_sq = dot(r, r)
+    r_dot_ny = dot(r, ny)
+
     return 1 / 2pi * r_dot_ny / r_norm_sq
 end
 
@@ -76,12 +97,25 @@ the mixed second-order normal derivative of the laplace SLP kernel.
 - `nx_dot_ny`: dot product between the normal vectory at x and the normal vector at y
 
 """
-@inline function kernel(::Type{<:Hypersingular{Laplace}}, r_norm_sq, r_dot_nx, r_dot_ny, nx_dot_ny)
+@inline function kernel(
+    ::Type{<:Hypersingular{Laplace}},
+    x::SV2,
+    y::SV2,
+    nx::SV2,
+    ny::SV2,
+)
+
+    r = x - y
+
+    r_norm_sq = dot(r, r)
+    r_dot_nx = dot(r, nx)
+    r_dot_ny = dot(r, ny)
+    nx_dot_ny = dot(nx, ny)
+
     return 1 / 2pi * (
         -2 * r_dot_nx * r_dot_ny / (r_norm_sq * r_norm_sq)
         +
         nx_dot_ny / r_norm_sq
     )
 end
-
 
