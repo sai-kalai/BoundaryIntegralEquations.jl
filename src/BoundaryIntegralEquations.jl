@@ -49,6 +49,7 @@ Determines if the BVP is internal or external
 abstract type DomainSide end
 
 
+# determines how functions are expanded in a finite dimensional basis
 abstract type AbstractDiscretization end
 function populate_matrices!(::AbstractDiscretization, args...) end
 struct Nystroem <: AbstractDiscretization end
@@ -123,7 +124,6 @@ include("solutions.jl")
 include("solve/bvp.jl")
 include("solve/bie.jl")
 include("solve/cdp.jl")
-include("solvers.jl")
 include("utils.jl")
 include("close_evaluation.jl")
 
@@ -163,7 +163,7 @@ export approach, boundary_condition
 
 export kernel
 export populate_matrices!
-export BoundaryValueProblem, solve, evaluate, solve_and_evaluate
+export BoundaryValueProblem, solve
 
 export starfish, ball
 
