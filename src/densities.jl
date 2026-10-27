@@ -30,6 +30,16 @@ function apply(
     target::AbstractMatrix,
     density::AbstractBoundaryDensity
 )
+    apply(op_t, source, target, data(density))
+end
+
+# matrix-free application of operator
+function apply(
+    op_t::Type{<:IntegralOperator},
+    source::AbstractManifold,
+    target::AbstractMatrix,
+    density::AbstractVector,
+)
 
     n = size(source, 2)
     m = size(target, 2)
@@ -40,15 +50,14 @@ function apply(
     for i in 1:m
         acc = zero(eltype(u))
         for j in 1:n
-            op_ij = compute_entry(op_t, nothing, i, j,
+            op_ij = compute_entry(op_t, i, j,
                 source, target, nothing)
-            acc += op_ij * data(density)[j]
+            acc += op_ij * density[j]
         end
         u[i] = acc
     end
     return u
 end
-
 # add two densities
 function Base.:+(φ::AbstractBoundaryDensity, ψ::AbstractBoundaryDensity)
     return data(φ) + data(ψ)
