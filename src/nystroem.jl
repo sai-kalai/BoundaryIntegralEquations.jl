@@ -25,6 +25,10 @@ const NystroemOperator = Union{
     Hypersingular{<:DifferentialEquation,HypersingularCorrection,Nystroem}
 }
 
+
+# types should overload `compute_entry` to introduce new discretizations
+
+
 # forward call from instances to types
 @inline function compute_entry(op::IntegralOperator, args...)
     compute_entry(typeof(op), args...)
@@ -52,7 +56,7 @@ end
     j::Int,
     s::DiscreteClosedCurve, # source manifold
     t::AbstractMatrix, # target points
-    target_normals, # ignored
+    target_normals, # ignored # TODO: refactor this, don't like having an unused arg in all other signatures...
 )
     x = make_svector2(t, i)
     y = make_svector2(s.x, j)
@@ -146,7 +150,7 @@ end
         y = make_svector2(s.x, j)
         ny = make_svector2(s.n, j)
 
-# NOTE: why is this float multiplication so expensive? how to make setindex and getindex faster?
+        # NOTE: why is this float multiplication so expensive? how to make setindex and getindex faster?
         op.matrix[i, j] = kernel(op, x, y, ny) * s.w[j]
     end
 end
@@ -182,7 +186,7 @@ end
 
     elseif iseven(i) == iseven(j)
         # checkered pattern zero-out
-# NOTE: it's unexpectedly expensive to store a zero
+        # NOTE: it's unexpectedly expensive to store a zero
         op.matrix[i, j] = 0.
 
     elseif j > i
