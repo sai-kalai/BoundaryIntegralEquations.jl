@@ -345,7 +345,6 @@ function run_all_simulations(
     benchmarkfile=nothing,
 )
 
-
     @info "n_vals =$(n_vals)"
     @info "cutoff_vals =$(cutoff_vals)"
     @info "fd_acc_vals =$(fd_acc_vals)"
@@ -496,20 +495,20 @@ function run_all_simulations(
                     bie_sln = BIESolution(
                         zeros(n),
                         BIEProblem{Direct}(pb),
-                        BIEAlgorithm{Direct}(correction),
+                        AbstractBIEAlgorithm{Direct}(correction),
                     )
 
                     bvp_sln = BVPSolution(
                         u,
                         bie_sln,
                         pb,
-                        BVPAlgorithm{Direct}(),
+                        AbstractBVPAlgorithm{Direct}(),
                     )
                     bdp_sln = BDPSolution(
                         data(cauchy_data),
                         bie_sln,
                         BDProblem{Direct}(pb),
-                        BDPAlgorithm{Direct}(),
+                        AbstractBDPAlgorithm{Direct}(),
                     )
                     validate_nan(bvp_sln, bie_sln, bdp_sln)
 
@@ -578,21 +577,21 @@ function run_all_simulations(
                         bie_sln = BIESolution(
                             zeros(n),
                             BIEProblem{Indirect}(pb),
-                            BIEAlgorithm{Indirect}(),
+                            AbstractBIEAlgorithm{Indirect}(),
                         )
 
                         bvp_sln = BVPSolution(
                             u,
                             bie_sln,
                             pb,
-                            BVPAlgorithm{Indirect}(method),
+                            AbstractBVPAlgorithm{Indirect}(method),
                         )
 
                         bdp_sln = BDPSolution(
                             data(cauchy_data),
                             bie_sln,
                             BDProblem{Indirect}(pb),
-                            BDPAlgorithm{Indirect}(correction),
+                            AbstractBDPAlgorithm{Indirect}(correction),
                         )
 
                         validate_nan(bvp_sln, bie_sln, bdp_sln)
