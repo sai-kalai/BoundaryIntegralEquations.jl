@@ -98,18 +98,24 @@ function holomorphism_boundary_limit(
     problem::BoundaryValueProblem{Laplace,<:Dirichlet,Interior,<:DiscreteClosedCurve},
     density::BoundaryDensity,
 )
+    holomorphism_boundary_limit(problem, data(density))
+end
+
+function holomorphism_boundary_limit(
+    problem::BoundaryValueProblem{Laplace,<:Dirichlet,Interior,<:DiscreteClosedCurve},
+    density::AbstractVector,
+)
 
     # NOTE: strange: All the information needed to compute φ is actually present
     # here, but it's expected as a separate argument...
 
     n = size(problem.boundary, 2)
 
-    φ = data(density)
+    φ = density
     φ_prime = periodic_spectral_diff(φ)
 
     # TODO: make fp parametric
     v_lim = similar(problem.boundary.x, ComplexF64, n)
-
 
     # TODO: make parametric on fp representation
     # TODO: now we can actually use reinterprete since col major
