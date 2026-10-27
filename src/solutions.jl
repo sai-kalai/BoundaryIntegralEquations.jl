@@ -4,8 +4,8 @@ struct BIESolution{
     A<:Approach,
     T<:Number, # floating point representation
     P<:BoundaryValueProblem, # BVP that this helps solve
-    U<:AbstractVector{T},
-    AL<:BIEAlgorithm{A},
+    U<:AbstractVector{T}, # NOTE: maybe U should be AbstractBoundaryDensity?
+    AL<:AbstractBIEAlgorithm{A},
     BP<:BIEProblem{A,P}, # BIE that this solves NOTE: superfluous
 } <: AbstractSolution{A,T,P}
     # TODO: Link this with Linear Solution, wrapping or inheriting
@@ -13,12 +13,10 @@ struct BIESolution{
     prob::BP
     alg::AL
 end
-
-
 function BIESolution(
     u,
     prob::BIEProblem{A,P},
-    alg::BIEAlgorithm{A},
+    alg::AbstractBIEAlgorithm{A},
 ) where {A,P}
 
     return BIESolution{
@@ -40,7 +38,7 @@ struct BVPSolution{
     T<:Number,
     P<:BoundaryValueProblem,
     U<:AbstractVector{T},
-    AL<:BVPAlgorithm{A},
+    AL<:AbstractBVPAlgorithm{A},
     BS<:BIESolution{A,T,P},
 } <: AbstractSolution{A,T,P}
     u::U # potential generated from the boundary density in the domain
@@ -53,7 +51,7 @@ function BVPSolution(
     u,
     bie_solution::BIESolution{A,T,P},
     prob::P,
-    alg::BVPAlgorithm{A},
+    alg::AbstractBVPAlgorithm{A},
 ) where {A,T,P}
     return BVPSolution{
         A,
@@ -83,7 +81,7 @@ struct BDPSolution{
     T<:Number,
     P<:BoundaryValueProblem,
     U<:AbstractVector{T},
-    AL<:BDPAlgorithm{A},
+    AL<:AbstractBDPAlgorithm{A},
     DP<:BDProblem{A,P},
     BS<:BIESolution{A,T,P}, # solution of the bie
 } <: AbstractSolution{A,T,P}
@@ -96,7 +94,7 @@ function BDPSolution(
     u,
     bie_solution::BIESolution{A,T,P},
     prob::BDProblem{A,P},
-    alg::BDPAlgorithm{A},
+    alg::AbstractBDPAlgorithm{A},
 ) where {A,T,P}
     return BDPSolution{
         A,

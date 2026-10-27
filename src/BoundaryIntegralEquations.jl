@@ -90,9 +90,10 @@ Represents an algorithm used to solve a problem by an approach
 """
 abstract type AbstractAlgorithm{A<:Approach} end
 
-abstract type BIEAlgorithm{A<:Approach} <: AbstractAlgorithm{A} end
-abstract type BVPAlgorithm{A<:Approach} <: AbstractAlgorithm{A} end
-abstract type BDPAlgorithm{A<:Approach} <: AbstractAlgorithm{A} end
+# TODO: rename abstract
+abstract type AbstractBIEAlgorithm{A<:Approach} <: AbstractAlgorithm{A} end
+abstract type AbstractBVPAlgorithm{A<:Approach} <: AbstractAlgorithm{A} end
+abstract type AbstractBDPAlgorithm{A<:Approach} <: AbstractAlgorithm{A} end
 
 abstract type AbstractSingularCorrection end
 abstract type HypersingularCorrection <: AbstractSingularCorrection end
@@ -147,7 +148,14 @@ export BDProblem, BIEProblem
 
 export AbstractSolution, BIESolution, BVPSolution, BDPSolution, NumericalSolution
 
-export AbstractAlgorithm, BIEAlgorithm, BVPAlgorithm, BDPAlgorithm
+# NOTE: don't like exporting so many names, rather a factory function might be enough
+export AbstractDiscretization, Nystroem
+export AbstractAlgorithm, AbstractBIEAlgorithm, AbstractBVPAlgorithm,
+    AbstractBDPAlgorithm, DirectBIEAlgorithm, IndirectBIEAlgorithm,
+    DirectBVPAlgorithm, IndirectBVPAlgorithm,
+    DirectBDPAlgorithm, IndirectBDPAlgorithm
+
+
 
 export EvaluationMethod, PotentialTheory, CauchyIntegral, DistancePolicy, cutoff
 
