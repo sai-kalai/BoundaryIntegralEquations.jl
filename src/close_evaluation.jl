@@ -45,7 +45,7 @@ function cauchy_integral(
             den += tmp
         end
 
-        if ! exact_match
+        if !exact_match
             v[k] = num / den
         end
     end
@@ -109,6 +109,7 @@ function holomorphism_boundary_limit(
     # NOTE: strange: All the information needed to compute φ is actually present
     # here, but it's expected as a separate argument...
 
+    # NOTE: actually only uses boundary, but useful for dispatch on bc and side
     n = size(problem.boundary, 2)
 
     φ = density
@@ -128,7 +129,7 @@ function holomorphism_boundary_limit(
         for j in Iterators.flatten((1:(k-1), (k+1):n))
             res += (φ[j] - φ[k]) / (y[j] - y[k]) * problem.boundary.cw[j]
         end
-        v_lim[k] = -φ[k] - φ_prime[k]/(im * n) + res * im / 2pi
+        v_lim[k] = -φ[k] - φ_prime[k] / (im * n) + res * im / 2pi
 
     end
     return v_lim
