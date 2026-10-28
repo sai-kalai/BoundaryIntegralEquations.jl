@@ -1,4 +1,3 @@
-include("util.jl")
 # dispatch for solving cauchy data problems
 
 function solve(

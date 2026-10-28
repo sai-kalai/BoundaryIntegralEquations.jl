@@ -1,4 +1,3 @@
-include("util.jl")
 # dispatch for solving bie
 #
 # TODO: instead, overload commonsolve
@@ -60,7 +59,8 @@ function solve(
     panic_if_garbage(S, D)
 
     # add 1 to kill 1d nullspace
-    σ = solve_linear_system((0.5 + D) .+ bvprob.boundary.w, (S * bvprob.bc), algorithm=alg.linsolver)
+    σ = solve_linear_system((0.5 + D) .+ bvprob.boundary.w, (S * bvprob.bc),
+        algorithm=alg.linsolver)
     return BIESolution(σ, prob, alg)
 end
 
