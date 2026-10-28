@@ -359,9 +359,9 @@ function classify(
 
     # allocate enough space for storing indices
     m = size(x, 2)
-    near_idxs = sizehint!(Int[], m)
-    far_idxs = sizehint!(Int[], m)
-    bad_idxs = sizehint!(Int[], m)
+    near_idxs = sizehint!(Int[], m ÷ 3)
+    far_idxs = sizehint!(Int[], m ÷ 3)
+    bad_idxs = sizehint!(Int[], m ÷ 3)
 
     # construct polygon for domain side check
     poly = polygon(c)
