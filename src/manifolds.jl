@@ -442,7 +442,7 @@ function periodic_spectral_diff(f)
     if iseven(n)
         k = [0; 1im * (1:(n÷2-1)); 0; 1im * ((-n÷2+1):-1)]
     else
-        k = [0; 1im * (1:((n-1)÷2)); 1im * ((-(n-1)÷2):-1)]
+        k = [0; 1im * (1:((n-1)÷2)); 1im * ((-(n - 1)÷2):-1)]
     end
 
     # HACK:
