@@ -164,7 +164,7 @@ function make_dummy(x)
     one_1d = ones(n)
     zero_nd = zeros((dim_x, n))
     zero_1d = zeros(n)
-    zero_cmp=zeros(ComplexF64, n)
+    zero_cmp = zeros(ComplexF64, n)
     return DiscreteClosedCurve(
         x,
         zero_nd, #n
@@ -342,6 +342,8 @@ end
     classify(c::DiscreteClosedCurve, x::AbstractMatrix, s::DomainSide, d::Real)
 
 classifies query points, returning vectors of indices of points in each region
+If `iszero(d)`, all points are far.
+If `isinf(d)`, all points are near.
 
 # Arguments
 - `c::DiscreteClosedCurve`: boundary of the domain
@@ -370,7 +372,7 @@ function classify(
     @assert d >= 0
 
     # construct tree for in range query only if d > 0
-    if iszero(d)
+    if iszero(d) || isinf(d)
         tree = nothing
     else
         tree = KDTree(c)
@@ -387,9 +389,13 @@ function classify(
         else
             # correct side of domain
             if iszero(d)
-                # if cutoff distance is zero, all points are "far"
+                #cutoff distance is zero, all points are "far"
                 push!(far_idxs, i)
+            elseif isinf(d)
+                # cutoff distance is maximum, all points are "near"
+                push!(near_idxs, i)
             elseif iszero(inrangecount(tree, xi, d))
+                # no boundary nodes within cutoff distance of query point
                 push!(far_idxs, i)
             else
                 push!(near_idxs, i)
