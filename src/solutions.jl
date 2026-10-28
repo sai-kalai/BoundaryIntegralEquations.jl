@@ -38,10 +38,12 @@ struct BVPSolution{
     T<:Number,
     P<:BoundaryValueProblem,
     U<:AbstractVector{T},
+    X<:AbstractMatrix{T},
     AL<:AbstractBVPAlgorithm{A},
     BS<:BIESolution{A,T,P},
 } <: AbstractSolution{A,T,P}
     u::U # potential generated from the boundary density in the domain
+    x::X # evaluation positions
     bie_solution::BS # keep solution to the associated BIE
     prob::P
     alg::AL
@@ -49,6 +51,7 @@ struct BVPSolution{
 end
 function BVPSolution(
     u,
+    x,
     bie_solution::BIESolution{A,T,P},
     prob::P,
     alg::AbstractBVPAlgorithm{A},
@@ -58,10 +61,12 @@ function BVPSolution(
         eltype(u),
         P,
         typeof(u),
+        typeof(x),
         typeof(alg),
         typeof(bie_solution),
     }(
         u,
+        x,
         bie_solution,
         prob,
         alg,
