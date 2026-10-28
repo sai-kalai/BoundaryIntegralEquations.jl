@@ -155,7 +155,7 @@ function add_solutions!(res::ConvergenceResult, correction, evalmethod, sols_wit
 end
 function Base.filter!(
     res::ConvergenceResult,
-    by_key=(k)->true,
+    by_key=(k) -> true,
 )
 
     filter!(((k, v),) -> begin
@@ -522,7 +522,7 @@ function run_all_simulations(
                     @info "approach =$(indirect)"
                     # indirect approach: cutoff is available
 
-                    all_cutoff_vals = [cutoff_vals; 0.25*100/n]
+                    all_cutoff_vals = [cutoff_vals; 0.25 * 100 / n]
 
                     for cutoff in all_cutoff_vals
 

@@ -45,6 +45,7 @@ correction(::AbstractBIEAlgorithm{Indirect}) = nothing
 #
 # BVP evaluation method
 
+# TODO: unify: relative or absolute distance?
 struct CauchyIntegral <: EvaluationMethod end
 struct PotentialTheory <: EvaluationMethod end
 struct DistancePolicy{T<:Real} <: EvaluationMethod
