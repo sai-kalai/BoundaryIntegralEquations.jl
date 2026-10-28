@@ -195,7 +195,7 @@ function DoubleLayer(
     target::AbstractMatrix,
     ;
     matrix_factory::Function=default_allocator,
-    populate_matrix::Bool=true,
+    populate_matrix::Bool=true, # TODO: set to false
     discretization::AbstractDiscretization=Nystroem(),
 )
     m = size(target, 2)
